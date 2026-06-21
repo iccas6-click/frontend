@@ -5,6 +5,14 @@
 
 import { Platform } from 'react-native';
 
+/** CLICK 브랜드 색상 (목업의 청록색 톤) */
+export const Brand = {
+  primary: '#29B5C7',
+  primaryDark: '#1F9DAD',
+  textDark: '#1A2730',
+  textMuted: '#8A99A3',
+};
+
 const tintColorLight = '#0a7ea4';
 const tintColorDark = '#fff';
 
