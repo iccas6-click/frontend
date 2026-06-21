@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -145,7 +146,12 @@ export default function ResultScreen() {
           disabled={loading || error || items.length === 0}
           onPress={() => {
             // TODO: 다음 단계(분석)로 항목 전달 — router.push('/analyze', { items })
-            console.log('분석 시작:', items);
+            console.log('분석 시작:', JSON.stringify(items, null, 2));
+            Alert.alert(
+              '분석 시작',
+              `${items.length}개 항목이 전달됩니다:\n\n` +
+                items.map((it) => `· ${it.name} ${it.dosage} (${it.category})`).join('\n'),
+            );
           }}>
           <Text style={styles.ctaText}>분석 시작하기</Text>
           <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
