@@ -7,6 +7,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Brand } from '@/constants/theme';
+import { devLog } from '@/services/debug-log';
 
 export default function CameraScreen() {
   const router = useRouter();
@@ -47,7 +48,7 @@ export default function CameraScreen() {
     setTaking(true);
     try {
       const photo = await cameraRef.current?.takePictureAsync();
-      console.log('촬영 결과:', photo?.uri);
+      devLog('[카메라] ◀ 촬영 완료, 사진 uri:', photo?.uri ?? '(없음)');
       if (!photo?.uri) {
         Alert.alert('촬영 실패', '사진을 가져오지 못했어요. 다시 시도해 주세요.');
         return;

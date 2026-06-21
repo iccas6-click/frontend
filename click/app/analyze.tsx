@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { StepIndicator } from '@/components/step-indicator';
 import { Brand } from '@/constants/theme';
+import { devLog } from '@/services/debug-log';
 import { analyzeInteractions } from '@/services/interactions';
 import type { RecognizedItem } from '@/types/medication';
 
@@ -28,8 +29,10 @@ export default function AnalyzeScreen() {
     (async () => {
       try {
         const items: RecognizedItem[] = itemsParam ? JSON.parse(itemsParam) : [];
+        devLog('[3단계] ▶ 상호작용 분석 요청, 항목 수:', items.length);
         const result = await analyzeInteractions(items);
         if (!cancelled) {
+          devLog('[3단계] ◀ 결과 받음 → 4단계(결과 화면)로 전달');
           router.replace({ pathname: '/analysis', params: { result: JSON.stringify(result) } });
         }
       } catch (e) {

@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { StepIndicator } from '@/components/step-indicator';
 import { Brand } from '@/constants/theme';
+import { devLog } from '@/services/debug-log';
 import type { AnalysisResult, InteractionPair, RiskLevel } from '@/types/medication';
 
 const LEVEL_META: Record<RiskLevel, { label: string; color: string; bg: string }> = {
@@ -32,6 +33,12 @@ export default function AnalysisScreen() {
       return null;
     }
   }, [resultParam]);
+
+  useEffect(() => {
+    if (result) {
+      devLog('[4단계] ◀ 표시할 분석 결과 수신:', result);
+    }
+  }, [result]);
 
   const goHome = () => {
     // 모달/스택 정리 후 홈으로
@@ -94,16 +101,8 @@ export default function AnalysisScreen() {
 
       {/* 하단 버튼 */}
       <View style={styles.footer}>
-        <Pressable
-          style={styles.askButton}
-          onPress={() => {
-            // TODO: AI 채팅(상담) 화면으로 이동
-            console.log('AI에게 더 물어보기');
-          }}>
+        <Pressable style={styles.askButton} onPress={goHome}>
           <Text style={styles.askText}>AI에게 더 물어보기</Text>
-        </Pressable>
-        <Pressable style={styles.homeButton} onPress={goHome}>
-          <Text style={styles.homeText}>처음으로 돌아가기</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -260,18 +259,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '800',
-  },
-  homeButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#E3E8EB',
-  },
-  homeText: {
-    color: Brand.textDark,
-    fontSize: 16,
-    fontWeight: '700',
   },
 });

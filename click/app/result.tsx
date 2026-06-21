@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ItemEditModal } from '@/components/item-edit-modal';
 import { StepIndicator } from '@/components/step-indicator';
 import { Brand } from '@/constants/theme';
+import { devLog } from '@/services/debug-log';
 import { analyzeImage } from '@/services/ocr';
 import type { ItemCategory, RecognizedItem } from '@/types/medication';
 
@@ -143,6 +144,7 @@ export default function ResultScreen() {
           disabled={loading || error || items.length === 0}
           onPress={() => {
             // 수정·확정된 항목을 분석(3단계) 화면으로 전달
+            devLog('[2단계] ▶ 분석 시작 - 확정된 항목:', items);
             router.push({ pathname: '/analyze', params: { items: JSON.stringify(items) } });
           }}>
           <Text style={styles.ctaText}>분석 시작하기</Text>

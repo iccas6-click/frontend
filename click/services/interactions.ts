@@ -7,6 +7,7 @@ import type {
   RiskLevel,
 } from '@/types/medication';
 
+import { devLog } from './debug-log';
 import { API_BASE_URL } from './ocr';
 
 /** 위험도 비교용 순위 */
@@ -28,11 +29,11 @@ function pairKey(a: string, b: string): string {
  * API_BASE_URL이 비어 있으면 목업 결과를 반환한다(백엔드 연동 전 테스트용).
  */
 export async function analyzeInteractions(items: RecognizedItem[]): Promise<AnalysisResult> {
-  console.log(
-    '[상호작용] ▶ 요청 시작',
+  devLog(
+    '[상호작용] ▶ 서버로 보냄:',
     API_BASE_URL ? `POST ${API_BASE_URL}/api/interactions` : '(목업 모드)',
   );
-  console.log(
+  devLog(
     '[상호작용] ▶ 보낼 항목:',
     items.map((it) => `${it.name} ${it.dosage} (${it.category})`),
   );
@@ -74,7 +75,7 @@ export async function analyzeInteractions(items: RecognizedItem[]): Promise<Anal
           : '모든 조합을 함께 복용할 수 있습니다';
 
     const result = { overall, summary, pairs };
-    console.log('[상호작용] ◀ 목업 응답:', JSON.stringify(result));
+    devLog('[상호작용] ◀ 서버에서 받음 (목업):', result);
     return result;
   }
 
@@ -84,6 +85,6 @@ export async function analyzeInteractions(items: RecognizedItem[]): Promise<Anal
     { items: items.map((it) => ({ name: it.name, dosage: it.dosage, category: it.category })) },
     { timeout: 30000 },
   );
-  console.log('[상호작용] ◀ 서버 응답:', JSON.stringify(data));
+  devLog('[상호작용] ◀ 서버에서 받음:', data);
   return data;
 }

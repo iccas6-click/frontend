@@ -2,6 +2,8 @@ import axios from 'axios';
 
 import type { RecognizedItem } from '@/types/medication';
 
+import { devLog } from './debug-log';
+
 /**
  * 백엔드 API 주소.
  * 비어 있으면 목업 데이터로 동작하며(UI 테스트용),
@@ -23,13 +25,13 @@ const MOCK_RESULT: RecognizedItem[] = [
  * @param uri expo-camera가 반환한 사진 파일 URI
  */
 export async function analyzeImage(uri: string): Promise<RecognizedItem[]> {
-  console.log('[OCR] ▶ 요청 시작', API_BASE_URL ? `POST ${API_BASE_URL}/api/ocr` : '(목업 모드)');
-  console.log('[OCR] ▶ 보낼 사진 uri:', uri);
+  devLog('[OCR] ▶ 서버로 보냄:', API_BASE_URL ? `POST ${API_BASE_URL}/api/ocr` : '(목업 모드)');
+  devLog('[OCR] ▶ 보낼 사진 uri:', uri);
 
   // 백엔드 주소가 없으면 목업으로 동작 (분석 로딩 흉내)
   if (!API_BASE_URL) {
     await new Promise((resolve) => setTimeout(resolve, 1200));
-    console.log('[OCR] ◀ 목업 응답:', MOCK_RESULT);
+    devLog('[OCR] ◀ 서버에서 받음 (목업):', MOCK_RESULT);
     return MOCK_RESULT;
   }
 
@@ -40,7 +42,7 @@ export async function analyzeImage(uri: string): Promise<RecognizedItem[]> {
     name: 'photo.jpg',
     type: 'image/jpeg',
   } as unknown as Blob);
-  console.log('[OCR] ▶ 업로드 형식: multipart/form-data, 필드명=image, type=image/jpeg');
+  devLog('[OCR] ▶ 업로드 형식: multipart/form-data, 필드명=image, type=image/jpeg');
 
   const { data } = await axios.post<{ items: RecognizedItem[] }>(
     `${API_BASE_URL}/api/ocr`,
@@ -51,6 +53,6 @@ export async function analyzeImage(uri: string): Promise<RecognizedItem[]> {
     },
   );
 
-  console.log('[OCR] ◀ 서버 응답:', JSON.stringify(data));
+  devLog('[OCR] ◀ 서버에서 받음:', data);
   return data.items;
 }
