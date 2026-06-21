@@ -11,6 +11,8 @@ export const Brand = {
   primaryDark: '#1F9DAD',
   textDark: '#1A2730',
   textMuted: '#8A99A3',
+  surface: '#FBF8F0',
+  success: '#3DBA6F',
 };
 
 const tintColorLight = '#0a7ea4';

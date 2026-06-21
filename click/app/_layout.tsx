@@ -16,6 +16,7 @@ export default function RootLayout() {
           name="camera"
           options={{ headerShown: false, presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
         />
+        <Stack.Screen name="result" options={{ headerShown: false }} />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>

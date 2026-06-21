@@ -3,7 +3,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Brand } from '@/constants/theme';
@@ -47,8 +47,16 @@ export default function CameraScreen() {
     setTaking(true);
     try {
       const photo = await cameraRef.current?.takePictureAsync();
-      // TODO: 촬영한 사진(photo.uri)을 분석/결과 화면으로 전달
-      console.log('촬영 완료:', photo?.uri);
+      console.log('촬영 결과:', photo?.uri);
+      if (!photo?.uri) {
+        Alert.alert('촬영 실패', '사진을 가져오지 못했어요. 다시 시도해 주세요.');
+        return;
+      }
+      // 촬영한 사진을 결과(OCR 확인) 화면으로 전달
+      router.push({ pathname: '/result', params: { photoUri: photo.uri } });
+    } catch (e) {
+      console.warn('촬영 오류:', e);
+      Alert.alert('촬영 오류', String(e));
     } finally {
       setTaking(false);
     }
