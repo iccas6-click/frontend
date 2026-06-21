@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,12 +12,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ItemEditModal } from '@/components/item-edit-modal';
+import { StepIndicator } from '@/components/step-indicator';
 import { Brand } from '@/constants/theme';
 import { analyzeImage } from '@/services/ocr';
 import type { ItemCategory, RecognizedItem } from '@/types/medication';
-
-const STEPS = ['촬영', '확인', '분석', '결과'];
-const CURRENT_STEP = 2; // 1-based: '확인'
 
 /** 분류별 아이콘/색상 */
 const CATEGORY_STYLE: Record<ItemCategory, { emoji: string; bg: string }> = {
@@ -88,7 +85,7 @@ export default function ResultScreen() {
 
       <View style={styles.bodyWrap}>
         {/* 단계 표시 */}
-        <StepIndicator />
+        <StepIndicator current={2} />
 
         {/* 본문 */}
         <View style={styles.intro}>
@@ -145,57 +142,14 @@ export default function ResultScreen() {
           ]}
           disabled={loading || error || items.length === 0}
           onPress={() => {
-            // TODO: 다음 단계(분석)로 항목 전달 — router.push('/analyze', { items })
-            console.log('분석 시작:', JSON.stringify(items, null, 2));
-            Alert.alert(
-              '분석 시작',
-              `${items.length}개 항목이 전달됩니다:\n\n` +
-                items.map((it) => `· ${it.name} ${it.dosage} (${it.category})`).join('\n'),
-            );
+            // 수정·확정된 항목을 분석(3단계) 화면으로 전달
+            router.push({ pathname: '/analyze', params: { items: JSON.stringify(items) } });
           }}>
           <Text style={styles.ctaText}>분석 시작하기</Text>
           <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
         </Pressable>
       </View>
     </SafeAreaView>
-  );
-}
-
-/** 단계 표시 (1 촬영 · 2 확인 · 3 분석 · 4 결과) */
-function StepIndicator() {
-  return (
-    <View style={styles.steps}>
-      {STEPS.map((label, i) => {
-        const n = i + 1;
-        const done = n <= CURRENT_STEP;
-        return (
-          <View key={label} style={styles.stepCol}>
-            <View style={styles.stepCircleRow}>
-              <View
-                style={[
-                  styles.connector,
-                  i === 0 && styles.connectorHidden,
-                  n <= CURRENT_STEP && styles.connectorActive,
-                ]}
-              />
-              <View style={[styles.stepCircle, done && styles.stepCircleActive]}>
-                <Text style={[styles.stepNum, done && styles.stepNumActive]}>{n}</Text>
-              </View>
-              <View
-                style={[
-                  styles.connector,
-                  i === STEPS.length - 1 && styles.connectorHidden,
-                  n < CURRENT_STEP && styles.connectorActive,
-                ]}
-              />
-            </View>
-            <Text style={[styles.stepLabel, n === CURRENT_STEP && styles.stepLabelActive]}>
-              {label}
-            </Text>
-          </View>
-        );
-      })}
-    </View>
   );
 }
 
@@ -254,61 +208,6 @@ const styles = StyleSheet.create({
   bodyWrap: {
     flex: 1,
     backgroundColor: Brand.surface,
-  },
-  // 단계 표시
-  steps: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 8,
-  },
-  stepCol: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  stepCircleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-  },
-  connector: {
-    flex: 1,
-    height: 2,
-    backgroundColor: '#DDE3E6',
-  },
-  connectorActive: {
-    backgroundColor: Brand.primary,
-  },
-  connectorHidden: {
-    backgroundColor: 'transparent',
-  },
-  stepCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#E4E9EC',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepCircleActive: {
-    backgroundColor: Brand.primary,
-  },
-  stepNum: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#9AA6AD',
-  },
-  stepNumActive: {
-    color: '#FFFFFF',
-  },
-  stepLabel: {
-    marginTop: 6,
-    fontSize: 12,
-    color: Brand.textMuted,
-  },
-  stepLabelActive: {
-    color: Brand.primary,
-    fontWeight: '700',
   },
   // 본문
   intro: {

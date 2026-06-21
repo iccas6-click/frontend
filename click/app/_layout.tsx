@@ -17,6 +17,11 @@ export default function RootLayout() {
           options={{ headerShown: false, presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
         />
         <Stack.Screen name="result" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="analyze"
+          options={{ headerShown: false, gestureEnabled: false }}
+        />
+        <Stack.Screen name="analysis" options={{ headerShown: false, gestureEnabled: false }} />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>

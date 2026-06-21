@@ -9,3 +9,22 @@ export interface RecognizedItem {
   dosage: string;
   category: ItemCategory;
 }
+
+/** 위험도 단계 */
+export type RiskLevel = 'danger' | 'caution' | 'safe';
+
+/** 두 항목 조합에 대한 분석 결과 */
+export interface InteractionPair {
+  id: string;
+  /** 조합된 항목 이름들 (예: ["아스피린", "오메가-3"]) */
+  items: string[];
+  level: RiskLevel;
+  description: string;
+}
+
+/** 상호작용 분석 전체 결과 */
+export interface AnalysisResult {
+  overall: RiskLevel;
+  summary: string;
+  pairs: InteractionPair[];
+}
