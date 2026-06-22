@@ -6,6 +6,7 @@ import { useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { StepIndicator } from '@/components/step-indicator';
 import { Brand } from '@/constants/theme';
 import { devLog } from '@/services/debug-log';
 
@@ -30,45 +31,6 @@ export default function CameraScreen() {
     </View>
   );
 
-  // 공통 4단계 진행 바 (1단계 '촬영' 활성화 상태)
-  const renderStepIndicator = () => (
-    <View style={styles.stepContainer}>
-      <View style={styles.stepLineBackground} />
-
-      {/* 1. 촬영 (현재 단계) */}
-      <View style={styles.stepItem}>
-        <View style={[styles.stepCircle, styles.stepCircleActive]}>
-          <Text style={styles.stepCircleTextActive}>1</Text>
-        </View>
-        <Text style={styles.stepLabelActive}>촬영</Text>
-      </View>
-
-      {/* 2. 확인 */}
-      <View style={styles.stepItem}>
-        <View style={[styles.stepCircle, styles.stepCircleInactive]}>
-          <Text style={styles.stepCircleTextInactive}>2</Text>
-        </View>
-        <Text style={styles.stepLabelInactive}>확인</Text>
-      </View>
-
-      {/* 3. 분석 */}
-      <View style={styles.stepItem}>
-        <View style={[styles.stepCircle, styles.stepCircleInactive]}>
-          <Text style={styles.stepCircleTextInactive}>3</Text>
-        </View>
-        <Text style={styles.stepLabelInactive}>분석</Text>
-      </View>
-
-      {/* 4. 결과 */}
-      <View style={styles.stepItem}>
-        <View style={[styles.stepCircle, styles.stepCircleInactive]}>
-          <Text style={styles.stepCircleTextInactive}>4</Text>
-        </View>
-        <Text style={styles.stepLabelInactive}>결과</Text>
-      </View>
-    </View>
-  );
-
   // 권한 상태 로딩 중
   if (!permission) {
     return (
@@ -84,9 +46,7 @@ export default function CameraScreen() {
       <View style={styles.container}>
         <StatusBar style="light" />
         {renderHeader('사진 촬영')}
-        <View style={styles.whiteBackground}>
-          {renderStepIndicator()}
-        </View>
+        <StepIndicator current={1} />
 
         <View style={styles.content}>
           <View style={styles.permissionIconWrap}>
@@ -134,9 +94,7 @@ export default function CameraScreen() {
     <View style={styles.container}>
       <StatusBar style="light" />
       {renderHeader('사진 촬영')}
-      <View style={styles.whiteBackground}>
-        {renderStepIndicator()}
-      </View>
+      <StepIndicator current={1} />
 
       <View style={styles.cameraWrapper}>
         <CameraView ref={cameraRef} style={styles.camera} facing="back" />
@@ -216,73 +174,6 @@ const styles = StyleSheet.create({
   },
   headerRight: {
     flex: 1,
-  },
-
-  // 진행 바 (Step Indicator) 영역
-  whiteBackground: {
-    backgroundColor: Brand.surface, // 다른 페이지와 동일한 배경색 (흰색 → 베이지)
-    paddingVertical: 16,
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-    marginBottom: 16,
-  },
-  stepContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    position: 'relative',
-  },
-  stepLineBackground: {
-    position: 'absolute',
-    top: 14,
-    left: 48,
-    right: 48,
-    height: 2,
-    backgroundColor: '#EEEEEE',
-    zIndex: -1,
-  },
-  stepItem: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepCircleActive: {
-    backgroundColor: Brand.primary,
-  },
-  stepCircleInactive: {
-    backgroundColor: '#F0F0F0',
-  },
-  stepCircleTextActive: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  stepCircleTextInactive: {
-    color: '#BBBBBB',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  stepLabelActive: {
-    fontSize: 12,
-    color: Brand.primary,
-    fontWeight: '700',
-  },
-  stepLabelInactive: {
-    fontSize: 12,
-    color: '#BBBBBB',
-    fontWeight: '500',
   },
 
   // 텍스트 및 안내 문구

@@ -1,105 +1,100 @@
-import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Brand } from '@/constants/theme';
 
 const STEPS = ['촬영', '확인', '분석', '결과'];
 
-/** 진행 단계 표시줄 (current: 현재 단계, 1-based) */
+/** 진행 단계 표시줄 (current: 현재 단계, 1-based). 현재까지 진행한 단계는 활성 색으로 표시 */
 export function StepIndicator({ current }: { current: number }) {
   return (
-    <View style={styles.steps}>
-      {STEPS.map((label, i) => {
-        const n = i + 1;
-        const done = n < current;
-        const active = n === current;
-        const filled = n <= current;
-        return (
-          <View key={label} style={styles.col}>
-            <View style={styles.circleRow}>
+    <View style={styles.stepBar}>
+      <View style={styles.stepContainer}>
+        <View style={styles.stepLineBackground} />
+
+        {STEPS.map((label, i) => {
+          const n = i + 1;
+          const active = n <= current;
+          return (
+            <View key={label} style={styles.stepItem}>
               <View
                 style={[
-                  styles.connector,
-                  i === 0 && styles.hidden,
-                  n <= current && styles.connectorActive,
-                ]}
-              />
-              <View style={[styles.circle, filled && styles.circleActive]}>
-                {done ? (
-                  <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-                ) : (
-                  <Text style={[styles.num, active && styles.numActive]}>{n}</Text>
-                )}
+                  styles.stepCircle,
+                  active ? styles.stepCircleActive : styles.stepCircleInactive,
+                ]}>
+                <Text style={active ? styles.stepCircleTextActive : styles.stepCircleTextInactive}>
+                  {n}
+                </Text>
               </View>
-              <View
-                style={[
-                  styles.connector,
-                  i === STEPS.length - 1 && styles.hidden,
-                  n < current && styles.connectorActive,
-                ]}
-              />
+              <Text style={active ? styles.stepLabelActive : styles.stepLabelInactive}>{label}</Text>
             </View>
-            <Text style={[styles.label, active && styles.labelActive]}>{label}</Text>
-          </View>
-        );
-      })}
+          );
+        })}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  steps: {
+  stepBar: {
+    backgroundColor: Brand.surface,
+    paddingVertical: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  stepContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 8,
-  },
-  col: {
-    flex: 1,
+    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 32,
+    position: 'relative',
   },
-  circleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-  },
-  connector: {
-    flex: 1,
+  stepLineBackground: {
+    position: 'absolute',
+    top: 14,
+    left: 48,
+    right: 48,
     height: 2,
-    backgroundColor: '#DDE3E6',
+    backgroundColor: '#EEEEEE',
+    zIndex: -1,
   },
-  connectorActive: {
-    backgroundColor: Brand.primary,
+  stepItem: {
+    alignItems: 'center',
+    gap: 8,
   },
-  hidden: {
-    backgroundColor: 'transparent',
-  },
-  circle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#E4E9EC',
+  stepCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  circleActive: {
+  stepCircleActive: {
     backgroundColor: Brand.primary,
   },
-  num: {
+  stepCircleInactive: {
+    backgroundColor: '#F0F0F0',
+  },
+  stepCircleTextActive: {
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
-    color: '#9AA6AD',
   },
-  numActive: {
-    color: '#FFFFFF',
+  stepCircleTextInactive: {
+    color: '#BBBBBB',
+    fontSize: 14,
+    fontWeight: '600',
   },
-  label: {
-    marginTop: 6,
+  stepLabelActive: {
     fontSize: 12,
-    color: Brand.textMuted,
-  },
-  labelActive: {
     color: Brand.primary,
     fontWeight: '700',
+  },
+  stepLabelInactive: {
+    fontSize: 12,
+    color: '#BBBBBB',
+    fontWeight: '500',
   },
 });
