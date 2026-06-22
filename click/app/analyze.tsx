@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { StepIndicator } from '@/components/step-indicator';
@@ -10,30 +11,33 @@ import { devLog } from '@/services/debug-log';
 import { analyzeInteractions } from '@/services/interactions';
 import type { RecognizedItem } from '@/types/medication';
 
+const ROBOT_SIZE = 200;
+// 로봇 이미지 안에서 노란 원(안테나)의 중심 위치 — 가로 50%, 세로 약 9% 지점
+const BALL = { x: ROBOT_SIZE * 0.5, y: ROBOT_SIZE * 0.09 };
+// 뒷배경 파란 원 크기
+const RING_OUTER = 230;
+const RING_INNER = 150;
+
 export default function AnalyzeScreen() {
   const router = useRouter();
   const { items: itemsParam } = useLocalSearchParams<{ items?: string }>();
   const [error, setError] = useState(false);
-  const progress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // 진행바 애니메이션 (약 5초)
-    Animated.timing(progress, {
-      toValue: 1,
-      duration: 5000,
-      easing: Easing.inOut(Easing.ease),
-      useNativeDriver: false,
-    }).start();
-
     let cancelled = false;
     (async () => {
       try {
-        const items: RecognizedItem[] = itemsParam ? JSON.parse(itemsParam) : [];
+        const items: RecognizedItem[] = itemsParam
+          ? JSON.parse(itemsParam)
+          : [];
         devLog('[3단계] ▶ 상호작용 분석 요청, 항목 수:', items.length);
         const result = await analyzeInteractions(items);
         if (!cancelled) {
           devLog('[3단계] ◀ 결과 받음 → 4단계(결과 화면)로 전달');
-          router.replace({ pathname: '/analysis', params: { result: JSON.stringify(result) } });
+          router.replace({
+            pathname: '/analysis',
+            params: { result: JSON.stringify(result) },
+          });
         }
       } catch (e) {
         console.warn('상호작용 분석 실패:', e);
@@ -44,9 +48,7 @@ export default function AnalyzeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [itemsParam, progress, router]);
-
-  const barWidth = progress.interpolate({ inputRange: [0, 1], outputRange: ['8%', '100%'] });
+  }, [itemsParam, router]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -59,7 +61,11 @@ export default function AnalyzeScreen() {
 
         {error ? (
           <View style={styles.center}>
-            <Ionicons name="alert-circle-outline" size={48} color={Brand.textMuted} />
+            <Ionicons
+              name="alert-circle-outline"
+              size={48}
+              color={Brand.textMuted}
+            />
             <Text style={styles.errorText}>분석에 실패했어요</Text>
             <Pressable style={styles.retryButton} onPress={() => router.back()}>
               <Text style={styles.retryText}>돌아가기</Text>
@@ -67,19 +73,19 @@ export default function AnalyzeScreen() {
           </View>
         ) : (
           <View style={styles.center}>
-            {/* 로봇 일러스트 */}
+            {/* 로봇 일러스트 (파란 원은 안테나 노란 원 중심에 정렬) */}
             <View style={styles.robotWrap}>
               <View style={styles.ringOuter} />
               <View style={styles.ringInner} />
-              <Text style={styles.robot}>🤖</Text>
+              <Image
+                source={require('@/assets/images/robot.png')}
+                style={styles.robot}
+                contentFit="contain"
+              />
             </View>
 
             <Text style={styles.title}>AI가 분석하고 있어요</Text>
-            <Text style={styles.subtitle}>잠시만 기다려 주세요 (약 5초 소요)</Text>
-
-            <View style={styles.progressTrack}>
-              <Animated.View style={[styles.progressFill, { width: barWidth }]} />
-            </View>
+            <Text style={styles.subtitle}>잠시만 기다려 주세요!</Text>
           </View>
         )}
       </View>
@@ -113,28 +119,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   robotWrap: {
-    width: 200,
-    height: 200,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
+    width: ROBOT_SIZE,
+    height: ROBOT_SIZE,
+    marginTop: 24,
+    marginBottom: 32,
+  },
+  robot: {
+    width: ROBOT_SIZE,
+    height: ROBOT_SIZE,
   },
   ringOuter: {
     position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
+    width: RING_OUTER,
+    height: RING_OUTER,
+    borderRadius: RING_OUTER / 2,
+    left: BALL.x - RING_OUTER / 2,
+    top: BALL.y - RING_OUTER / 2,
     backgroundColor: 'rgba(41,181,199,0.08)',
   },
   ringInner: {
     position: 'absolute',
-    width: 150,
-    height: 150,
-    borderRadius: 75,
+    width: RING_INNER,
+    height: RING_INNER,
+    borderRadius: RING_INNER / 2,
+    left: BALL.x - RING_INNER / 2,
+    top: BALL.y - RING_INNER / 2,
     backgroundColor: 'rgba(41,181,199,0.14)',
-  },
-  robot: {
-    fontSize: 90,
   },
   title: {
     fontSize: 22,
@@ -145,19 +155,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Brand.textMuted,
     marginTop: 10,
-    marginBottom: 32,
-  },
-  progressTrack: {
-    width: '100%',
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#E4E9EC',
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 5,
-    backgroundColor: Brand.primary,
   },
   errorText: {
     fontSize: 15,
