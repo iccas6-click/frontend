@@ -26,7 +26,9 @@ const CATEGORY_STYLE: Record<ItemCategory, { emoji: string; bg: string }> = {
 
 export default function ResultScreen() {
   const router = useRouter();
-  const { photoUri } = useLocalSearchParams<{ photoUri?: string }>();
+  const { photoUri, category } = useLocalSearchParams<{ photoUri?: string; category?: string }>();
+  // 촬영 화면에서 선택한 분류 (없으면 기본 '약물')
+  const selectedCategory: ItemCategory = category === '건강기능식품' ? '건강기능식품' : '약물';
 
   const [items, setItems] = useState<RecognizedItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +60,7 @@ export default function ResultScreen() {
     setLoading(true);
     setError(false);
     try {
-      const result = await analyzeImage(photoUri ?? '');
+      const result = await analyzeImage(photoUri ?? '', selectedCategory);
       setItems(result);
     } catch (e) {
       console.warn('OCR 분석 실패:', e);
@@ -66,7 +68,7 @@ export default function ResultScreen() {
     } finally {
       setLoading(false);
     }
-  }, [photoUri]);
+  }, [photoUri, selectedCategory]);
 
   useEffect(() => {
     runAnalysis();

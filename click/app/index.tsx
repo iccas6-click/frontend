@@ -28,10 +28,14 @@ export default function HomeScreen() {
         </Text>
 
         <Pressable
-          style={({ pressed }) => [styles.cameraButton, pressed && styles.cameraButtonPressed]}
+          style={({ pressed }) => [
+            styles.cameraButton,
+            pressed && styles.cameraButtonPressed,
+          ]}
           onPress={() => router.push('/camera')}
           accessibilityRole="button"
-          accessibilityLabel="카메라로 촬영하기">
+          accessibilityLabel="카메라로 촬영하기"
+        >
           <Ionicons name="camera" size={72} color="#FFFFFF" />
           <Text style={styles.cameraButtonText}>카메라로 촬영하기</Text>
         </Pressable>

@@ -9,6 +9,9 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { StepIndicator } from '@/components/step-indicator';
 import { Brand } from '@/constants/theme';
 import { devLog } from '@/services/debug-log';
+import type { ItemCategory } from '@/types/medication';
+
+const CATEGORIES: ItemCategory[] = ['약물', '건강기능식품'];
 
 export default function CameraScreen() {
   const router = useRouter();
@@ -16,6 +19,7 @@ export default function CameraScreen() {
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [taking, setTaking] = useState(false);
+  const [category, setCategory] = useState<ItemCategory>('약물');
 
   // 상단 공통 헤더 (뒤로가기 + 타이틀)
   const renderHeader = (title: string) => (
@@ -81,7 +85,8 @@ export default function CameraScreen() {
         Alert.alert('촬영 실패', '사진을 가져오지 못했어요. 다시 시도해 주세요.');
         return;
       }
-      router.push({ pathname: '/result', params: { photoUri: photo.uri } });
+      // 사용자가 선택한 분류를 함께 전달 (촬영물은 모두 이 분류로 처리)
+      router.push({ pathname: '/result', params: { photoUri: photo.uri, category } });
     } catch (e) {
       console.warn('촬영 오류:', e);
       Alert.alert('촬영 오류', String(e));
@@ -100,11 +105,30 @@ export default function CameraScreen() {
         <CameraView ref={cameraRef} style={styles.camera} facing="back" />
 
         <View style={styles.cameraOverlay}>
-          <Text style={styles.guideText}>인식할 항목을 화면 안에 맞춰주세요</Text>
+          <Text style={styles.guideText}>
+            {category} 라벨을 화면 안에 맞춰주세요
+          </Text>
         </View>
       </View>
 
       <SafeAreaView edges={['bottom']} style={styles.bottomArea}>
+        {/* 분류 선택 — 촬영한 항목은 모두 이 분류로 처리됨 */}
+        <View style={styles.categorySelector}>
+          {CATEGORIES.map((cat) => {
+            const active = category === cat;
+            return (
+              <Pressable
+                key={cat}
+                style={[styles.categoryChip, active && styles.categoryChipActive]}
+                onPress={() => setCategory(cat)}>
+                <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>
+                  {cat}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
         <View style={styles.shutterContainer}>
           <Pressable
             style={styles.shutterOuter}
@@ -260,6 +284,36 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     fontSize: 14,
     overflow: 'hidden',
+  },
+  categorySelector: {
+    flexDirection: 'row',
+    alignSelf: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 4,
+    gap: 4,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  categoryChip: {
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  categoryChipActive: {
+    backgroundColor: Brand.primary,
+  },
+  categoryChipText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Brand.textMuted,
+  },
+  categoryChipTextActive: {
+    color: '#FFFFFF',
   },
   shutterContainer: {
     alignItems: 'center',
