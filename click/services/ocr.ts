@@ -14,13 +14,13 @@ export const API_BASE_URL = '';
 
 /** 백엔드 연동 전 화면 확인용 목업 결과 (분류별) */
 const MOCK_BY_CATEGORY: Record<ItemCategory, RecognizedItem[]> = {
-  약물: [
-    { id: '1', name: '아스피린', dosage: '100mg', category: '약물' },
-    { id: '2', name: '리피토', dosage: '10mg', category: '약물' },
+  알약: [
+    { id: '1', name: '아스피린', dosage: '100mg', category: '알약' },
+    { id: '2', name: '리피토', dosage: '10mg', category: '알약' },
   ],
-  건강기능식품: [
-    { id: '3', name: '오메가-3', dosage: '1000mg', category: '건강기능식품' },
-    { id: '4', name: '비타민 D3', dosage: '2000IU', category: '건강기능식품' },
+  '건강기능식품 라벨': [
+    { id: '3', name: '오메가-3', dosage: '1000mg', category: '건강기능식품 라벨' },
+    { id: '4', name: '비타민 D3', dosage: '2000IU', category: '건강기능식품 라벨' },
   ],
 };
 

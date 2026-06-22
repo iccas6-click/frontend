@@ -1,5 +1,5 @@
 /** 인식된 항목의 분류 */
-export type ItemCategory = '약물' | '건강기능식품';
+export type ItemCategory = '알약' | '건강기능식품 라벨';
 
 /** OCR이 인식한 약/건강기능식품 한 개 */
 export interface RecognizedItem {

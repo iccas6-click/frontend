@@ -20,15 +20,16 @@ import type { ItemCategory, RecognizedItem } from '@/types/medication';
 
 /** 분류별 아이콘/색상 */
 const CATEGORY_STYLE: Record<ItemCategory, { emoji: string; bg: string }> = {
-  약물: { emoji: '💊', bg: '#FFF0EF' },
-  건강기능식품: { emoji: '🌿', bg: '#EAF7EC' },
+  알약: { emoji: '💊', bg: '#FFF0EF' },
+  '건강기능식품 라벨': { emoji: '🌿', bg: '#EAF7EC' },
 };
 
 export default function ResultScreen() {
   const router = useRouter();
   const { photoUri, category } = useLocalSearchParams<{ photoUri?: string; category?: string }>();
-  // 촬영 화면에서 선택한 분류 (없으면 기본 '약물')
-  const selectedCategory: ItemCategory = category === '건강기능식품' ? '건강기능식품' : '약물';
+  // 촬영 화면에서 선택한 분류 (없으면 기본 '알약')
+  const selectedCategory: ItemCategory =
+    category === '건강기능식품 라벨' ? '건강기능식품 라벨' : '알약';
 
   const [items, setItems] = useState<RecognizedItem[]>([]);
   const [loading, setLoading] = useState(true);

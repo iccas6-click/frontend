@@ -14,7 +14,7 @@ import {
 import { Brand } from '@/constants/theme';
 import type { ItemCategory, RecognizedItem } from '@/types/medication';
 
-const CATEGORIES: ItemCategory[] = ['약물', '건강기능식품'];
+const CATEGORIES: ItemCategory[] = ['알약', '건강기능식품 라벨'];
 
 type Props = {
   visible: boolean;
@@ -29,14 +29,14 @@ export function ItemEditModal({ visible, initial, onClose, onSave, onDelete }: P
   const isNew = initial === null;
   const [name, setName] = useState('');
   const [dosage, setDosage] = useState('');
-  const [category, setCategory] = useState<ItemCategory>('약물');
+  const [category, setCategory] = useState<ItemCategory>('알약');
 
   // 모달이 열릴 때마다 대상 항목 값으로 초기화
   useEffect(() => {
     if (visible) {
       setName(initial?.name ?? '');
       setDosage(initial?.dosage ?? '');
-      setCategory(initial?.category ?? '약물');
+      setCategory(initial?.category ?? '알약');
     }
   }, [visible, initial]);
 

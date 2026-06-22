@@ -3,15 +3,25 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 
 import { StepIndicator } from '@/components/step-indicator';
 import { Brand } from '@/constants/theme';
 import { devLog } from '@/services/debug-log';
 import type { ItemCategory } from '@/types/medication';
 
-const CATEGORIES: ItemCategory[] = ['약물', '건강기능식품'];
+const CATEGORIES: ItemCategory[] = ['알약', '건강기능식품 라벨'];
 
 export default function CameraScreen() {
   const router = useRouter();
@@ -19,13 +29,17 @@ export default function CameraScreen() {
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [taking, setTaking] = useState(false);
-  const [category, setCategory] = useState<ItemCategory>('약물');
+  const [category, setCategory] = useState<ItemCategory>('알약');
 
   // 상단 공통 헤더 (뒤로가기 + 타이틀)
   const renderHeader = (title: string) => (
     <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Pressable style={styles.headerLeft} onPress={() => router.back()} hitSlop={10}>
+        <Pressable
+          style={styles.headerLeft}
+          onPress={() => router.back()}
+          hitSlop={10}
+        >
           <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
           <Text style={styles.headerText}>뒤로</Text>
         </Pressable>
@@ -58,7 +72,8 @@ export default function CameraScreen() {
           </View>
           <Text style={styles.title}>카메라 권한이 필요해요</Text>
           <Text style={styles.description}>
-            약 봉투와 라벨을 촬영하려면{'\n'}카메라 접근을 허용해 주세요
+            알약과 건강기능식품 라벨을 촬영하려면{'\n'}카메라 접근을 허용해
+            주세요
           </Text>
         </View>
 
@@ -82,11 +97,17 @@ export default function CameraScreen() {
       const photo = await cameraRef.current?.takePictureAsync();
       devLog('[카메라] ◀ 촬영 완료, 사진 uri:', photo?.uri ?? '(없음)');
       if (!photo?.uri) {
-        Alert.alert('촬영 실패', '사진을 가져오지 못했어요. 다시 시도해 주세요.');
+        Alert.alert(
+          '촬영 실패',
+          '사진을 가져오지 못했어요. 다시 시도해 주세요.',
+        );
         return;
       }
       // 사용자가 선택한 분류를 함께 전달 (촬영물은 모두 이 분류로 처리)
-      router.push({ pathname: '/result', params: { photoUri: photo.uri, category } });
+      router.push({
+        pathname: '/result',
+        params: { photoUri: photo.uri, category },
+      });
     } catch (e) {
       console.warn('촬영 오류:', e);
       Alert.alert('촬영 오류', String(e));
@@ -106,7 +127,7 @@ export default function CameraScreen() {
 
         <View style={styles.cameraOverlay}>
           <Text style={styles.guideText}>
-            {category} 라벨을 화면 안에 맞춰주세요
+            {category}을 화면 안에 맞춰주세요
           </Text>
         </View>
       </View>
@@ -119,9 +140,18 @@ export default function CameraScreen() {
             return (
               <Pressable
                 key={cat}
-                style={[styles.categoryChip, active && styles.categoryChipActive]}
-                onPress={() => setCategory(cat)}>
-                <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>
+                style={[
+                  styles.categoryChip,
+                  active && styles.categoryChipActive,
+                ]}
+                onPress={() => setCategory(cat)}
+              >
+                <Text
+                  style={[
+                    styles.categoryChipText,
+                    active && styles.categoryChipTextActive,
+                  ]}
+                >
                   {cat}
                 </Text>
               </Pressable>
