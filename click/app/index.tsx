@@ -1,113 +1,150 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import type { ComponentProps } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { StepIndicator } from '@/components/step-indicator';
-import { Brand } from '@/constants/theme';
+const PAGE_BG = '#F2F2F7';
 
-export default function HomeScreen() {
+export default function MainScreen() {
   const router = useRouter();
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* 헤더 */}
-      <View style={styles.header}>
-        <Text style={styles.logo}>CLICK</Text>
-        <Text style={styles.logoSub}>의약품 상호작용 확인</Text>
-      </View>
+    <View style={styles.root}>
+      <StatusBar style="dark" />
 
-      {/* 단계 표시줄 */}
-      <StepIndicator current={1} />
+      {/* 상단 부드러운 그라데이션 배경 */}
+      <LinearGradient
+        colors={['#FFD8C6', '#F0CCE6', '#CBD7F4', 'rgba(242,242,247,0)']}
+        locations={[0, 0.4, 0.7, 1]}
+        style={styles.gradient}
+      />
 
-      {/* 본문 */}
-      <View style={styles.body}>
-        <Text style={styles.title}>어떤 것을 확인하시겠어요?</Text>
-        <Text style={styles.desc}>
-          약 봉투 또는 건강기능식품 라벨을{'\n'}카메라로 찍어주세요
-        </Text>
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        {/* 중앙 정렬 로고 (조금 아래) */}
+        <View style={styles.logoArea}>
+          <Text style={styles.logo}>CLICK</Text>
+          <Text style={styles.logoSub}>의약품 상호작용 확인</Text>
+        </View>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.cameraButton,
-            pressed && styles.cameraButtonPressed,
-          ]}
-          onPress={() => router.push('/camera')}
-          accessibilityRole="button"
-          accessibilityLabel="카메라로 촬영하기"
-        >
-          <Ionicons name="camera" size={72} color="#FFFFFF" />
-          <Text style={styles.cameraButtonText}>카메라로 촬영하기</Text>
-        </Pressable>
-      </View>
-    </SafeAreaView>
+        {/* 통통한 컬러 타일 버튼 2개 */}
+        <View style={styles.tilesRow}>
+          <Tile
+            color="#2BB7C9"
+            title={'사진으로\n검색하기'}
+            icon="camera"
+            onPress={() => router.push('/select')}
+          />
+          <Tile
+            color="#F2945E"
+            title={'지난 검색\n기록 보기'}
+            icon="time"
+            onPress={() => router.push('/history')}
+          />
+        </View>
+      </SafeAreaView>
+    </View>
+  );
+}
+
+function Tile({
+  color,
+  title,
+  icon,
+  onPress,
+}: {
+  color: string;
+  title: string;
+  icon: ComponentProps<typeof Ionicons>['name'];
+  onPress: ComponentProps<typeof Pressable>['onPress'];
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.tile,
+        { backgroundColor: color },
+        pressed && styles.tilePressed,
+      ]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={title.replace('\n', ' ')}
+    >
+      <Text style={styles.tileTitle}>{title}</Text>
+      <Ionicons
+        name={icon}
+        size={64}
+        color="rgba(255,255,255,0.95)"
+        style={styles.tileIcon}
+      />
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: PAGE_BG,
+  },
+  gradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 420,
+  },
   safe: {
     flex: 1,
-    backgroundColor: Brand.primary,
   },
-  header: {
-    backgroundColor: Brand.primary,
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 20,
+  logoArea: {
+    alignItems: 'center',
+    marginTop: 64,
+    marginBottom: 48,
   },
   logo: {
-    color: '#FFFFFF',
-    fontSize: 26,
-    fontWeight: '800',
-    letterSpacing: 1,
+    fontSize: 44,
+    fontWeight: '900',
+    letterSpacing: 2,
+    color: '#2A2D34',
   },
   logoSub: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  body: {
-    flex: 1,
-    backgroundColor: Brand.surface,
-    paddingHorizontal: 24,
-    paddingTop: 32,
-    alignItems: 'center',
-  },
-  title: {
-    alignSelf: 'flex-start',
-    fontSize: 20,
-    fontWeight: '700',
-    color: Brand.textDark,
-  },
-  desc: {
-    alignSelf: 'flex-start',
     fontSize: 14,
-    lineHeight: 21,
-    color: Brand.textMuted,
-    marginTop: 10,
+    color: '#5C6066',
+    marginTop: 6,
   },
-  cameraButton: {
-    marginTop: 48,
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    backgroundColor: Brand.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    shadowColor: Brand.primaryDark,
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
+  tilesRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    gap: 14,
+    marginTop: 120,
   },
-  cameraButtonPressed: {
-    backgroundColor: Brand.primaryDark,
-    transform: [{ scale: 0.97 }],
+  tile: {
+    flex: 1,
+    aspectRatio: 0.92,
+    borderRadius: 26,
+    padding: 20,
+    justifyContent: 'flex-start',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  cameraButtonText: {
-    color: '#FFFFFF',
+  tilePressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.98 }],
+  },
+  tileTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: '800',
+    color: '#FFFFFF',
+    lineHeight: 26,
+  },
+  tileIcon: {
+    position: 'absolute',
+    right: 14,
+    bottom: 12,
   },
 });

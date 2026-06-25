@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useRef, useState } from 'react';
 import {
@@ -21,15 +21,16 @@ import { Brand } from '@/constants/theme';
 import { devLog } from '@/services/debug-log';
 import type { ItemCategory } from '@/types/medication';
 
-const CATEGORIES: ItemCategory[] = ['알약', '건강기능식품 라벨'];
-
 export default function CameraScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ category?: string }>();
   const insets = useSafeAreaInsets();
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [taking, setTaking] = useState(false);
-  const [category, setCategory] = useState<ItemCategory>('알약');
+  // 앞 페이지(분류 선택)에서 넘겨받은 분류 (없으면 기본 '알약')
+  const category: ItemCategory =
+    params.category === '건강기능식품 라벨' ? '건강기능식품 라벨' : '알약';
 
   // 상단 공통 헤더 (뒤로가기 + 타이틀)
   const renderHeader = (title: string) => (
@@ -133,32 +134,6 @@ export default function CameraScreen() {
       </View>
 
       <SafeAreaView edges={['bottom']} style={styles.bottomArea}>
-        {/* 분류 선택 — 촬영한 항목은 모두 이 분류로 처리됨 */}
-        <View style={styles.categorySelector}>
-          {CATEGORIES.map((cat) => {
-            const active = category === cat;
-            return (
-              <Pressable
-                key={cat}
-                style={[
-                  styles.categoryChip,
-                  active && styles.categoryChipActive,
-                ]}
-                onPress={() => setCategory(cat)}
-              >
-                <Text
-                  style={[
-                    styles.categoryChipText,
-                    active && styles.categoryChipTextActive,
-                  ]}
-                >
-                  {cat}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
         <View style={styles.shutterContainer}>
           <Pressable
             style={styles.shutterOuter}
@@ -314,36 +289,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     fontSize: 14,
     overflow: 'hidden',
-  },
-  categorySelector: {
-    flexDirection: 'row',
-    alignSelf: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 4,
-    gap: 4,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  categoryChip: {
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  categoryChipActive: {
-    backgroundColor: Brand.primary,
-  },
-  categoryChipText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: Brand.textMuted,
-  },
-  categoryChipTextActive: {
-    color: '#FFFFFF',
   },
   shutterContainer: {
     alignItems: 'center',
