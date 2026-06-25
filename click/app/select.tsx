@@ -117,7 +117,6 @@ const styles = StyleSheet.create({
   },
   tile: {
     flex: 1,
-    marginTop: 20,
     aspectRatio: 0.92,
     borderRadius: 26,
     padding: 20,

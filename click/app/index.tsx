@@ -69,9 +69,15 @@ function Tile({
       ]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={title.replace('\n', ' ')}>
+      accessibilityLabel={title.replace('\n', ' ')}
+    >
       <Text style={styles.tileTitle}>{title}</Text>
-      <Ionicons name={icon} size={64} color="rgba(255,255,255,0.95)" style={styles.tileIcon} />
+      <Ionicons
+        name={icon}
+        size={64}
+        color="rgba(255,255,255,0.95)"
+        style={styles.tileIcon}
+      />
     </Pressable>
   );
 }
@@ -111,6 +117,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 20,
     gap: 14,
+    marginTop: 120,
   },
   tile: {
     flex: 1,
