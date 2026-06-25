@@ -1,0 +1,42 @@
+# 의존성 (Dependencies)
+node_modules/
+
+# Expo / 빌드 산출물 (Build output)
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Metro
+.metro-health-check*
+
+# TypeScript
+*.tsbuildinfo
+
+# 네이티브 빌드 (Native)
+/ios
+/android
+.kotlin/
+*.orig.*
+
+# 시크릿 / 서명 키 — 절대 커밋 금지 (Secrets, never commit)
+*.jks
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+
+# 환경 변수 (Local env files)
+.env
+.env*.local
+
+# 로그 (Logs)
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# OS 생성 파일 (OS files)
+.DS_Store
+Thumbs.db
