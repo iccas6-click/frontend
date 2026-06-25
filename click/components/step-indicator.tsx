@@ -4,10 +4,13 @@ import { Brand } from '@/constants/theme';
 
 const STEPS = ['촬영', '확인', '분석', '결과'];
 
-/** 진행 단계 표시줄 (current: 현재 단계, 1-based). 현재까지 진행한 단계는 활성 색으로 표시 */
-export function StepIndicator({ current }: { current: number }) {
+/**
+ * 진행 단계 표시줄 (current: 현재 단계, 1-based). 현재까지 진행한 단계는 활성 색으로 표시.
+ * background: 바 배경색 override (기본은 앱 공통 베이지)
+ */
+export function StepIndicator({ current, background }: { current: number; background?: string }) {
   return (
-    <View style={styles.stepBar}>
+    <View style={[styles.stepBar, background ? { backgroundColor: background } : null]}>
       <View style={styles.stepContainer}>
         <View style={styles.stepLineBackground} />
 
