@@ -5,14 +5,21 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { StepIndicator } from '@/components/step-indicator';
-import { Brand } from '@/constants/theme';
 import { devLog } from '@/services/debug-log';
 import type { AnalysisResult, InteractionPair, RiskLevel } from '@/types/medication';
 
-const LEVEL_META: Record<RiskLevel, { label: string; color: string; bg: string }> = {
-  danger: { label: '위험', color: '#E5484D', bg: '#FDECEC' },
-  caution: { label: '주의', color: '#E08600', bg: '#FFF4E2' },
-  safe: { label: '안전', color: '#2E9E5B', bg: '#E7F7EC' },
+const APPLE_THEME = {
+  background: '#F2F2F7', 
+  card: '#FFFFFF',
+  textDark: '#1C1C1E',
+  textMuted: '#8E8E93',
+  tintBlue: '#007AFF',
+};
+
+const LEVEL_META: Record<RiskLevel, { label: string; color: string; bg: string; icon: any }> = {
+  danger: { label: '위험', color: '#FF3B30', bg: '#FFECEB', icon: 'close-circle' },
+  caution: { label: '주의', color: '#FF9500', bg: '#FFF4E5', icon: 'warning' },
+  safe: { label: '안전', color: '#34C759', bg: '#E9F9EE', icon: 'checkmark-circle' },
 };
 
 const OVERALL_TITLE: Record<RiskLevel, string> = {
@@ -41,11 +48,10 @@ export default function AnalysisScreen() {
   }, [result]);
 
   const goHome = () => {
-    // 모달/스택 정리 후 홈으로
     try {
       router.dismissAll();
     } catch {
-      // 정리할 스택이 없으면 무시
+      // 무시
     }
     router.replace('/');
   };
@@ -54,22 +60,12 @@ export default function AnalysisScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* 헤더 */}
-      <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => router.back()} hitSlop={8}>
-          <Ionicons name="chevron-back" size={20} color="#FFFFFF" />
-          <Text style={styles.backText}>뒤로</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>분석 결과</Text>
-        <View style={styles.backButton} />
-      </View>
+      <StepIndicator current={4} background={APPLE_THEME.background} />
 
       <View style={styles.bodyWrap}>
-        <StepIndicator current={4} />
-
         {!result ? (
           <View style={styles.center}>
-            <Ionicons name="alert-circle-outline" size={48} color={Brand.textMuted} />
+            <Ionicons name="alert-circle-outline" size={48} color={APPLE_THEME.textMuted} />
             <Text style={styles.centerText}>결과를 불러올 수 없어요</Text>
           </View>
         ) : (
@@ -77,47 +73,56 @@ export default function AnalysisScreen() {
             style={styles.scroll}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}>
-            {/* 종합 결과 카드 */}
-            <View style={[styles.overallCard, { backgroundColor: overall.bg }]}>
-              <Ionicons
-                name={result.overall === 'safe' ? 'checkmark-circle' : 'warning'}
-                size={48}
-                color={result.overall === 'safe' ? Brand.success : overall.color}
-              />
+            
+            <Text style={styles.pageTitle}>분석 결과</Text>
+
+            <View style={styles.overallCard}>
+              <View style={[styles.overallIconBox, { backgroundColor: overall.bg }]}>
+                <Ionicons name={overall.icon} size={46} color={overall.color} />
+              </View>
               <Text style={[styles.overallTitle, { color: overall.color }]}>
                 {OVERALL_TITLE[result.overall]}
               </Text>
               <Text style={styles.overallSummary}>{result.summary}</Text>
             </View>
 
-            {/* 조합별 결과 */}
-            <Text style={styles.sectionTitle}>조합별 결과</Text>
-            {result.pairs.map((pair) => (
-              <PairCard key={pair.id} pair={pair} />
-            ))}
+            <Text style={styles.sectionTitle}>상세 조합</Text>
+            <View style={styles.listContainer}>
+              {result.pairs.map((pair) => (
+                <PairCard key={pair.id} pair={pair} />
+              ))}
+            </View>
           </ScrollView>
         )}
       </View>
 
-      {/* 하단 버튼 */}
-      <View style={styles.footer}>
-        <Pressable style={styles.askButton} onPress={goHome}>
-          <Text style={styles.askText}>AI에게 더 물어보기</Text>
-        </Pressable>
-      </View>
+      {result && (
+        <View style={styles.footer}>
+          <Pressable 
+            style={({ pressed }) => [styles.askButton, pressed && styles.buttonPressed]} 
+            onPress={goHome}
+          >
+            <Text style={styles.askText}>처음으로 돌아가기</Text>
+          </Pressable>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
 
-/** 조합별 결과 카드 */
 function PairCard({ pair }: { pair: InteractionPair }) {
   const meta = LEVEL_META[pair.level];
   return (
-    <View style={[styles.pairCard, { borderLeftColor: meta.color }]}>
+    <View style={styles.pairCard}>
+      <View style={[styles.iconBox, { backgroundColor: meta.bg }]}>
+        <Ionicons name={meta.icon} size={24} color={meta.color} />
+      </View>
+      
       <View style={styles.pairInfo}>
         <Text style={styles.pairTitle}>{pair.items.join(' + ')}</Text>
         <Text style={styles.pairDesc}>{pair.description}</Text>
       </View>
+      
       <View style={[styles.badge, { backgroundColor: meta.bg }]}>
         <Text style={[styles.badgeText, { color: meta.color }]}>{meta.label}</Text>
       </View>
@@ -128,136 +133,140 @@ function PairCard({ pair }: { pair: InteractionPair }) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: Brand.primary,
+    backgroundColor: APPLE_THEME.background,
   },
-  header: {
-    backgroundColor: Brand.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minWidth: 64,
-  },
-  backText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    marginLeft: 2,
-  },
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
+  pageTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: APPLE_THEME.textDark,
+    marginBottom: 20,
+    marginTop: 16,
   },
   bodyWrap: {
     flex: 1,
-    backgroundColor: Brand.surface,
   },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
+    paddingBottom: 60,
   },
   centerText: {
-    fontSize: 15,
-    color: Brand.textMuted,
+    fontSize: 16,
+    color: APPLE_THEME.textMuted,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 16,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
   },
   overallCard: {
-    borderRadius: 18,
+    backgroundColor: APPLE_THEME.card,
+    borderRadius: 24,
     alignItems: 'center',
-    paddingVertical: 28,
-    paddingHorizontal: 20,
+    paddingVertical: 32,
+    paddingHorizontal: 24,
+    marginBottom: 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 2,
+  },
+  overallIconBox: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
   },
   overallTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '800',
-    marginTop: 10,
+    marginBottom: 10,
   },
   overallSummary: {
-    fontSize: 14,
-    color: Brand.textDark,
-    marginTop: 6,
+    fontSize: 15,
+    color: APPLE_THEME.textDark,
     textAlign: 'center',
+    lineHeight: 22,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: Brand.textDark,
-    marginTop: 22,
-    marginBottom: 12,
+    fontSize: 20,
+    fontWeight: '700',
+    color: APPLE_THEME.textDark,
+    marginBottom: 16,
+  },
+  listContainer: {
+    gap: 12,
   },
   pairCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    borderLeftWidth: 4,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    marginBottom: 12,
-    shadowColor: '#000000',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    backgroundColor: APPLE_THEME.card,
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+  iconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
   },
   pairInfo: {
     flex: 1,
     marginRight: 12,
   },
   pairTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
-    color: Brand.textDark,
+    color: APPLE_THEME.textDark,
+    marginBottom: 4,
   },
   pairDesc: {
-    fontSize: 13,
-    color: Brand.textMuted,
-    marginTop: 4,
+    fontSize: 14,
+    color: APPLE_THEME.textMuted,
+    lineHeight: 20,
   },
   badge: {
     paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
   },
   badgeText: {
     fontSize: 13,
     fontWeight: '700',
   },
   footer: {
-    backgroundColor: Brand.surface,
+    backgroundColor: APPLE_THEME.background,
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 12,
     paddingBottom: 24,
-    gap: 10,
   },
   askButton: {
-    backgroundColor: Brand.primary,
+    backgroundColor: APPLE_THEME.tintBlue, 
     borderRadius: 16,
-    paddingVertical: 17,
+    paddingVertical: 18,
     alignItems: 'center',
-    shadowColor: Brand.primaryDark,
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
+  },
+  buttonPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
   },
   askText: {
     color: '#FFFFFF',
     fontSize: 17,
-    fontWeight: '800',
+    fontWeight: '700',
   },
 });

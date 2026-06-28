@@ -6,12 +6,16 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { StepIndicator } from '@/components/step-indicator';
-import { Brand } from '@/constants/theme';
 import { sendCategory } from '@/services/category';
 import type { ItemCategory } from '@/types/medication';
 
-// 애플 건강 앱 느낌의 쿨 그레이 배경
-const APPLE_GRAY = '#F2F2F7';
+// 💡 애플 건강 앱 스타일 테마 컬러 
+const APPLE_THEME = {
+  background: '#F2F2F7', // 눈이 편안한 쿨 그레이 배경
+  card: '#FFFFFF',
+  textDark: '#1C1C1E',
+  textMuted: '#8E8E93',
+};
 
 export default function SelectScreen() {
   const router = useRouter();
@@ -28,32 +32,28 @@ export default function SelectScreen() {
       <StatusBar style="dark" />
 
       {/* 상단 단계 표시줄 */}
-      <StepIndicator current={1} background={APPLE_GRAY} />
+      <StepIndicator current={1} background={APPLE_THEME.background} />
 
       <View style={styles.content}>
         <Text style={styles.title}>무엇을 검색할까요?</Text>
         <Text style={styles.subtitle}>촬영할 항목의 종류를 선택해 주세요</Text>
 
-        {/* 통통한 컬러 타일 버튼 2개 */}
-        <View style={styles.tilesRow}>
-          <Tile
-            color="#E8705B"
-            title={'알약'}
-            icon={
-              <MaterialCommunityIcons
-                name="pill"
-                size={62}
-                color="rgba(255,255,255,0.95)"
-              />
-            }
+        <View style={styles.listContainer}>
+          {/* 알약 선택 카드 */}
+          <SelectionCard
+            title="알약"
+            subtitle="처방받은 약이나 일반 의약품"
+            icon={<MaterialCommunityIcons name="pill" size={28} color="#FF2D55" />} // 애플 스타일 핑크레드
+            iconBg="#FFE5EA"
             onPress={() => goCamera('알약')}
           />
-          <Tile
-            color="#57A86A"
-            title={'건강기능\n식품'}
-            icon={
-              <Ionicons name="leaf" size={56} color="rgba(255,255,255,0.95)" />
-            }
+          
+          {/* 건강기능식품 선택 카드 */}
+          <SelectionCard
+            title="건강기능식품"
+            subtitle="비타민, 유산균 등 영양제 라벨"
+            icon={<Ionicons name="leaf" size={26} color="#34C759" />} // 애플 스타일 그린
+            iconBg="#E9F9EE"
             onPress={() => goCamera('건강기능식품 라벨')}
           />
         </View>
@@ -62,30 +62,45 @@ export default function SelectScreen() {
   );
 }
 
-function Tile({
-  color,
+// 💡 새로운 카드 컴포넌트 (history.tsx의 카드와 동일한 스타일)
+function SelectionCard({
   title,
+  subtitle,
   icon,
+  iconBg,
   onPress,
 }: {
-  color: string;
   title: string;
+  subtitle: string;
   icon: ReactNode;
+  iconBg: string;
   onPress: () => void;
 }) {
   return (
     <Pressable
       style={({ pressed }) => [
-        styles.tile,
-        { backgroundColor: color },
-        pressed && styles.tilePressed,
+        styles.card,
+        pressed && styles.cardPressed,
       ]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${title.replace('\n', '')} 검색`}
+      accessibilityLabel={`${title} 검색`}
     >
-      <Text style={styles.tileTitle}>{title}</Text>
-      <View style={styles.tileIcon}>{icon}</View>
+      <View style={styles.cardContent}>
+        {/* 좌측 컬러 아이콘 */}
+        <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
+          {icon}
+        </View>
+        
+        {/* 텍스트 영역 */}
+        <View style={styles.textContainer}>
+          <Text style={styles.cardTitle}>{title}</Text>
+          <Text style={styles.cardSubtitle}>{subtitle}</Text>
+        </View>
+      </View>
+      
+      {/* 우측 화살표 */}
+      <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
     </Pressable>
   );
 }
@@ -93,54 +108,75 @@ function Tile({
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: APPLE_GRAY,
+    backgroundColor: APPLE_THEME.background,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 24,
+    paddingTop: 16,
   },
   title: {
-    fontSize: 26,
+    fontSize: 32, // 애플 특유의 시원한 대형 타이틀
     fontWeight: '800',
-    color: Brand.textDark,
+    color: APPLE_THEME.textDark,
+    paddingHorizontal: 20,
+    marginTop: 8,
   },
   subtitle: {
     fontSize: 15,
-    color: Brand.textMuted,
+    color: APPLE_THEME.textMuted,
+    paddingHorizontal: 20,
     marginTop: 8,
-    marginBottom: 28,
+    marginBottom: 24,
   },
-  tilesRow: {
+  listContainer: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  card: {
+    backgroundColor: APPLE_THEME.card,
+    borderRadius: 20,
+    padding: 16,
     flexDirection: 'row',
-    gap: 14,
-  },
-  tile: {
-    flex: 1,
-    aspectRatio: 0.92,
-    borderRadius: 26,
-    padding: 20,
-    justifyContent: 'flex-start',
-    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    // 애플 스타일의 은은하고 넓은 그림자
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
     shadowRadius: 12,
-    elevation: 4,
+    elevation: 2,
   },
-  tilePressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.98 }],
+  cardPressed: {
+    opacity: 0.7,
+    transform: [{ scale: 0.98 }], // 누를 때 살짝 작아지는 애니메이션 효과
   },
-  tileTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    lineHeight: 26,
+  cardContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  tileIcon: {
-    position: 'absolute',
-    right: 14,
-    bottom: 12,
+  iconBox: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  textContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingRight: 12,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: APPLE_THEME.textDark,
+    marginBottom: 4,
+    letterSpacing: -0.4,
+  },
+  cardSubtitle: {
+    fontSize: 14,
+    color: APPLE_THEME.textMuted,
   },
 });

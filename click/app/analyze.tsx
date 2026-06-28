@@ -6,10 +6,18 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { StepIndicator } from '@/components/step-indicator';
-import { Brand } from '@/constants/theme';
 import { devLog } from '@/services/debug-log';
 import { analyzeInteractions } from '@/services/interactions';
 import type { RecognizedItem } from '@/types/medication';
+
+// 💡 애플 건강 앱 스타일 테마 컬러
+const APPLE_THEME = {
+  background: '#F2F2F7', 
+  card: '#FFFFFF',
+  textDark: '#1C1C1E',
+  textMuted: '#8E8E93',
+  tintBlue: '#007AFF', // 파동 및 버튼에 사용할 iOS 블루
+};
 
 const ROBOT_SIZE = 200;
 // 로봇 이미지 안에서 노란 원(안테나)의 중심 위치 — 가로 50%, 세로 약 9% 지점
@@ -52,23 +60,23 @@ export default function AnalyzeScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>AI 분석 중</Text>
-      </View>
+      <StepIndicator current={3} background={APPLE_THEME.background} />
 
       <View style={styles.body}>
-        <StepIndicator current={3} />
-
         {error ? (
           <View style={styles.center}>
             <Ionicons
               name="alert-circle-outline"
-              size={48}
-              color={Brand.textMuted}
+              size={56}
+              color={APPLE_THEME.textMuted}
             />
-            <Text style={styles.errorText}>분석에 실패했어요</Text>
-            <Pressable style={styles.retryButton} onPress={() => router.back()}>
-              <Text style={styles.retryText}>돌아가기</Text>
+            <Text style={styles.errorTitle}>분석에 실패했어요</Text>
+            <Text style={styles.errorText}>네트워크 상태를 확인해 주세요.</Text>
+            <Pressable 
+              style={({ pressed }) => [styles.retryButton, pressed && styles.buttonPressed]} 
+              onPress={() => router.back()}
+            >
+              <Text style={styles.retryText}>이전으로 돌아가기</Text>
             </Pressable>
           </View>
         ) : (
@@ -96,33 +104,25 @@ export default function AnalyzeScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: Brand.primary,
-  },
-  header: {
-    backgroundColor: Brand.primary,
-    alignItems: 'center',
-    paddingVertical: 16,
-  },
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
+    backgroundColor: APPLE_THEME.background,
   },
   body: {
     flex: 1,
-    backgroundColor: Brand.surface,
   },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
+    paddingBottom: 40, // 시각적 중앙을 맞추기 위해 살짝 위로 띄움
   },
+  
+  // 로봇 및 애니메이션 파동 디자인
   robotWrap: {
     width: ROBOT_SIZE,
     height: ROBOT_SIZE,
     marginTop: 24,
-    marginBottom: 32,
+    marginBottom: 40,
   },
   robot: {
     width: ROBOT_SIZE,
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
     borderRadius: RING_OUTER / 2,
     left: BALL.x - RING_OUTER / 2,
     top: BALL.y - RING_OUTER / 2,
-    backgroundColor: 'rgba(41,181,199,0.08)',
+    backgroundColor: 'rgba(0, 122, 255, 0.05)', // 애플 블루 톤으로 맞춤
   },
   ringInner: {
     position: 'absolute',
@@ -144,33 +144,50 @@ const styles = StyleSheet.create({
     borderRadius: RING_INNER / 2,
     left: BALL.x - RING_INNER / 2,
     top: BALL.y - RING_INNER / 2,
-    backgroundColor: 'rgba(41,181,199,0.14)',
+    backgroundColor: 'rgba(0, 122, 255, 0.12)', // 애플 블루 톤으로 맞춤
   },
+
+  // 텍스트 타이틀
   title: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '800',
-    color: Brand.textDark,
+    color: APPLE_THEME.textDark,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 14,
-    color: Brand.textMuted,
+    fontSize: 16,
+    color: APPLE_THEME.textMuted,
     marginTop: 10,
+  },
+
+  // 에러 화면
+  errorTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: APPLE_THEME.textDark,
+    marginTop: 16,
   },
   errorText: {
     fontSize: 15,
-    color: Brand.textMuted,
-    marginTop: 12,
+    color: APPLE_THEME.textMuted,
+    marginTop: 8,
+    marginBottom: 32,
   },
   retryButton: {
-    marginTop: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: Brand.primary,
+    paddingHorizontal: 28,
+    paddingVertical: 16,
+    borderRadius: 16,
+    backgroundColor: APPLE_THEME.tintBlue, // iOS 블루 버튼
+    width: '100%',
+    alignItems: 'center',
+  },
+  buttonPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
   },
   retryText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
   },
 });
