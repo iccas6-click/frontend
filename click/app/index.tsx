@@ -7,12 +7,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 // 💡 애플 건강 앱 스타일 테마 컬러
 const APPLE_THEME = {
-  background: '#F2F2F7', 
+  background: '#F2F2F7',
   card: '#FFFFFF',
   textDark: '#1C1C1E',
   textMuted: '#8E8E93',
-  primary: '#FF2D55',    // 카메라(메인 액션) 포인트 컬러
-  secondary: '#007AFF',  // 기록(서브 액션) 포인트 컬러
+  primary: '#FF2D55', // 카메라(메인 액션) 포인트 컬러
+  secondary: '#007AFF', // 기록(서브 액션) 포인트 컬러
 };
 
 export default function MainScreen() {
@@ -22,8 +22,8 @@ export default function MainScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar style="dark" />
 
-      <ScrollView 
-        style={styles.scroll} 
+      <ScrollView
+        style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -37,13 +37,13 @@ export default function MainScreen() {
         <View style={styles.listContainer}>
           <ActionCard
             title="사진으로 검색하기"
-            subtitle="처방전이나 약 봉투를 촬영하세요"
+            subtitle="알약이나 건강기능식품을 촬영하세요"
             icon="camera"
             iconColor={APPLE_THEME.primary}
             iconBg="#FFE5EA" // 부드러운 핑크레드 배경
             onPress={() => router.push('/select')}
           />
-          
+
           <ActionCard
             title="지난 검색 기록 보기"
             subtitle="이전 분석 결과를 다시 확인하세요"
@@ -76,10 +76,7 @@ function ActionCard({
 }) {
   return (
     <Pressable
-      style={({ pressed }) => [
-        styles.card,
-        pressed && styles.cardPressed,
-      ]}
+      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={title}
@@ -88,13 +85,13 @@ function ActionCard({
       <View style={[styles.iconBox, { backgroundColor: iconBg }]}>
         <Ionicons name={icon} size={28} color={iconColor} />
       </View>
-      
+
       {/* 텍스트 영역 */}
       <View style={styles.textContainer}>
         <Text style={styles.cardTitle}>{title}</Text>
         <Text style={styles.cardSubtitle}>{subtitle}</Text>
       </View>
-      
+
       {/* 우측 화살표 */}
       <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
     </Pressable>
