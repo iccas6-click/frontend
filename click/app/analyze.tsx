@@ -1,8 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { StepIndicator } from '@/components/step-indicator';
@@ -29,27 +28,39 @@ const RING_INNER = 150;
 export default function AnalyzeScreen() {
   const router = useRouter();
   const { items: itemsParam } = useLocalSearchParams<{ items?: string }>();
-  const [error, setError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+
+    // 분석 실패/자료 없음 → 실패 페이지로 이동
+    const goFail = () => {
+      if (!cancelled) {
+        router.replace({ pathname: '/analysis-failed', params: { items: itemsParam } });
+      }
+    };
+
     (async () => {
       try {
-        const items: RecognizedItem[] = itemsParam
-          ? JSON.parse(itemsParam)
-          : [];
+        const items: RecognizedItem[] = itemsParam ? JSON.parse(itemsParam) : [];
         devLog('[3단계] ▶ 상호작용 분석 요청, 항목 수:', items.length);
         const result = await analyzeInteractions(items);
-        if (!cancelled) {
-          devLog('[3단계] ◀ 결과 받음 → 4단계(결과 화면)로 전달');
-          router.replace({
-            pathname: '/analysis',
-            params: { result: JSON.stringify(result) },
-          });
+        if (cancelled) return;
+
+        // 백엔드에서 넘어온 자료가 없으면(빈/잘못된 응답) 실패 처리
+        if (!result || !Array.isArray(result.pairs)) {
+          devLog('[3단계] ◀ 분석 자료 없음 → 실패 페이지');
+          goFail();
+          return;
         }
+
+        devLog('[3단계] ◀ 결과 받음 → 4단계(결과 화면)로 전달');
+        router.replace({
+          pathname: '/analysis',
+          params: { result: JSON.stringify(result) },
+        });
       } catch (e) {
         console.warn('상호작용 분석 실패:', e);
-        if (!cancelled) setError(true);
+        goFail();
       }
     })();
 
@@ -63,39 +74,21 @@ export default function AnalyzeScreen() {
       <StepIndicator current={3} background={APPLE_THEME.background} />
 
       <View style={styles.body}>
-        {error ? (
-          <View style={styles.center}>
-            <Ionicons
-              name="alert-circle-outline"
-              size={56}
-              color={APPLE_THEME.textMuted}
+        <View style={styles.center}>
+          {/* 로봇 일러스트 (파란 원은 안테나 노란 원 중심에 정렬) */}
+          <View style={styles.robotWrap}>
+            <View style={styles.ringOuter} />
+            <View style={styles.ringInner} />
+            <Image
+              source={require('@/assets/images/robot.png')}
+              style={styles.robot}
+              contentFit="contain"
             />
-            <Text style={styles.errorTitle}>분석에 실패했어요</Text>
-            <Text style={styles.errorText}>네트워크 상태를 확인해 주세요.</Text>
-            <Pressable 
-              style={({ pressed }) => [styles.retryButton, pressed && styles.buttonPressed]} 
-              onPress={() => router.back()}
-            >
-              <Text style={styles.retryText}>이전으로 돌아가기</Text>
-            </Pressable>
           </View>
-        ) : (
-          <View style={styles.center}>
-            {/* 로봇 일러스트 (파란 원은 안테나 노란 원 중심에 정렬) */}
-            <View style={styles.robotWrap}>
-              <View style={styles.ringOuter} />
-              <View style={styles.ringInner} />
-              <Image
-                source={require('@/assets/images/robot.png')}
-                style={styles.robot}
-                contentFit="contain"
-              />
-            </View>
 
-            <Text style={styles.title}>AI가 분석하고 있어요</Text>
-            <Text style={styles.subtitle}>잠시만 기다려 주세요!</Text>
-          </View>
-        )}
+          <Text style={styles.title}>AI가 분석하고 있어요</Text>
+          <Text style={styles.subtitle}>잠시만 기다려 주세요!</Text>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -158,36 +151,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: APPLE_THEME.textMuted,
     marginTop: 10,
-  },
-
-  // 에러 화면
-  errorTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: APPLE_THEME.textDark,
-    marginTop: 16,
-  },
-  errorText: {
-    fontSize: 15,
-    color: APPLE_THEME.textMuted,
-    marginTop: 8,
-    marginBottom: 32,
-  },
-  retryButton: {
-    paddingHorizontal: 28,
-    paddingVertical: 16,
-    borderRadius: 16,
-    backgroundColor: APPLE_THEME.tintBlue, // iOS 블루 버튼
-    width: '100%',
-    alignItems: 'center',
-  },
-  buttonPressed: {
-    opacity: 0.8,
-    transform: [{ scale: 0.98 }],
-  },
-  retryText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
   },
 });

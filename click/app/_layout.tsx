@@ -59,6 +59,10 @@ export default function RootLayout() {
           options={{ headerShown: false, gestureEnabled: false }}
         />
         <Stack.Screen name="analysis" options={{ headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen
+          name="analysis-failed"
+          options={{ headerShown: false, gestureEnabled: false }}
+        />
       </Stack>
       
       {/* 💡 앱 전체의 상단 상태표시줄 텍스트(시간, 배터리)를 어두운 색으로 고정하여 쿨 그레이 배경에서 잘 보이게 합니다. */}
