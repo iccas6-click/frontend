@@ -119,7 +119,7 @@ export default function ResultScreen() {
               variant="secondary"
               disabled={!canAnalyze}
               onPress={() =>
-                router.push({
+                router.replace({
                   pathname: '/reuse',
                   params: {
                     category: '건강기능식품 라벨',

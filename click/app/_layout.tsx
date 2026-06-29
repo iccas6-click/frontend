@@ -46,6 +46,7 @@ export default function RootLayout() {
         <Stack.Screen name="select" options={{ headerShown: false }} />
         <Stack.Screen name="history" options={{ headerShown: false }} />
         <Stack.Screen name="record" options={{ headerShown: false }} />
+        <Stack.Screen name="reuse" options={{ headerShown: false }} />
         <Stack.Screen
           name="camera"
           options={{ headerShown: false, presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}

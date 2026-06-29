@@ -136,12 +136,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   cameraSection: {
-    flex: 1,
     paddingHorizontal: Spacing.screen,
   },
   cameraShell: {
-    flex: 1,
-    minHeight: 300,
+    width: '100%',
+    aspectRatio: 1,
     overflow: 'hidden',
     borderRadius: Radius.xl,
     backgroundColor: Palette.blueGrey,
@@ -201,8 +200,8 @@ const styles = StyleSheet.create({
   },
   tipCard: {
     marginHorizontal: Spacing.screen,
-    marginTop: 16,
-    marginBottom: 14,
+    marginTop: 14,
+    marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Palette.surface,
@@ -228,8 +227,8 @@ const styles = StyleSheet.create({
   },
   bottomControls: {
     alignItems: 'center',
-    gap: 10,
-    paddingBottom: 18,
+    gap: 8,
+    paddingBottom: 16,
   },
   shutterOuter: {
     width: 72,

@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { IconBadge, PrimaryButton, Screen, SectionHeader, TopBar } from '@/components/app-ui';
+import { IconBadge, Screen, TopBar } from '@/components/app-ui';
 import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { formatRecordTime, formatRecordTitle, getReusableScans } from '@/services/history-storage';
@@ -48,19 +48,25 @@ export default function ReuseScreen() {
   const usableRecords = isSupplement && params.recordId ? records.filter((record) => record.id !== params.recordId) : records;
 
   const startCamera = () => {
-    router.push({
+    const next = {
       pathname: '/camera',
       params: {
         category,
         prevItems: params.prevItems,
         recordId: params.recordId,
       },
-    });
+    } as const;
+
+    if (params.recordId) {
+      router.replace(next);
+      return;
+    }
+    router.push(next);
   };
 
   const selectRecord = (record: ScanRecord) => {
     const selectedItems = record.items.filter((item) => item.category === category);
-    router.push({
+    const next = {
       pathname: '/result',
       params: {
         category,
@@ -68,7 +74,13 @@ export default function ReuseScreen() {
         items: JSON.stringify(selectedItems),
         recordId: params.recordId ?? '',
       },
-    });
+    } as const;
+
+    if (params.recordId) {
+      router.replace(next);
+      return;
+    }
+    router.push(next);
   };
 
   return (
@@ -93,9 +105,18 @@ export default function ReuseScreen() {
           </View>
         ) : null}
 
-        <PrimaryButton label={`새 ${label} 촬영하기`} icon="camera" onPress={startCamera} />
+        <Pressable style={({ pressed }) => [styles.captureCard, pressed && styles.pressed]} onPress={startCamera}>
+          <IconBadge icon="camera" tone={isSupplement ? 'green' : 'blue'} />
+          <View style={styles.captureText}>
+            <Text style={styles.captureTitle}>새 {label} 촬영하기</Text>
+            <Text style={styles.captureBody}>
+              {isSupplement ? '라벨과 성분표를 다시 촬영합니다.' : '알약과 포장 정보를 다시 촬영합니다.'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={Palette.textSubtle} />
+        </Pressable>
 
-        <SectionHeader title="최근 인식 기록" />
+        <Text style={styles.sectionTitle}>최근 인식 기록</Text>
         {usableRecords.length === 0 ? (
           <View style={styles.empty}>
             <IconBadge icon="folder-open" tone="dark" size="lg" />
@@ -152,7 +173,42 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: Spacing.screen,
     paddingBottom: 42,
-    gap: 16,
+    gap: 14,
+  },
+  captureCard: {
+    minHeight: 92,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    padding: 16,
+    ...Shadow.subtle,
+  },
+  captureText: {
+    flex: 1,
+    marginLeft: 14,
+    marginRight: 8,
+  },
+  captureTitle: {
+    fontSize: 19,
+    lineHeight: 25,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  captureBody: {
+    fontSize: 15,
+    lineHeight: 21,
+    color: Palette.textMuted,
+    marginTop: 3,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: '900',
+    color: Palette.text,
+    marginTop: 4,
   },
   contextCard: {
     minHeight: 88,
