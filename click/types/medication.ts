@@ -28,3 +28,18 @@ export interface AnalysisResult {
   summary: string;
   pairs: InteractionPair[];
 }
+
+/**
+ * 로컬에 저장되는 인식 기록 한 건(= 촬영 한 번).
+ * 시간이 다르면 각각 별도의 기록으로 저장된다.
+ */
+export interface ScanRecord {
+  /** 고유 id (생성 시각 기반) */
+  id: string;
+  /** 생성 시각 (ISO) */
+  createdAt: string;
+  /** 이 기록의 분류 */
+  category: ItemCategory;
+  /** 인식 결과 (사용자가 추가·수정한 최종 항목 포함) */
+  items: RecognizedItem[];
+}
