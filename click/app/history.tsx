@@ -2,10 +2,20 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useState } from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { formatRecordTime, formatRecordTitle, getAllScans } from '@/services/history-storage';
+import {
+  formatRecordTime,
+  formatRecordTitle,
+  getAllScans,
+} from '@/services/history-storage';
 import type { RecognizedItem, ScanRecord } from '@/types/medication';
 
 const APPLE_THEME = {
@@ -65,9 +75,14 @@ export default function HistoryScreen() {
       <TouchableOpacity
         style={styles.card}
         activeOpacity={0.7}
-        onPress={() => router.push({ pathname: '/record', params: { id: item.id } })}>
+        onPress={() =>
+          router.push({ pathname: '/record', params: { id: item.id } })
+        }
+      >
         <View style={styles.cardContent}>
-          <View style={[styles.iconBox, { backgroundColor: cat.bg }]}>{cat.icon}</View>
+          <View style={[styles.iconBox, { backgroundColor: cat.bg }]}>
+            {cat.icon}
+          </View>
           <View style={styles.textContainer}>
             <Text style={styles.cardTitle} numberOfLines={1}>
               {formatRecordTitle(item.createdAt)}
@@ -87,8 +102,16 @@ export default function HistoryScreen() {
       <StatusBar style="dark" />
 
       <View style={styles.headerRow}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.6}>
-          <Ionicons name="chevron-back" size={24} color={APPLE_THEME.tintBlue} />
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+          activeOpacity={0.6}
+        >
+          <Ionicons
+            name="chevron-back"
+            size={24}
+            color={APPLE_THEME.tintBlue}
+          />
           <Text style={styles.backText}>홈</Text>
         </TouchableOpacity>
       </View>
