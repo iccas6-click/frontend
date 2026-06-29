@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ItemEditModal } from '@/components/item-edit-modal';
 import { StepIndicator } from '@/components/step-indicator';
 import { devLog } from '@/services/debug-log';
+import { createScan, updateScan } from '@/services/history-storage';
 import { analyzeImage } from '@/services/ocr';
 import type { ItemCategory, RecognizedItem } from '@/types/medication';
 
@@ -41,6 +42,8 @@ export default function ResultScreen() {
   const [items, setItems] = useState<RecognizedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  // 이번 인식이 저장된 기록 id (항목 변경 시 이 기록을 갱신)
+  const [recordId, setRecordId] = useState<string | null>(null);
 
   const [editTarget, setEditTarget] = useState<RecognizedItem | null | undefined>(undefined);
   const nextId = useRef(0);
@@ -67,6 +70,9 @@ export default function ResultScreen() {
     try {
       const result = await analyzeImage(photoUri ?? '', selectedCategory);
       setItems(result);
+      // 인식 완료 시 새 기록 생성 (이후 항목 변경은 이 기록을 갱신)
+      const id = await createScan(selectedCategory, result);
+      setRecordId(id);
     } catch (e) {
       console.warn('OCR 분석 실패:', e);
       setError(true);
@@ -78,6 +84,13 @@ export default function ResultScreen() {
   useEffect(() => {
     runAnalysis();
   }, [runAnalysis]);
+
+  // 항목이 바뀔 때마다(추가·수정·삭제) 저장된 기록을 갱신
+  useEffect(() => {
+    if (recordId && !loading && !error) {
+      updateScan(recordId, items).catch((e) => console.warn('기록 갱신 실패:', e));
+    }
+  }, [items, recordId, loading, error]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
