@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import type { ItemCategory, RecognizedItem, ScanRecord } from '@/types/medication';
+import type { AnalysisResult, ItemCategory, RecognizedItem, ScanRecord } from '@/types/medication';
 
 import { devLog } from './debug-log';
 
@@ -79,5 +79,28 @@ export async function updateScan(id: string, items: RecognizedItem[]): Promise<v
   const idx = records.findIndex((r) => r.id === id);
   if (idx === -1) return;
   records[idx] = { ...records[idx], items };
+  await persist(records);
+}
+
+/** 기존 인식 항목을 재사용할 때도 새 분석 세션 기록을 만든다. */
+export async function createScanFromItems(items: RecognizedItem[]): Promise<string> {
+  const category: ItemCategory = items.some((item) => item.category === '건강기능식품 라벨')
+    ? '건강기능식품 라벨'
+    : '알약';
+  return createScan(category, items);
+}
+
+/** 특정 분류 항목이 들어 있는 최근 기록을 반환한다. */
+export async function getReusableScans(category: ItemCategory): Promise<ScanRecord[]> {
+  const records = await getAllScans();
+  return records.filter((record) => record.items.some((item) => item.category === category));
+}
+
+/** 분석 결과를 해당 기록 안에 저장한다. */
+export async function updateScanAnalysis(id: string, analysis: AnalysisResult): Promise<void> {
+  const records = await loadAll();
+  const idx = records.findIndex((r) => r.id === id);
+  if (idx === -1) return;
+  records[idx] = { ...records[idx], analysis, analyzedAt: new Date().toISOString() };
   await persist(records);
 }

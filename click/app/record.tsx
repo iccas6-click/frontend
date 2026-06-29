@@ -1,31 +1,44 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { IconBadge, PrimaryButton, Screen, TopBar } from '@/components/app-ui';
+import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { formatRecordTime, formatRecordTitle, getScan } from '@/services/history-storage';
-import type { ItemCategory, RecognizedItem, ScanRecord } from '@/types/medication';
+import type { AnalysisResult, InteractionPair, ItemCategory, RecognizedItem, RiskLevel, ScanRecord } from '@/types/medication';
 
-const APPLE_THEME = {
-  background: '#F2F2F7',
-  card: '#FFFFFF',
-  textDark: '#1C1C1E',
-  textMuted: '#8E8E93',
-  tintBlue: '#007AFF',
-  segmentBg: '#E9E9EB',
-};
-
-const CATEGORY_STYLE: Record<ItemCategory, { emoji: string; bg: string }> = {
-  알약: { emoji: '💊', bg: '#FFE5EA' },
-  '건강기능식품 라벨': { emoji: '🌿', bg: '#E9F9EE' },
-};
-
-// 토글 탭 정의 (값: 실제 분류 / 라벨: 화면 표시)
 const TABS: { value: ItemCategory; label: string }[] = [
   { value: '알약', label: '알약' },
   { value: '건강기능식품 라벨', label: '건강기능식품' },
 ];
+
+const LEVEL_META: Record<RiskLevel, { label: string; title: string; color: string; bg: string; icon: 'alert-circle' | 'warning' | 'checkmark-circle'; tone: 'red' | 'amber' | 'green' }> = {
+  danger: {
+    label: '위험',
+    title: '전문가 상담이 필요해요',
+    color: Palette.rose,
+    bg: Palette.roseSoft,
+    icon: 'alert-circle',
+    tone: 'red',
+  },
+  caution: {
+    label: '주의',
+    title: '주의해서 확인해 주세요',
+    color: Palette.amber,
+    bg: Palette.amberSoft,
+    icon: 'warning',
+    tone: 'amber',
+  },
+  safe: {
+    label: '미탐지',
+    title: '중대한 주의사항 미탐지',
+    color: Palette.mint,
+    bg: Palette.mintSoft,
+    icon: 'checkmark-circle',
+    tone: 'green',
+  },
+};
 
 export default function RecordDetailScreen() {
   const router = useRouter();
@@ -41,16 +54,9 @@ export default function RecordDetailScreen() {
       if (!active) return;
       setRecord(data);
       setLoading(false);
-      // 기본 탭: 이 기록의 분류에 항목이 있으면 그쪽, 없으면 반대쪽
       if (data) {
-        const hasScanCat = data.items.some((it) => it.category === data.category);
-        setTab(
-          hasScanCat
-            ? data.category
-            : data.category === '알약'
-              ? '건강기능식품 라벨'
-              : '알약',
-        );
+        const hasPill = data.items.some((it) => it.category === '알약');
+        setTab(hasPill ? '알약' : '건강기능식품 라벨');
       }
     });
     return () => {
@@ -58,138 +64,321 @@ export default function RecordDetailScreen() {
     };
   }, [id]);
 
-  // 각 항목의 분류(괄호 안 값) 기준으로 선택한 탭에 해당하는 항목만 표시
-  const items: RecognizedItem[] =
-    record ? record.items.filter((it) => it.category === tab) : [];
+  const items: RecognizedItem[] = record ? record.items.filter((it) => it.category === tab) : [];
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.headerRow}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.6}>
-          <Ionicons name="chevron-back" size={24} color={APPLE_THEME.tintBlue} />
-          <Text style={styles.backText}>기록</Text>
-        </TouchableOpacity>
-      </View>
+    <Screen
+      bottom={
+        record ? (
+          <PrimaryButton
+            label={record.analysis ? '이 목록으로 다시 분석' : '이 목록으로 분석하기'}
+            icon="analytics"
+            onPress={() => router.push({ pathname: '/analyze', params: { items: JSON.stringify(record.items), recordId: record.id } })}
+          />
+        ) : null
+      }>
+      <TopBar
+        title={record ? formatRecordTitle(record.createdAt) : '기록'}
+        subtitle={record ? formatRecordTime(record.createdAt) : '저장된 기록을 불러오고 있어요.'}
+        backLabel="기록"
+        onBack={() => router.back()}
+      />
 
-      <Text style={styles.title}>{record ? formatRecordTitle(record.createdAt) : '기록'}</Text>
       {record ? (
-        <Text style={styles.timeText}>{formatRecordTime(record.createdAt)}</Text>
+        <View style={styles.summary}>
+          <View>
+            <Text style={styles.summaryLabel}>저장된 항목</Text>
+            <Text style={styles.summaryTitle}>{record.items.length}개</Text>
+          </View>
+          <IconBadge icon="archive" tone="dark" />
+        </View>
       ) : null}
 
-      {/* 토글 (Segmented Control) */}
+      {record?.analysis ? (
+        <AnalysisSnapshot result={record.analysis} analyzedAt={record.analyzedAt} />
+      ) : record ? (
+        <View style={styles.noAnalysis}>
+          <IconBadge icon="analytics-outline" tone="amber" />
+          <View style={styles.noAnalysisText}>
+            <Text style={styles.noAnalysisTitle}>아직 분석 전 기록이에요</Text>
+            <Text style={styles.noAnalysisBody}>아래 버튼으로 이 목록의 상호작용을 분석할 수 있습니다.</Text>
+          </View>
+        </View>
+      ) : null}
+
       <View style={styles.segment}>
         {TABS.map((t) => {
           const active = tab === t.value;
           return (
-            <TouchableOpacity
-              key={t.value}
-              style={[styles.segmentItem, active && styles.segmentItemActive]}
-              activeOpacity={0.8}
-              onPress={() => setTab(t.value)}>
+            <Pressable key={t.value} style={[styles.segmentItem, active && styles.segmentItemActive]} onPress={() => setTab(t.value)}>
               <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{t.label}</Text>
-            </TouchableOpacity>
+            </Pressable>
           );
         })}
       </View>
 
       {loading ? null : items.length === 0 ? (
         <View style={styles.empty}>
-          <Ionicons name="document-outline" size={48} color="#D1D1D6" />
+          <IconBadge icon="document-outline" tone="dark" size="lg" />
           <Text style={styles.emptyText}>이 종류의 인식 기록이 없어요</Text>
         </View>
       ) : (
-        <ScrollView
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
           {items.map((item) => (
             <ItemCard key={item.id} item={item} />
           ))}
         </ScrollView>
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }
 
-/** 저장된 인식 항목 카드 (결과 페이지와 동일한 모양, 읽기 전용) */
 function ItemCard({ item }: { item: RecognizedItem }) {
-  const cat = CATEGORY_STYLE[item.category] ?? CATEGORY_STYLE['알약'];
+  const isSupplement = item.category === '건강기능식품 라벨';
   return (
     <View style={styles.card}>
-      <View style={[styles.iconBox, { backgroundColor: cat.bg }]}>
-        <Text style={styles.iconEmoji}>{cat.emoji}</Text>
-      </View>
+      <IconBadge icon={isSupplement ? 'leaf' : 'medical'} tone={isSupplement ? 'green' : 'blue'} />
       <View style={styles.cardInfo}>
         <Text style={styles.cardName} numberOfLines={1}>
-          {item.name} {item.dosage}
+          {item.name}
         </Text>
-        <Text style={styles.cardCategory}>{item.category}</Text>
+        <Text style={styles.cardCategory}>
+          {isSupplement ? '건강기능식품' : '알약'}
+          {item.dosage ? ` · ${item.dosage}` : ''}
+        </Text>
       </View>
+      <Ionicons name="checkmark-circle" size={20} color={Palette.mint} />
+    </View>
+  );
+}
+
+function AnalysisSnapshot({ result, analyzedAt }: { result: AnalysisResult; analyzedAt?: string }) {
+  const meta = LEVEL_META[result.overall];
+  const topPairs = result.pairs.slice(0, 3);
+
+  return (
+    <View style={styles.analysisWrap}>
+      <View style={styles.analysisCard}>
+        <View style={[styles.analysisIcon, { backgroundColor: meta.bg }]}>
+          <Ionicons name={meta.icon} size={28} color={meta.color} />
+        </View>
+        <View style={styles.analysisText}>
+          <Text style={[styles.analysisTitle, { color: meta.color }]}>{meta.title}</Text>
+          <Text style={styles.analysisBody}>{result.summary}</Text>
+          {analyzedAt ? <Text style={styles.analysisTime}>분석 {formatRecordTime(analyzedAt)}</Text> : null}
+        </View>
+      </View>
+
+      {topPairs.length > 0 ? (
+        <View style={styles.pairList}>
+          {topPairs.map((pair) => (
+            <PairSnapshot key={pair.id} pair={pair} />
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function PairSnapshot({ pair }: { pair: InteractionPair }) {
+  const meta = LEVEL_META[pair.level];
+  return (
+    <View style={styles.pairCard}>
+      <View style={[styles.levelBadge, { backgroundColor: meta.bg }]}>
+        <Ionicons name={meta.icon} size={14} color={meta.color} />
+        <Text style={[styles.levelText, { color: meta.color }]}>{meta.label}</Text>
+      </View>
+      <Text style={styles.pairTitle}>{pair.items.join(' + ')}</Text>
+      <Text style={styles.pairDesc}>{pair.description}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: APPLE_THEME.background,
-  },
-  headerRow: {
-    paddingHorizontal: 12,
-    paddingTop: 4,
-  },
-  backButton: {
+  summary: {
+    marginHorizontal: Spacing.screen,
+    marginBottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    padding: 16,
+    ...Shadow.subtle,
+  },
+  analysisWrap: {
+    marginHorizontal: Spacing.screen,
+    marginBottom: 16,
+    gap: 10,
+  },
+  analysisCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    padding: 16,
+    ...Shadow.subtle,
+  },
+  analysisIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  analysisText: {
+    flex: 1,
+    marginLeft: 14,
+  },
+  analysisTitle: {
+    fontSize: 19,
+    lineHeight: 25,
+    fontWeight: '900',
+  },
+  analysisBody: {
+    ...Typography.body,
+    color: Palette.text,
+    marginTop: 4,
+  },
+  analysisTime: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Palette.textSubtle,
+    marginTop: 7,
+  },
+  noAnalysis: {
+    marginHorizontal: Spacing.screen,
+    marginBottom: 16,
+    minHeight: 88,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    padding: 16,
+  },
+  noAnalysisText: {
+    flex: 1,
+    marginLeft: 14,
+  },
+  noAnalysisTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  noAnalysisBody: {
+    ...Typography.body,
+    color: Palette.textMuted,
+    marginTop: 3,
+  },
+  pairList: {
+    gap: 8,
+  },
+  pairCard: {
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    padding: 14,
+  },
+  levelBadge: {
     alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: Radius.sm,
+    marginBottom: 8,
   },
-  backText: {
+  levelText: {
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  pairTitle: {
     fontSize: 16,
-    color: APPLE_THEME.tintBlue,
-    marginLeft: 2,
+    lineHeight: 22,
+    fontWeight: '900',
+    color: Palette.text,
   },
-  title: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: APPLE_THEME.textDark,
-    paddingHorizontal: 20,
-    marginTop: 12,
-    marginBottom: 2,
-  },
-  timeText: {
+  pairDesc: {
     fontSize: 15,
-    color: APPLE_THEME.textMuted,
-    paddingHorizontal: 20,
-    marginBottom: 18,
+    lineHeight: 21,
+    color: Palette.textMuted,
+    marginTop: 5,
+  },
+  summaryLabel: {
+    ...Typography.caption,
+    color: Palette.textMuted,
+  },
+  summaryTitle: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: Palette.text,
+    marginTop: 3,
   },
   segment: {
     flexDirection: 'row',
-    backgroundColor: APPLE_THEME.segmentBg,
-    borderRadius: 10,
+    backgroundColor: Palette.surfaceMuted,
+    borderRadius: Radius.md,
     padding: 3,
-    marginHorizontal: 20,
-    marginBottom: 20,
+    marginHorizontal: Spacing.screen,
+    marginBottom: 16,
   },
   segmentItem: {
     flex: 1,
-    paddingVertical: 9,
-    borderRadius: 8,
+    minHeight: 40,
+    borderRadius: Radius.sm,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   segmentItemActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
+    backgroundColor: Palette.surface,
+    ...Shadow.subtle,
   },
   segmentText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: APPLE_THEME.textMuted,
+    fontWeight: '800',
+    color: Palette.textMuted,
   },
   segmentTextActive: {
-    color: APPLE_THEME.textDark,
+    color: Palette.text,
+  },
+  list: {
+    paddingHorizontal: Spacing.screen,
+    paddingBottom: 24,
+    gap: 10,
+  },
+  card: {
+    minHeight: 82,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    padding: 16,
+    ...Shadow.subtle,
+  },
+  cardInfo: {
+    flex: 1,
+    marginLeft: 14,
+    marginRight: 12,
+  },
+  cardName: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  cardCategory: {
+    fontSize: 14,
+    color: Palette.textMuted,
+    marginTop: 4,
   },
   empty: {
     flex: 1,
@@ -199,50 +388,7 @@ const styles = StyleSheet.create({
     paddingBottom: 80,
   },
   emptyText: {
-    fontSize: 16,
-    color: APPLE_THEME.textMuted,
-  },
-  listContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-    gap: 12,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: APPLE_THEME.card,
-    borderRadius: 20,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    elevation: 2,
-  },
-  iconBox: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  iconEmoji: {
-    fontSize: 26,
-  },
-  cardInfo: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  cardName: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: APPLE_THEME.textDark,
-    marginBottom: 4,
-    letterSpacing: -0.4,
-  },
-  cardCategory: {
-    fontSize: 14,
-    color: APPLE_THEME.textMuted,
+    ...Typography.body,
+    color: Palette.textMuted,
   },
 });

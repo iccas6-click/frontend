@@ -1,30 +1,108 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
-
 import { Platform } from 'react-native';
 
-/** CLICK 브랜드 색상 (목업의 청록색 톤) */
-export const Brand = {
-  primary: '#29B5C7',
-  primaryDark: '#1F9DAD',
-  textDark: '#1A2730',
-  textMuted: '#8A99A3',
-  surface: '#FBF8F0',
-  success: '#3DBA6F',
+export const Palette = {
+  background: '#F6F7F9',
+  surface: '#FFFFFF',
+  surfaceMuted: '#EEF2F6',
+  surfaceWarm: '#FFF8EF',
+  border: '#E5E8EC',
+  borderStrong: '#D6DCE3',
+  text: '#171A1F',
+  textMuted: '#737B87',
+  textSubtle: '#9AA2AD',
+  primary: '#1677FF',
+  primaryPressed: '#0E63D8',
+  primarySoft: '#EAF3FF',
+  mint: '#12B886',
+  mintSoft: '#E7F8F1',
+  rose: '#F04452',
+  roseSoft: '#FFECEF',
+  amber: '#F59F00',
+  amberSoft: '#FFF5DC',
+  blueGrey: '#334155',
 };
 
-const tintColorLight = '#0a7ea4';
+export const Radius = {
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+};
+
+export const Spacing = {
+  screen: 20,
+  section: 28,
+};
+
+export const Shadow = {
+  card: {
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 18,
+    elevation: 2,
+  },
+  subtle: {
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 1,
+  },
+};
+
+export const Typography = {
+  hero: {
+    fontSize: 34,
+    lineHeight: 40,
+    fontWeight: '800' as const,
+    letterSpacing: 0,
+  },
+  title: {
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: '800' as const,
+    letterSpacing: 0,
+  },
+  section: {
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: '800' as const,
+    letterSpacing: 0,
+  },
+  body: {
+    fontSize: 16,
+    lineHeight: 23,
+    fontWeight: '500' as const,
+    letterSpacing: 0,
+  },
+  caption: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600' as const,
+    letterSpacing: 0,
+  },
+};
+
+export const Brand = {
+  primary: Palette.primary,
+  primaryDark: Palette.primaryPressed,
+  textDark: Palette.text,
+  textMuted: Palette.textMuted,
+  surface: Palette.background,
+  success: Palette.mint,
+};
+
+const tintColorLight = Palette.primary;
 const tintColorDark = '#fff';
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
+    text: Palette.text,
+    background: Palette.background,
     tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
+    icon: Palette.textMuted,
+    tabIconDefault: Palette.textMuted,
     tabIconSelected: tintColorLight,
   },
   dark: {
@@ -39,13 +117,9 @@ export const Colors = {
 
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
     sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
     serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
     rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
     mono: 'ui-monospace',
   },
   default: {

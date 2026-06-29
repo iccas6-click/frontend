@@ -1,32 +1,14 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useState } from 'react';
-import {
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import {
-  formatRecordTime,
-  formatRecordTitle,
-  getAllScans,
-} from '@/services/history-storage';
+import { IconBadge, Screen, TopBar } from '@/components/app-ui';
+import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
+import { formatRecordTime, formatRecordTitle, getAllScans } from '@/services/history-storage';
 import type { RecognizedItem, ScanRecord } from '@/types/medication';
 
-const APPLE_THEME = {
-  background: '#F2F2F7',
-  card: '#FFFFFF',
-  textDark: '#1C1C1E',
-  textMuted: '#8E8E93',
-  tintBlue: '#007AFF',
-};
-
-/** 항목들의 분류별 개수 요약 (예: "알약 2개 · 건강기능식품 1개") */
 function summarize(items: RecognizedItem[]): string {
   const pill = items.filter((it) => it.category === '알약').length;
   const supp = items.filter((it) => it.category === '건강기능식품 라벨').length;
@@ -36,27 +18,10 @@ function summarize(items: RecognizedItem[]): string {
   return parts.length ? parts.join(' · ') : '항목 없음';
 }
 
-/** 분류별 아이콘/색상 */
-function categoryStyle(record: ScanRecord) {
-  if (record.category === '알약') {
-    return {
-      label: '알약',
-      bg: '#FFE5EA',
-      icon: <MaterialCommunityIcons name="pill" size={22} color="#FF2D55" />,
-    };
-  }
-  return {
-    label: '건강기능식품',
-    bg: '#E9F9EE',
-    icon: <Ionicons name="leaf" size={20} color="#34C759" />,
-  };
-}
-
 export default function HistoryScreen() {
   const router = useRouter();
   const [records, setRecords] = useState<ScanRecord[]>([]);
 
-  // 화면에 들어올 때마다 최신 기록을 다시 로드
   useFocusEffect(
     useCallback(() => {
       let active = true;
@@ -69,156 +34,139 @@ export default function HistoryScreen() {
     }, []),
   );
 
-  const renderItem = ({ item }: { item: ScanRecord }) => {
-    const cat = categoryStyle(item);
-    return (
-      <TouchableOpacity
-        style={styles.card}
-        activeOpacity={0.7}
-        onPress={() =>
-          router.push({ pathname: '/record', params: { id: item.id } })
-        }
-      >
-        <View style={styles.cardContent}>
-          <View style={[styles.iconBox, { backgroundColor: cat.bg }]}>
-            {cat.icon}
-          </View>
-          <View style={styles.textContainer}>
-            <Text style={styles.cardTitle} numberOfLines={1}>
-              {formatRecordTitle(item.createdAt)}
-            </Text>
-            <Text style={styles.cardSubtitle}>
-              {formatRecordTime(item.createdAt)} · {summarize(item.items)}
-            </Text>
-          </View>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
-      </TouchableOpacity>
-    );
-  };
-
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <Screen>
       <StatusBar style="dark" />
-
-      <View style={styles.headerRow}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-          activeOpacity={0.6}
-        >
-          <Ionicons
-            name="chevron-back"
-            size={24}
-            color={APPLE_THEME.tintBlue}
-          />
-          <Text style={styles.backText}>홈</Text>
-        </TouchableOpacity>
-      </View>
-
-      <Text style={styles.title}>지난 기록</Text>
+      <TopBar
+        title="분석 기록"
+        subtitle="확인했던 약과 건강기능식품 조합을 다시 열어볼 수 있어요."
+        backLabel="홈"
+        onBack={() => router.back()}
+      />
 
       {records.length === 0 ? (
         <View style={styles.empty}>
-          <Ionicons name="folder-open-outline" size={56} color="#D1D1D6" />
-          <Text style={styles.emptyText}>아직 저장된 기록이 없어요</Text>
+          <IconBadge icon="folder-open" tone="dark" size="lg" />
+          <Text style={styles.emptyTitle}>아직 저장된 기록이 없어요</Text>
+          <Text style={styles.emptyBody}>인식을 완료하면 같은 약을 다시 입력하지 않도록 기록이 쌓입니다.</Text>
         </View>
       ) : (
         <FlatList
           data={records}
           keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContainer}
+          renderItem={({ item }) => (
+            <RecordCard record={item} onPress={() => router.push({ pathname: '/record', params: { id: item.id } })} />
+          )}
+          contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
         />
       )}
-    </SafeAreaView>
+    </Screen>
+  );
+}
+
+function RecordCard({ record, onPress }: { record: ScanRecord; onPress: () => void }) {
+  const pill = record.items.some((item) => item.category === '알약');
+  const supp = record.items.some((item) => item.category === '건강기능식품 라벨');
+  return (
+    <Pressable style={({ pressed }) => [styles.card, pressed && styles.pressed]} onPress={onPress}>
+      <IconBadge icon={pill && supp ? 'layers' : pill ? 'medical' : 'leaf'} tone={pill && supp ? 'blue' : pill ? 'blue' : 'green'} />
+      <View style={styles.cardText}>
+        <Text style={styles.cardTitle}>{formatRecordTitle(record.createdAt)}</Text>
+        <Text style={styles.cardMeta}>
+          {formatRecordTime(record.createdAt)} · {record.analysis ? '분석 완료' : '인식만 저장됨'}
+        </Text>
+        <Text style={styles.cardMeta}>
+          {summarize(record.items)}
+        </Text>
+        <View style={styles.chipRow}>
+          {pill ? <Chip label="알약" /> : null}
+          {supp ? <Chip label="건강기능식품" /> : null}
+          {record.analysis ? <Chip label="분석 결과 저장" /> : null}
+        </View>
+      </View>
+      <Ionicons name="chevron-forward" size={19} color={Palette.textSubtle} />
+    </Pressable>
+  );
+}
+
+function Chip({ label }: { label: string }) {
+  return (
+    <View style={styles.chip}>
+      <Text style={styles.chipText}>{label}</Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: APPLE_THEME.background,
+  list: {
+    paddingHorizontal: Spacing.screen,
+    paddingBottom: 36,
+    gap: 10,
   },
-  headerRow: {
-    paddingHorizontal: 12,
-    paddingTop: 4,
-  },
-  backButton: {
+  card: {
+    minHeight: 104,
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    padding: 16,
+    ...Shadow.subtle,
   },
-  backText: {
-    fontSize: 16,
-    color: APPLE_THEME.tintBlue,
-    marginLeft: 2,
+  pressed: {
+    opacity: 0.78,
+    transform: [{ scale: 0.99 }],
   },
-  title: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: APPLE_THEME.textDark,
-    paddingHorizontal: 20,
-    marginTop: 12,
-    marginBottom: 20,
+  cardText: {
+    flex: 1,
+    marginLeft: 14,
+    marginRight: 8,
+  },
+  cardTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  cardMeta: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: Palette.textMuted,
+    marginTop: 4,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 10,
+  },
+  chip: {
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: Radius.sm,
+    backgroundColor: Palette.surfaceMuted,
+  },
+  chipText: {
+    ...Typography.caption,
+    color: Palette.textMuted,
   },
   empty: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 16,
-    paddingBottom: 100,
+    paddingHorizontal: 34,
+    paddingBottom: 80,
   },
-  emptyText: {
-    fontSize: 16,
-    color: APPLE_THEME.textMuted,
+  emptyTitle: {
+    ...Typography.section,
+    color: Palette.text,
+    marginTop: 16,
+    textAlign: 'center',
   },
-  listContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-    gap: 12,
-  },
-  card: {
-    backgroundColor: APPLE_THEME.card,
-    borderRadius: 20,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    elevation: 2,
-  },
-  cardContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  iconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  textContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingRight: 12,
-  },
-  cardTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: APPLE_THEME.textDark,
-    marginBottom: 4,
-    letterSpacing: -0.4,
-  },
-  cardSubtitle: {
-    fontSize: 14,
-    color: APPLE_THEME.textMuted,
+  emptyBody: {
+    ...Typography.body,
+    color: Palette.textMuted,
+    textAlign: 'center',
+    marginTop: 8,
   },
 });

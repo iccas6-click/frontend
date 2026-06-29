@@ -2,27 +2,38 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { IconBadge, PrimaryButton, Screen, SectionHeader, TopBar } from '@/components/app-ui';
 import { StepIndicator } from '@/components/step-indicator';
+import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { devLog } from '@/services/debug-log';
 import type { AnalysisResult, InteractionPair, RiskLevel } from '@/types/medication';
 
-const APPLE_THEME = {
-  background: '#F2F2F7', 
-  card: '#FFFFFF',
-  textDark: '#1C1C1E',
-  textMuted: '#8E8E93',
-  tintBlue: '#007AFF',
-};
-
-const LEVEL_META: Record<RiskLevel, { label: string; color: string; bg: string; icon: any }> = {
-  danger: { label: '위험', color: '#FF3B30', bg: '#FFECEB', icon: 'close-circle' },
-  caution: { label: '주의', color: '#FF9500', bg: '#FFF4E5', icon: 'warning' },
-  safe: { label: '안전', color: '#34C759', bg: '#E9F9EE', icon: 'checkmark-circle' },
-};
-
-const OVERALL_TITLE: Record<RiskLevel, string> = {
-  danger: '위험', caution: '주의 필요', safe: '안전',
+const LEVEL_META: Record<RiskLevel, { label: string; title: string; color: string; bg: string; icon: 'alert-circle' | 'warning' | 'checkmark-circle'; tone: 'red' | 'amber' | 'green' }> = {
+  danger: {
+    label: '위험',
+    title: '전문가 상담이 필요해요',
+    color: Palette.rose,
+    bg: Palette.roseSoft,
+    icon: 'alert-circle',
+    tone: 'red',
+  },
+  caution: {
+    label: '주의',
+    title: '주의해서 확인해 주세요',
+    color: Palette.amber,
+    bg: Palette.amberSoft,
+    icon: 'warning',
+    tone: 'amber',
+  },
+  safe: {
+    label: '미탐지',
+    title: '중대한 주의사항 미탐지',
+    color: Palette.mint,
+    bg: Palette.mintSoft,
+    icon: 'checkmark-circle',
+    tone: 'green',
+  },
 };
 
 export default function AnalysisScreen() {
@@ -31,7 +42,11 @@ export default function AnalysisScreen() {
 
   const result = useMemo<AnalysisResult | null>(() => {
     if (!resultParam) return null;
-    try { return JSON.parse(resultParam) as AnalysisResult; } catch { return null; }
+    try {
+      return JSON.parse(resultParam) as AnalysisResult;
+    } catch {
+      return null;
+    }
   }, [resultParam]);
 
   useEffect(() => {
@@ -39,69 +54,65 @@ export default function AnalysisScreen() {
   }, [result]);
 
   const goHome = () => {
-    try { router.dismissAll(); } catch { }
+    try {
+      router.dismissAll();
+    } catch {}
     router.replace('/');
   };
 
-  const overall = result ? LEVEL_META[result.overall] : LEVEL_META.safe;
+  if (!result) {
+    return (
+      <Screen>
+        <TopBar title="분석 결과" backLabel="뒤로" onBack={() => router.back()} />
+        <View style={styles.empty}>
+          <IconBadge icon="alert-circle" tone="amber" size="lg" />
+          <Text style={styles.emptyTitle}>결과를 불러올 수 없어요</Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  const overall = LEVEL_META[result.overall];
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* 💡 뒤로가기 복구 */}
-      <View style={styles.headerRow}>
-        <Pressable style={styles.backButton} onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="chevron-back" size={24} color={APPLE_THEME.tintBlue} />
-          <Text style={styles.backText}>뒤로</Text>
-        </Pressable>
-      </View>
-
-      <StepIndicator current={4} background={APPLE_THEME.background} />
-
-      <View style={styles.bodyWrap}>
-        {!result ? (
-          <View style={styles.center}>
-            <Ionicons name="alert-circle-outline" size={48} color={APPLE_THEME.textMuted} />
-            <Text style={styles.centerText}>결과를 불러올 수 없어요</Text>
-          </View>
-        ) : (
-          <ScrollView
-            style={styles.scroll}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}>
-            
-            <Text style={styles.pageTitle}>분석 결과</Text>
-
-            <View style={styles.overallCard}>
-              <View style={[styles.overallIconBox, { backgroundColor: overall.bg }]}>
-                <Ionicons name={overall.icon} size={46} color={overall.color} />
-              </View>
-              <Text style={[styles.overallTitle, { color: overall.color }]}>
-                {OVERALL_TITLE[result.overall]}
-              </Text>
-              <Text style={styles.overallSummary}>{result.summary}</Text>
-            </View>
-
-            <Text style={styles.sectionTitle}>상세 조합</Text>
-            <View style={styles.listContainer}>
-              {result.pairs.map((pair) => (
-                <PairCard key={pair.id} pair={pair} />
-              ))}
-            </View>
-          </ScrollView>
-        )}
-      </View>
-
-      {result && (
+    <Screen
+      bottom={
         <View style={styles.footer}>
-          <Pressable 
-            style={({ pressed }) => [styles.askButton, pressed && styles.buttonPressed]} 
-            onPress={goHome}
-          >
-            <Text style={styles.askText}>처음으로 돌아가기</Text>
-          </Pressable>
+          <PrimaryButton label="처음으로 돌아가기" icon="home" onPress={goHome} />
         </View>
-      )}
-    </SafeAreaView>
+      }>
+      <TopBar title="분석 결과" subtitle="이 결과는 복약 결정을 대신하지 않으며, 상담 전 확인용으로 사용해 주세요." backLabel="뒤로" onBack={() => router.back()} />
+      <StepIndicator current={4} />
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.summaryCard}>
+          <View style={[styles.summaryIcon, { backgroundColor: overall.bg }]}>
+            <Ionicons name={overall.icon} size={34} color={overall.color} />
+          </View>
+          <Text style={[styles.summaryTitle, { color: overall.color }]}>{overall.title}</Text>
+          <Text style={styles.summaryText}>{result.summary}</Text>
+          <View style={styles.disclaimer}>
+            <Ionicons name="information-circle" size={16} color={Palette.textMuted} />
+            <Text style={styles.disclaimerText}>복용 변경 전에는 의사 또는 약사와 상담하세요.</Text>
+          </View>
+        </View>
+
+        <SectionHeader title="조합별 확인" />
+        <View style={styles.pairList}>
+          {result.pairs.map((pair) => (
+            <PairCard key={pair.id} pair={pair} />
+          ))}
+        </View>
+
+        <Pressable style={styles.questionCard}>
+          <IconBadge icon="chatbubble-ellipses" tone="blue" />
+          <View style={styles.questionText}>
+            <Text style={styles.questionTitle}>결과에 대해 물어보기</Text>
+            <Text style={styles.questionBody}>다음 단계에서 AI 후속 질문 화면으로 연결할 예정입니다.</Text>
+          </View>
+        </Pressable>
+      </ScrollView>
+    </Screen>
   );
 }
 
@@ -109,44 +120,142 @@ function PairCard({ pair }: { pair: InteractionPair }) {
   const meta = LEVEL_META[pair.level];
   return (
     <View style={styles.pairCard}>
-      <View style={[styles.iconBox, { backgroundColor: meta.bg }]}><Ionicons name={meta.icon} size={24} color={meta.color} /></View>
-      <View style={styles.pairInfo}>
-        <Text style={styles.pairTitle}>{pair.items.join(' + ')}</Text>
-        <Text style={styles.pairDesc}>{pair.description}</Text>
+      <View style={styles.pairHeader}>
+        <View style={[styles.levelBadge, { backgroundColor: meta.bg }]}>
+          <Ionicons name={meta.icon} size={15} color={meta.color} />
+          <Text style={[styles.levelText, { color: meta.color }]}>{meta.label}</Text>
+        </View>
       </View>
-      <View style={[styles.badge, { backgroundColor: meta.bg }]}>
-        <Text style={[styles.badgeText, { color: meta.color }]}>{meta.label}</Text>
-      </View>
+      <Text style={styles.pairTitle}>{pair.items.join(' + ')}</Text>
+      <Text style={styles.pairDesc}>{pair.description}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: APPLE_THEME.background },
-  headerRow: { paddingHorizontal: 8, paddingTop: 12, paddingBottom: 4 },
-  backButton: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start' },
-  backText: { fontSize: 17, color: APPLE_THEME.tintBlue, marginLeft: -2 },
-  pageTitle: { fontSize: 32, fontWeight: '800', color: APPLE_THEME.textDark, marginBottom: 20, marginTop: 8 },
-  bodyWrap: { flex: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, paddingBottom: 60 },
-  centerText: { fontSize: 16, color: APPLE_THEME.textMuted },
-  scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
-  overallCard: { backgroundColor: APPLE_THEME.card, borderRadius: 24, alignItems: 'center', paddingVertical: 32, paddingHorizontal: 24, marginBottom: 32, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 2 },
-  overallIconBox: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  overallTitle: { fontSize: 24, fontWeight: '800', marginBottom: 10 },
-  overallSummary: { fontSize: 15, color: APPLE_THEME.textDark, textAlign: 'center', lineHeight: 22 },
-  sectionTitle: { fontSize: 20, fontWeight: '700', color: APPLE_THEME.textDark, marginBottom: 16 },
-  listContainer: { gap: 12 },
-  pairCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: APPLE_THEME.card, borderRadius: 20, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 1 },
-  iconBox: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
-  pairInfo: { flex: 1, marginRight: 12 },
-  pairTitle: { fontSize: 16, fontWeight: '700', color: APPLE_THEME.textDark, marginBottom: 4 },
-  pairDesc: { fontSize: 14, color: APPLE_THEME.textMuted, lineHeight: 20 },
-  badge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
-  badgeText: { fontSize: 13, fontWeight: '700' },
-  footer: { backgroundColor: APPLE_THEME.background, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24 },
-  askButton: { backgroundColor: APPLE_THEME.tintBlue, borderRadius: 16, paddingVertical: 18, alignItems: 'center' },
-  buttonPressed: { opacity: 0.8, transform: [{ scale: 0.98 }] },
-  askText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700' },
+  content: {
+    paddingBottom: 28,
+  },
+  summaryCard: {
+    marginHorizontal: Spacing.screen,
+    marginBottom: 28,
+    alignItems: 'center',
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    padding: 24,
+    ...Shadow.card,
+  },
+  summaryIcon: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  summaryTitle: {
+    ...Typography.section,
+    textAlign: 'center',
+  },
+  summaryText: {
+    ...Typography.body,
+    color: Palette.text,
+    textAlign: 'center',
+    marginTop: 10,
+  },
+  disclaimer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: Radius.md,
+    backgroundColor: Palette.background,
+  },
+  disclaimerText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Palette.textMuted,
+  },
+  pairList: {
+    paddingHorizontal: Spacing.screen,
+    gap: 10,
+  },
+  pairCard: {
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    padding: 16,
+    ...Shadow.subtle,
+  },
+  pairHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    marginBottom: 10,
+  },
+  levelBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: Radius.sm,
+  },
+  levelText: {
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  pairTitle: {
+    fontSize: 17,
+    lineHeight: 23,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  pairDesc: {
+    ...Typography.body,
+    color: Palette.textMuted,
+    marginTop: 6,
+  },
+  questionCard: {
+    marginHorizontal: Spacing.screen,
+    marginTop: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Palette.primarySoft,
+    borderRadius: Radius.lg,
+    padding: 16,
+  },
+  questionText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  questionTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  questionBody: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: Palette.textMuted,
+    marginTop: 3,
+  },
+  footer: {
+    paddingBottom: 8,
+  },
+  empty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  emptyTitle: {
+    ...Typography.section,
+    color: Palette.text,
+    marginTop: 14,
+  },
 });

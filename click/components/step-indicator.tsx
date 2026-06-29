@@ -1,34 +1,23 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Brand } from '@/constants/theme';
+import { Palette, Radius, Spacing } from '@/constants/theme';
 
-const STEPS = ['촬영', '확인', '분석', '결과'];
+const STEPS = ['알약', '건강기능식품', '분석', '결과'];
 
-/**
- * 진행 단계 표시줄 (current: 현재 단계, 1-based). 현재까지 진행한 단계는 활성 색으로 표시.
- * background: 바 배경색 override (기본은 앱 공통 베이지)
- */
 export function StepIndicator({ current, background }: { current: number; background?: string }) {
   return (
-    <View style={[styles.stepBar, background ? { backgroundColor: background } : null]}>
-      <View style={styles.stepContainer}>
-        <View style={styles.stepLineBackground} />
-
-        {STEPS.map((label, i) => {
-          const n = i + 1;
-          const active = n <= current;
+    <View style={[styles.wrap, background ? { backgroundColor: background } : null]}>
+      <View style={styles.track}>
+        {STEPS.map((label, index) => {
+          const step = index + 1;
+          const active = step <= current;
+          const currentStep = step === current;
           return (
-            <View key={label} style={styles.stepItem}>
-              <View
-                style={[
-                  styles.stepCircle,
-                  active ? styles.stepCircleActive : styles.stepCircleInactive,
-                ]}>
-                <Text style={active ? styles.stepCircleTextActive : styles.stepCircleTextInactive}>
-                  {n}
-                </Text>
+            <View key={label} style={styles.item}>
+              <View style={[styles.dot, active && styles.dotActive, currentStep && styles.dotCurrent]}>
+                <Text style={[styles.dotText, active && styles.dotTextActive, currentStep && styles.dotTextCurrent]}>{step}</Text>
               </View>
-              <Text style={active ? styles.stepLabelActive : styles.stepLabelInactive}>{label}</Text>
+              <Text style={[styles.label, active && styles.labelActive]}>{label}</Text>
             </View>
           );
         })}
@@ -38,66 +27,65 @@ export function StepIndicator({ current, background }: { current: number; backgr
 }
 
 const styles = StyleSheet.create({
-  stepBar: {
-    backgroundColor: Brand.surface,
-    paddingVertical: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+  wrap: {
+    backgroundColor: Palette.background,
+    paddingHorizontal: Spacing.screen,
+    paddingTop: 2,
+    paddingBottom: 14,
   },
-  stepContainer: {
+  track: {
+    minHeight: 54,
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    position: 'relative',
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    paddingHorizontal: 10,
   },
-  stepLineBackground: {
-    position: 'absolute',
-    top: 14,
-    left: 48,
-    right: 48,
-    height: 2,
-    backgroundColor: '#EEEEEE',
-    zIndex: -1,
-  },
-  stepItem: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+  item: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 3,
   },
-  stepCircleActive: {
-    backgroundColor: Brand.primary,
+  dot: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Palette.surfaceMuted,
   },
-  stepCircleInactive: {
-    backgroundColor: '#F0F0F0',
+  dotActive: {
+    backgroundColor: Palette.primarySoft,
   },
-  stepCircleTextActive: {
+  dotCurrent: {
+    backgroundColor: Palette.primary,
+  },
+  dotText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: Palette.textSubtle,
+  },
+  dotTextActive: {
+    color: Palette.primary,
+  },
+  dotTextCurrent: {
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
   },
-  stepCircleTextInactive: {
-    color: '#BBBBBB',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  stepLabelActive: {
+  label: {
     fontSize: 12,
-    color: Brand.primary,
-    fontWeight: '700',
+    lineHeight: 16,
+    fontWeight: '800',
+    letterSpacing: 0,
+    color: Palette.textSubtle,
+    textAlign: 'center',
   },
-  stepLabelInactive: {
-    fontSize: 12,
-    color: '#BBBBBB',
-    fontWeight: '500',
+  labelActive: {
+    color: Palette.text,
   },
 });

@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 
-import { Brand } from '@/constants/theme';
+import { Palette, Radius, Typography } from '@/constants/theme';
 import type { ItemCategory, RecognizedItem } from '@/types/medication';
 
 const CATEGORIES: ItemCategory[] = ['알약', '건강기능식품 라벨'];
@@ -125,7 +125,7 @@ export function ItemEditModal({ visible, initial, onClose, onSave, onDelete }: P
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(15, 23, 42, 0.36)',
   },
   sheetWrap: {
     position: 'absolute',
@@ -134,9 +134,9 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   sheet: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    backgroundColor: Palette.surface,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: 36,
@@ -146,31 +146,30 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#E0E5E8',
+    backgroundColor: Palette.borderStrong,
     marginBottom: 16,
   },
   sheetTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: Brand.textDark,
+    ...Typography.section,
+    color: Palette.text,
     marginBottom: 16,
   },
   label: {
     fontSize: 13,
     fontWeight: '700',
-    color: Brand.textMuted,
+    color: Palette.textMuted,
     marginTop: 12,
     marginBottom: 6,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E3E8EB',
-    borderRadius: 12,
+    borderColor: Palette.border,
+    borderRadius: Radius.md,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    color: Brand.textDark,
-    backgroundColor: '#FAFBFC',
+    color: Palette.text,
+    backgroundColor: Palette.background,
   },
   categoryRow: {
     flexDirection: 'row',
@@ -179,29 +178,29 @@ const styles = StyleSheet.create({
   categoryChip: {
     flex: 1,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: '#E3E8EB',
+    borderColor: Palette.border,
     alignItems: 'center',
-    backgroundColor: '#FAFBFC',
+    backgroundColor: Palette.background,
   },
   categoryChipActive: {
-    borderColor: Brand.primary,
-    backgroundColor: '#E9F8FA',
+    borderColor: Palette.primary,
+    backgroundColor: Palette.primarySoft,
   },
   categoryText: {
     fontSize: 15,
     fontWeight: '600',
-    color: Brand.textMuted,
+    color: Palette.textMuted,
   },
   categoryTextActive: {
-    color: Brand.primary,
+    color: Palette.primary,
     fontWeight: '800',
   },
   saveButton: {
     marginTop: 24,
-    backgroundColor: Brand.primary,
-    borderRadius: 14,
+    backgroundColor: Palette.primary,
+    borderRadius: Radius.lg,
     paddingVertical: 16,
     alignItems: 'center',
   },
@@ -222,7 +221,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   deleteText: {
-    color: '#E5484D',
+    color: Palette.rose,
     fontSize: 15,
     fontWeight: '700',
   },

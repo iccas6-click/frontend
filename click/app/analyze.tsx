@@ -2,40 +2,25 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Screen, TopBar } from '@/components/app-ui';
 import { StepIndicator } from '@/components/step-indicator';
+import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { devLog } from '@/services/debug-log';
+import { updateScanAnalysis } from '@/services/history-storage';
 import { analyzeInteractions } from '@/services/interactions';
 import type { RecognizedItem } from '@/types/medication';
 
-// 💡 애플 건강 앱 스타일 테마 컬러
-const APPLE_THEME = {
-  background: '#F2F2F7', 
-  card: '#FFFFFF',
-  textDark: '#1C1C1E',
-  textMuted: '#8E8E93',
-  tintBlue: '#007AFF', // 파동 및 버튼에 사용할 iOS 블루
-};
-
-const ROBOT_SIZE = 200;
-// 로봇 이미지 안에서 노란 원(안테나)의 중심 위치 — 가로 50%, 세로 약 9% 지점
-const BALL = { x: ROBOT_SIZE * 0.5, y: ROBOT_SIZE * 0.09 };
-// 뒷배경 파란 원 크기
-const RING_OUTER = 230;
-const RING_INNER = 150;
-
 export default function AnalyzeScreen() {
   const router = useRouter();
-  const { items: itemsParam } = useLocalSearchParams<{ items?: string }>();
+  const { items: itemsParam, recordId } = useLocalSearchParams<{ items?: string; recordId?: string }>();
 
   useEffect(() => {
     let cancelled = false;
 
-    // 분석 실패/자료 없음 → 실패 페이지로 이동
     const goFail = () => {
       if (!cancelled) {
-        router.replace({ pathname: '/analysis-failed', params: { items: itemsParam } });
+        router.replace({ pathname: '/analysis-failed', params: { items: itemsParam, recordId: recordId ?? '' } });
       }
     };
 
@@ -46,17 +31,18 @@ export default function AnalyzeScreen() {
         const result = await analyzeInteractions(items);
         if (cancelled) return;
 
-        // 백엔드에서 넘어온 자료가 없으면(빈/잘못된 응답) 실패 처리
         if (!result || !Array.isArray(result.pairs)) {
-          devLog('[3단계] ◀ 분석 자료 없음 → 실패 페이지');
           goFail();
           return;
         }
 
-        devLog('[3단계] ◀ 결과 받음 → 4단계(결과 화면)로 전달');
+        if (recordId) {
+          await updateScanAnalysis(recordId, result);
+        }
+
         router.replace({
           pathname: '/analysis',
-          params: { result: JSON.stringify(result) },
+          params: { result: JSON.stringify(result), recordId: recordId ?? '' },
         });
       } catch (e) {
         console.warn('상호작용 분석 실패:', e);
@@ -67,89 +53,95 @@ export default function AnalyzeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [itemsParam, router]);
+  }, [itemsParam, recordId, router]);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <StepIndicator current={3} background={APPLE_THEME.background} />
-
+    <Screen>
+      <TopBar title="상호작용 분석 중" subtitle="성분 조합을 대조하고 상담이 필요한 항목을 정리하고 있어요." />
+      <StepIndicator current={3} />
       <View style={styles.body}>
-        <View style={styles.center}>
-          {/* 로봇 일러스트 (파란 원은 안테나 노란 원 중심에 정렬) */}
-          <View style={styles.robotWrap}>
-            <View style={styles.ringOuter} />
-            <View style={styles.ringInner} />
-            <Image
-              source={require('@/assets/images/robot.png')}
-              style={styles.robot}
-              contentFit="contain"
-            />
+        <View style={styles.analysisCard}>
+          <View style={styles.visualWrap}>
+            <View style={styles.pulseOuter} />
+            <View style={styles.pulseInner} />
+            <Image source={require('@/assets/images/robot.png')} style={styles.robot} contentFit="contain" />
           </View>
-
-          <Text style={styles.title}>AI가 분석하고 있어요</Text>
-          <Text style={styles.subtitle}>잠시만 기다려 주세요!</Text>
+          <Text style={styles.title}>잠시만 기다려 주세요</Text>
+          <Text style={styles.subtitle}>복용 중단을 지시하지 않고, 상담이 필요한 신호만 먼저 찾아봅니다.</Text>
+          <View style={styles.progressTrack}>
+            <View style={styles.progressFill} />
+          </View>
         </View>
       </View>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: APPLE_THEME.background,
-  },
   body: {
     flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.screen,
+    paddingBottom: 64,
   },
-  center: {
-    flex: 1,
+  analysisCard: {
+    alignItems: 'center',
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.xl,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    paddingHorizontal: 26,
+    paddingVertical: 34,
+    ...Shadow.card,
+  },
+  visualWrap: {
+    width: 190,
+    height: 190,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
-    paddingBottom: 40, // 시각적 중앙을 맞추기 위해 살짝 위로 띄움
-  },
-  
-  // 로봇 및 애니메이션 파동 디자인
-  robotWrap: {
-    width: ROBOT_SIZE,
-    height: ROBOT_SIZE,
-    marginTop: 24,
-    marginBottom: 40,
+    marginBottom: 10,
   },
   robot: {
-    width: ROBOT_SIZE,
-    height: ROBOT_SIZE,
+    width: 150,
+    height: 150,
   },
-  ringOuter: {
+  pulseOuter: {
     position: 'absolute',
-    width: RING_OUTER,
-    height: RING_OUTER,
-    borderRadius: RING_OUTER / 2,
-    left: BALL.x - RING_OUTER / 2,
-    top: BALL.y - RING_OUTER / 2,
-    backgroundColor: 'rgba(0, 122, 255, 0.05)', // 애플 블루 톤으로 맞춤
+    width: 172,
+    height: 172,
+    borderRadius: 86,
+    backgroundColor: Palette.primarySoft,
   },
-  ringInner: {
+  pulseInner: {
     position: 'absolute',
-    width: RING_INNER,
-    height: RING_INNER,
-    borderRadius: RING_INNER / 2,
-    left: BALL.x - RING_INNER / 2,
-    top: BALL.y - RING_INNER / 2,
-    backgroundColor: 'rgba(0, 122, 255, 0.12)', // 애플 블루 톤으로 맞춤
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    backgroundColor: Palette.surface,
   },
-
-  // 텍스트 타이틀
   title: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: APPLE_THEME.textDark,
-    letterSpacing: -0.5,
+    ...Typography.section,
+    color: Palette.text,
+    marginTop: 10,
   },
   subtitle: {
-    fontSize: 16,
-    color: APPLE_THEME.textMuted,
-    marginTop: 10,
+    ...Typography.body,
+    color: Palette.textMuted,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  progressTrack: {
+    width: '100%',
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Palette.surfaceMuted,
+    marginTop: 24,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    width: '58%',
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: Palette.primary,
   },
 });

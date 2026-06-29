@@ -42,4 +42,8 @@ export interface ScanRecord {
   category: ItemCategory;
   /** 인식 결과 (사용자가 추가·수정한 최종 항목 포함) */
   items: RecognizedItem[];
+  /** 분석 완료 시각 (ISO) */
+  analyzedAt?: string;
+  /** 상호작용 분석 결과 */
+  analysis?: AnalysisResult;
 }

@@ -4,16 +4,13 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { useEffect } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
+import { Palette } from '@/constants/theme';
 
-// 💡 애플 건강 앱 스타일의 기본 배경색 지정
-const APPLE_BG = '#F2F2F7';
-
-// 💡 화면 전환 시 검은 화면이나 흰 화면이 번쩍이지 않도록 네비게이션 기본 배경을 통일합니다.
 const AppleCustomTheme = {
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
-    background: APPLE_BG,
+    background: Palette.background,
   },
 };
 
@@ -65,7 +62,6 @@ export default function RootLayout() {
         />
       </Stack>
       
-      {/* 💡 앱 전체의 상단 상태표시줄 텍스트(시간, 배터리)를 어두운 색으로 고정하여 쿨 그레이 배경에서 잘 보이게 합니다. */}
       <StatusBar style="dark" />
     </ThemeProvider>
   );

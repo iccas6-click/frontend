@@ -1,14 +1,13 @@
-import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { StepIndicator } from '@/components/step-indicator';
-import type { ItemCategory } from '@/types/medication';
 
-const APPLE_THEME = { background: '#F2F2F7', card: '#FFFFFF', textDark: '#1C1C1E', textMuted: '#8E8E93', tintBlue: '#007AFF' };
+import { IconBadge, PrimaryButton, Screen, TopBar } from '@/components/app-ui';
+import { StepIndicator } from '@/components/step-indicator';
+import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
+import type { ItemCategory } from '@/types/medication';
 
 export default function CameraScreen() {
   const router = useRouter();
@@ -16,34 +15,34 @@ export default function CameraScreen() {
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [taking, setTaking] = useState(false);
-  
+
   const category: ItemCategory = params.category === '건강기능식품 라벨' ? '건강기능식품 라벨' : '알약';
+  const isSupplement = category === '건강기능식품 라벨';
 
-  // 권한 상태 로딩 중
-  if (!permission) return <SafeAreaView style={styles.center}><ActivityIndicator color={APPLE_THEME.tintBlue} size="large" /></SafeAreaView>;
+  if (!permission) {
+    return (
+      <Screen>
+        <View style={styles.center}>
+          <ActivityIndicator color={Palette.primary} size="large" />
+        </View>
+      </Screen>
+    );
+  }
 
-  // 권한 미허용 → 촬영 전에 권한 요청 화면 표시
   if (!permission.granted) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <Screen>
         <StatusBar style="dark" />
-        <View style={styles.headerRow}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Ionicons name="chevron-back" size={24} color={APPLE_THEME.tintBlue} />
-            <Text style={styles.backText}>뒤로</Text>
-          </Pressable>
-        </View>
+        <TopBar backLabel="홈" onBack={() => router.back()} />
         <View style={styles.permissionBox}>
-          <Ionicons name="camera-outline" size={56} color={APPLE_THEME.tintBlue} />
+          <IconBadge icon="camera-outline" tone="blue" size="lg" />
           <Text style={styles.permissionTitle}>카메라 권한이 필요해요</Text>
           <Text style={styles.permissionDesc}>
-            약 봉투·라벨을 촬영하려면{'\n'}카메라 접근을 허용해 주세요
+            약 봉투와 건강기능식품 라벨을 촬영할 수 있도록 접근을 허용해 주세요.
           </Text>
-          <Pressable style={styles.permissionButton} onPress={requestPermission}>
-            <Text style={styles.permissionButtonText}>권한 허용하기</Text>
-          </Pressable>
+          <PrimaryButton label="권한 허용하기" icon="lock-open" onPress={requestPermission} />
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
@@ -62,41 +61,195 @@ export default function CameraScreen() {
           recordId: params.recordId,
         },
       });
-    } catch (e) { Alert.alert('촬영 오류', String(e)); }
-    finally { setTaking(false); }
+    } catch (e) {
+      Alert.alert('촬영 오류', String(e));
+    } finally {
+      setTaking(false);
+    }
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <Screen
+      bottom={
+        <View style={styles.bottomControls}>
+          <Pressable style={styles.shutterOuter} onPress={takePicture} disabled={taking}>
+            {taking ? <ActivityIndicator color={Palette.primary} /> : <View style={styles.shutterInner} />}
+          </Pressable>
+          <Text style={styles.shutterHint}>흔들리지 않게 정면에서 촬영해 주세요</Text>
+        </View>
+      }>
       <StatusBar style="dark" />
-      <View style={styles.headerRow}><Pressable style={styles.backButton} onPress={() => router.back()}><Ionicons name="chevron-back" size={24} color={APPLE_THEME.tintBlue} /><Text style={styles.backText}>뒤로</Text></Pressable></View>
-      <StepIndicator current={1} background={APPLE_THEME.background} />
-      <Text style={styles.pageTitleCam}>사진 촬영</Text>
-      <View style={styles.cameraWrapper}><CameraView ref={cameraRef} style={styles.camera} facing="back" /></View>
-      <SafeAreaView edges={['bottom']} style={styles.bottomArea}>
-        <Pressable style={styles.shutterOuter} onPress={takePicture} disabled={taking}>
-          {taking ? <ActivityIndicator color={APPLE_THEME.tintBlue} /> : <View style={styles.shutterInner} />}
-        </Pressable>
-      </SafeAreaView>
-    </SafeAreaView>
+      <TopBar
+        title={isSupplement ? '건강기능식품 촬영' : '알약 촬영'}
+        subtitle={isSupplement ? '제품명과 성분표가 보이도록 라벨을 담아주세요.' : '알약 앞면과 포장 정보를 또렷하게 담아주세요.'}
+        backLabel="뒤로"
+        onBack={() => router.back()}
+      />
+      <StepIndicator current={isSupplement ? 2 : 1} />
+
+      <View style={styles.cameraSection}>
+        <View style={styles.cameraShell}>
+          <CameraView ref={cameraRef} style={styles.camera} facing="back" />
+          <View style={styles.frameGuide}>
+            <View style={styles.cornerTopLeft} />
+            <View style={styles.cornerTopRight} />
+            <View style={styles.cornerBottomLeft} />
+            <View style={styles.cornerBottomRight} />
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.tipCard}>
+        <IconBadge icon={isSupplement ? 'text' : 'sparkles'} tone={isSupplement ? 'green' : 'blue'} size="sm" />
+        <View style={styles.tipTextWrap}>
+          <Text style={styles.tipTitle}>{isSupplement ? '라벨 글자가 중요해요' : '여러 알약도 한 번에 가능해요'}</Text>
+          <Text style={styles.tipBody}>
+            {isSupplement ? '성분명과 함량 부분이 잘리지 않게 촬영하면 확인이 쉬워집니다.' : '인식 결과는 다음 화면에서 직접 수정할 수 있습니다.'}
+          </Text>
+        </View>
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: APPLE_THEME.background },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  headerRow: { paddingHorizontal: 8, paddingTop: 12 },
-  backButton: { flexDirection: 'row', alignItems: 'center' },
-  backText: { fontSize: 17, color: APPLE_THEME.tintBlue },
-  pageTitleCam: { fontSize: 32, fontWeight: '800', paddingHorizontal: 20, marginTop: 8 },
-  cameraWrapper: { flex: 1, margin: 20, borderRadius: 24, overflow: 'hidden' },
-  camera: { flex: 1 },
-  bottomArea: { paddingBottom: 24, alignItems: 'center' },
-  shutterOuter: { width: 76, height: 76, borderRadius: 38, borderWidth: 4, borderColor: '#D1D1D6', alignItems: 'center', justifyContent: 'center' },
-  shutterInner: { width: 60, height: 60, borderRadius: 30, backgroundColor: APPLE_THEME.tintBlue },
-  permissionBox: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 12 },
-  permissionTitle: { fontSize: 20, fontWeight: '800', color: APPLE_THEME.textDark, marginTop: 8 },
-  permissionDesc: { fontSize: 15, lineHeight: 22, color: APPLE_THEME.textMuted, textAlign: 'center' },
-  permissionButton: { marginTop: 16, backgroundColor: APPLE_THEME.tintBlue, paddingHorizontal: 32, paddingVertical: 16, borderRadius: 16 },
-  permissionButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  permissionBox: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.screen,
+    gap: 14,
+  },
+  permissionTitle: {
+    ...Typography.section,
+    color: Palette.text,
+    textAlign: 'center',
+  },
+  permissionDesc: {
+    ...Typography.body,
+    color: Palette.textMuted,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  cameraSection: {
+    flex: 1,
+    paddingHorizontal: Spacing.screen,
+  },
+  cameraShell: {
+    flex: 1,
+    minHeight: 300,
+    overflow: 'hidden',
+    borderRadius: Radius.xl,
+    backgroundColor: Palette.blueGrey,
+    ...Shadow.card,
+  },
+  camera: {
+    flex: 1,
+  },
+  frameGuide: {
+    ...StyleSheet.absoluteFillObject,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+  },
+  cornerTopLeft: {
+    position: 'absolute',
+    left: 24,
+    top: 24,
+    width: 46,
+    height: 46,
+    borderLeftWidth: 4,
+    borderTopWidth: 4,
+    borderColor: '#FFFFFF',
+    borderTopLeftRadius: 10,
+  },
+  cornerTopRight: {
+    position: 'absolute',
+    right: 24,
+    top: 24,
+    width: 46,
+    height: 46,
+    borderRightWidth: 4,
+    borderTopWidth: 4,
+    borderColor: '#FFFFFF',
+    borderTopRightRadius: 10,
+  },
+  cornerBottomLeft: {
+    position: 'absolute',
+    left: 24,
+    bottom: 24,
+    width: 46,
+    height: 46,
+    borderLeftWidth: 4,
+    borderBottomWidth: 4,
+    borderColor: '#FFFFFF',
+    borderBottomLeftRadius: 10,
+  },
+  cornerBottomRight: {
+    position: 'absolute',
+    right: 24,
+    bottom: 24,
+    width: 46,
+    height: 46,
+    borderRightWidth: 4,
+    borderBottomWidth: 4,
+    borderColor: '#FFFFFF',
+    borderBottomRightRadius: 10,
+  },
+  tipCard: {
+    marginHorizontal: Spacing.screen,
+    marginTop: 16,
+    marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    padding: 14,
+  },
+  tipTextWrap: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  tipTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: Palette.text,
+  },
+  tipBody: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: Palette.textMuted,
+    marginTop: 2,
+  },
+  bottomControls: {
+    alignItems: 'center',
+    gap: 10,
+    paddingBottom: 18,
+  },
+  shutterOuter: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 4,
+    borderColor: Palette.borderStrong,
+    backgroundColor: Palette.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shutterInner: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: Palette.primary,
+  },
+  shutterHint: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Palette.textMuted,
+  },
 });
