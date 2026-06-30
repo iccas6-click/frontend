@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { IconBadge, Screen, TopBar } from '@/components/app-ui';
 import { StepIndicator } from '@/components/step-indicator';
@@ -20,6 +20,7 @@ export default function ReuseScreen() {
   const params = useLocalSearchParams<{ category?: string; prevItems?: string; recordId?: string; mode?: string }>();
   const category: ItemCategory = params.category === '건강기능식품 라벨' ? '건강기능식품 라벨' : '알약';
   const [records, setRecords] = useState<AnalysisSession[]>([]);
+  const [recordsOpen, setRecordsOpen] = useState(false);
 
   const prevItems = useMemo<RecognizedItem[]>(() => {
     if (!params.prevItems) return [];
@@ -65,6 +66,7 @@ export default function ReuseScreen() {
   };
 
   const selectRecord = (record: AnalysisSession) => {
+    setRecordsOpen(false);
     const selectedItems = record.items.filter((item) => item.category === category);
     const next = {
       pathname: '/result',
@@ -125,21 +127,60 @@ export default function ReuseScreen() {
           <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
         </Pressable>
 
-        <Text style={styles.sectionTitle}>기존 기록에서 선택</Text>
-        {usableRecords.length === 0 ? (
-          <View style={styles.empty}>
-            <IconBadge icon="folder-open" tone="dark" size="lg" />
-            <Text style={styles.emptyTitle}>아직 재사용할 {label} 기록이 없어요</Text>
-            <Text style={styles.emptyBody}>이번에는 새로 촬영하면 다음부터 여기에서 바로 선택할 수 있습니다.</Text>
+        <Pressable
+          style={({ pressed }) => [styles.recordChoiceCard, pressed && styles.pressed]}
+          onPress={() => setRecordsOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`기존 ${label} 기록에서 선택하기`}>
+          <IconBadge icon="folder-open" tone="dark" />
+          <View style={styles.recordChoiceText}>
+            <Text style={styles.recordChoiceTitle}>기존 기록에서 선택하기</Text>
+            <Text style={styles.recordChoiceBody}>
+              {usableRecords.length > 0 ? `최근 ${usableRecords.length}개 기록에서 고릅니다.` : `저장된 ${label} 기록이 있는지 확인합니다.`}
+            </Text>
           </View>
-        ) : (
-          <View style={styles.recordList}>
-            {usableRecords.map((record) => (
-              <ReuseCard key={record.id} record={record} category={category} onPress={() => selectRecord(record)} />
-            ))}
-          </View>
-        )}
+          <Ionicons name="chevron-forward" size={20} color={Palette.textSubtle} />
+        </Pressable>
+
+        <View style={styles.noteCard}>
+          <Ionicons name="shield-checkmark" size={19} color={Palette.mint} />
+          <Text style={styles.noteText}>기존 기록을 골라도 다음 화면에서 이름과 용량을 다시 확인할 수 있습니다.</Text>
+        </View>
       </ScrollView>
+
+      <Modal visible={recordsOpen} transparent animationType="slide" onRequestClose={() => setRecordsOpen(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setRecordsOpen(false)} />
+        <View style={styles.sheet}>
+          <View style={styles.sheetHandle} />
+          <View style={styles.sheetHeader}>
+            <View>
+              <Text style={styles.sheetTitle}>기존 {label} 기록</Text>
+              <Text style={styles.sheetSubtitle}>최근 인식 기록을 최신순으로 정렬했어요.</Text>
+            </View>
+            <Pressable
+              style={styles.closeButton}
+              onPress={() => setRecordsOpen(false)}
+              accessibilityRole="button"
+              accessibilityLabel="기존 기록 선택 창 닫기">
+              <Ionicons name="close" size={22} color={Palette.textMuted} />
+            </Pressable>
+          </View>
+
+          {usableRecords.length === 0 ? (
+            <View style={styles.empty}>
+              <IconBadge icon="folder-open" tone="dark" size="lg" />
+              <Text style={styles.emptyTitle}>아직 재사용할 {label} 기록이 없어요</Text>
+              <Text style={styles.emptyBody}>이번에는 새로 촬영하면 다음부터 여기에서 바로 선택할 수 있습니다.</Text>
+            </View>
+          ) : (
+            <ScrollView contentContainerStyle={styles.recordList} showsVerticalScrollIndicator={false}>
+              {usableRecords.map((record) => (
+                <ReuseCard key={record.id} record={record} category={category} onPress={() => selectRecord(record)} />
+              ))}
+            </ScrollView>
+          )}
+        </View>
+      </Modal>
     </Screen>
   );
 }
@@ -229,13 +270,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.78)',
     marginTop: 3,
   },
-  sectionTitle: {
-    fontSize: 20,
-    lineHeight: 26,
-    fontWeight: '900',
-    color: Palette.text,
-    marginTop: 4,
-  },
   contextCard: {
     minHeight: 88,
     flexDirection: 'row',
@@ -263,7 +297,53 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   recordList: {
+    paddingBottom: 22,
     gap: 10,
+  },
+  recordChoiceCard: {
+    minHeight: 92,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.borderStrong,
+    padding: 16,
+    ...Shadow.subtle,
+  },
+  recordChoiceText: {
+    flex: 1,
+    marginLeft: 14,
+    marginRight: 8,
+  },
+  recordChoiceTitle: {
+    fontSize: 19,
+    lineHeight: 25,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  recordChoiceBody: {
+    fontSize: 15,
+    lineHeight: 21,
+    color: Palette.textMuted,
+    marginTop: 3,
+  },
+  noteCard: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    borderRadius: Radius.md,
+    backgroundColor: Palette.mintSoft,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+  },
+  noteText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '700',
+    color: Palette.textMuted,
   },
   recordCard: {
     minHeight: 104,
@@ -319,12 +399,10 @@ const styles = StyleSheet.create({
     color: Palette.primary,
   },
   empty: {
+    minHeight: 220,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Palette.surface,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Palette.border,
     paddingHorizontal: 24,
     paddingVertical: 34,
   },
@@ -339,5 +417,57 @@ const styles = StyleSheet.create({
     color: Palette.textMuted,
     textAlign: 'center',
     marginTop: 8,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.36)',
+  },
+  sheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    maxHeight: '72%',
+    backgroundColor: Palette.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: Spacing.screen,
+    paddingTop: 12,
+    paddingBottom: 24,
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 42,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Palette.borderStrong,
+    marginBottom: 16,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 16,
+  },
+  sheetTitle: {
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  sheetSubtitle: {
+    fontSize: 15,
+    lineHeight: 21,
+    color: Palette.textMuted,
+    marginTop: 3,
+  },
+  closeButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Palette.surface,
   },
 });
