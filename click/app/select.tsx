@@ -5,15 +5,13 @@ import { ScrollView, StyleSheet } from 'react-native';
 import { ActionCard, Screen, TopBar } from '@/components/app-ui';
 import { StepIndicator } from '@/components/step-indicator';
 import { Spacing } from '@/constants/theme';
-import { sendCategory } from '@/services/category';
 import type { ItemCategory } from '@/types/medication';
 
 export default function SelectScreen() {
   const router = useRouter();
 
   const goCamera = (category: ItemCategory) => {
-    sendCategory(category).catch((e) => console.warn(e));
-    router.push({ pathname: '/camera', params: { category } });
+    router.replace({ pathname: '/reuse', params: { category } });
   };
 
   return (

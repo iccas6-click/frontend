@@ -6,17 +6,17 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ActionCard, IconBadge, PrimaryButton, Screen, SectionHeader } from '@/components/app-ui';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
-import { getAllScans } from '@/services/history-storage';
-import type { ScanRecord } from '@/types/medication';
+import { getAllSessions } from '@/services/history-storage';
+import type { AnalysisSession } from '@/types/medication';
 
 export default function MainScreen() {
   const router = useRouter();
-  const [latest, setLatest] = useState<ScanRecord | null>(null);
+  const [latest, setLatest] = useState<AnalysisSession | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      getAllScans().then((records) => {
+      getAllSessions().then((records) => {
         if (active) setLatest(records[0] ?? null);
       });
       return () => {
@@ -46,7 +46,8 @@ export default function MainScreen() {
             <PrimaryButton
               label="인식 시작하기"
               icon="camera"
-              onPress={() => router.push({ pathname: '/reuse', params: { category: '알약' } })}
+              onPress={() => router.push({ pathname: '/reuse', params: { category: '알약', mode: 'start' } })}
+              accessibilityHint="기존 알약 기록을 선택하거나 새 촬영을 시작합니다."
             />
             <Pressable style={styles.historyLink} onPress={() => router.push('/history')}>
               <Ionicons name="time-outline" size={18} color={Palette.primary} />
@@ -68,7 +69,7 @@ export default function MainScreen() {
             icon="document-text"
             tone="dark"
             title={formatLatestTitle(latest)}
-            subtitle={`${latest.analysis ? '분석 완료' : '인식만 저장됨'} · ${latest.items.length}개 항목`}
+            subtitle={`${latest.status === 'analyzed' ? '분석 완료' : '분석 전'} · ${latest.items.length}개 항목`}
             onPress={() => router.push({ pathname: '/record', params: { id: latest.id } })}
           />
         ) : (
@@ -97,7 +98,7 @@ function FlowStep({ icon, title, body }: { icon: 'scan' | 'leaf' | 'shield-check
   );
 }
 
-function formatLatestTitle(record: ScanRecord) {
+function formatLatestTitle(record: AnalysisSession) {
   const d = new Date(record.createdAt);
   return `${d.getMonth() + 1}월 ${d.getDate()}일 분석 기록`;
 }

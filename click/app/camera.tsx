@@ -2,7 +2,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { IconBadge, PrimaryButton, Screen, TopBar } from '@/components/app-ui';
 import { StepIndicator } from '@/components/step-indicator';
@@ -15,9 +15,11 @@ export default function CameraScreen() {
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [taking, setTaking] = useState(false);
+  const { height } = useWindowDimensions();
 
   const category: ItemCategory = params.category === '건강기능식품 라벨' ? '건강기능식품 라벨' : '알약';
   const isSupplement = category === '건강기능식품 라벨';
+  const compact = height < 760;
 
   if (!permission) {
     return (
@@ -52,7 +54,7 @@ export default function CameraScreen() {
     try {
       const photo = await cameraRef.current?.takePictureAsync();
       if (!photo?.uri) return;
-      router.push({
+      router.replace({
         pathname: '/result',
         params: {
           photoUri: photo.uri,
@@ -72,7 +74,13 @@ export default function CameraScreen() {
     <Screen
       bottom={
         <View style={styles.bottomControls}>
-          <Pressable style={styles.shutterOuter} onPress={takePicture} disabled={taking}>
+          <Pressable
+            style={styles.shutterOuter}
+            onPress={takePicture}
+            disabled={taking}
+            accessibilityRole="button"
+            accessibilityLabel={`${isSupplement ? '건강기능식품' : '알약'} 촬영하기`}
+            accessibilityState={{ disabled: taking }}>
             {taking ? <ActivityIndicator color={Palette.primary} /> : <View style={styles.shutterInner} />}
           </Pressable>
           <Text style={styles.shutterHint}>흔들리지 않게 정면에서 촬영해 주세요</Text>
@@ -99,13 +107,15 @@ export default function CameraScreen() {
         </View>
       </View>
 
-      <View style={styles.tipCard}>
+      <View style={[styles.tipCard, compact && styles.tipCardCompact]}>
         <IconBadge icon={isSupplement ? 'text' : 'sparkles'} tone={isSupplement ? 'green' : 'blue'} size="sm" />
         <View style={styles.tipTextWrap}>
           <Text style={styles.tipTitle}>{isSupplement ? '라벨 글자가 중요해요' : '여러 알약도 한 번에 가능해요'}</Text>
-          <Text style={styles.tipBody}>
-            {isSupplement ? '성분명과 함량 부분이 잘리지 않게 촬영하면 확인이 쉬워집니다.' : '인식 결과는 다음 화면에서 직접 수정할 수 있습니다.'}
-          </Text>
+          {!compact ? (
+            <Text style={styles.tipBody}>
+              {isSupplement ? '성분명과 함량 부분이 잘리지 않게 촬영하면 확인이 쉬워집니다.' : '인식 결과는 다음 화면에서 직접 수정할 수 있습니다.'}
+            </Text>
+          ) : null}
         </View>
       </View>
     </Screen>
@@ -209,6 +219,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Palette.border,
     padding: 14,
+  },
+  tipCardCompact: {
+    marginTop: 10,
+    marginBottom: 8,
+    paddingVertical: 11,
   },
   tipTextWrap: {
     flex: 1,

@@ -16,6 +16,11 @@ import type { ItemCategory, RecognizedItem } from '@/types/medication';
 
 const CATEGORIES: ItemCategory[] = ['알약', '건강기능식품 라벨'];
 
+const CATEGORY_LABEL: Record<ItemCategory, string> = {
+  알약: '알약',
+  '건강기능식품 라벨': '건강기능식품',
+};
+
 type Props = {
   visible: boolean;
   /** 수정할 항목. null이면 새 항목 추가 모드 */
@@ -71,6 +76,7 @@ export function ItemEditModal({ visible, initial, onClose, onSave, onDelete }: P
             placeholder="예: 아스피린"
             placeholderTextColor="#B6C0C6"
             autoFocus={isNew}
+            accessibilityLabel="항목 이름"
           />
 
           {/* 용량 */}
@@ -81,6 +87,7 @@ export function ItemEditModal({ visible, initial, onClose, onSave, onDelete }: P
             onChangeText={setDosage}
             placeholder="예: 100mg"
             placeholderTextColor="#B6C0C6"
+            accessibilityLabel="용량"
           />
 
           {/* 분류 */}
@@ -92,9 +99,12 @@ export function ItemEditModal({ visible, initial, onClose, onSave, onDelete }: P
                 <Pressable
                   key={cat}
                   style={[styles.categoryChip, active && styles.categoryChipActive]}
-                  onPress={() => setCategory(cat)}>
+                  onPress={() => setCategory(cat)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={`${CATEGORY_LABEL[cat]} 선택`}>
                   <Text style={[styles.categoryText, active && styles.categoryTextActive]}>
-                    {cat}
+                    {CATEGORY_LABEL[cat]}
                   </Text>
                 </Pressable>
               );
@@ -105,13 +115,20 @@ export function ItemEditModal({ visible, initial, onClose, onSave, onDelete }: P
           <Pressable
             style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
             disabled={!canSave}
-            onPress={handleSave}>
+            onPress={handleSave}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !canSave }}
+            accessibilityLabel="항목 저장">
             <Text style={styles.saveText}>저장</Text>
           </Pressable>
 
           {/* 삭제 (수정 모드에서만) */}
           {!isNew && onDelete && (
-            <Pressable style={styles.deleteButton} onPress={() => onDelete(initial!.id)}>
+            <Pressable
+              style={styles.deleteButton}
+              onPress={() => onDelete(initial!.id)}
+              accessibilityRole="button"
+              accessibilityLabel="이 항목 삭제">
               <Ionicons name="trash-outline" size={18} color="#E5484D" />
               <Text style={styles.deleteText}>이 항목 삭제</Text>
             </Pressable>
@@ -155,7 +172,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   label: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     color: Palette.textMuted,
     marginTop: 12,
@@ -166,8 +183,8 @@ const styles = StyleSheet.create({
     borderColor: Palette.border,
     borderRadius: Radius.md,
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
+    paddingVertical: 14,
+    fontSize: 17,
     color: Palette.text,
     backgroundColor: Palette.background,
   },
@@ -177,7 +194,7 @@ const styles = StyleSheet.create({
   },
   categoryChip: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: Palette.border,

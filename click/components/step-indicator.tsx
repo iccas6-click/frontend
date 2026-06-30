@@ -2,11 +2,15 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Palette, Radius, Spacing } from '@/constants/theme';
 
-const STEPS = ['알약', '건강기능식품', '분석', '결과'];
+const STEPS = ['알약 선택', '건강기능식품 선택', '분석', '결과'];
 
 export function StepIndicator({ current, background }: { current: number; background?: string }) {
   return (
-    <View style={[styles.wrap, background ? { backgroundColor: background } : null]}>
+    <View
+      style={[styles.wrap, background ? { backgroundColor: background } : null]}
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel={`전체 4단계 중 ${current}단계, ${STEPS[current - 1] ?? '진행 중'}`}>
       <View style={styles.track}>
         {STEPS.map((label, index) => {
           const step = index + 1;
@@ -17,7 +21,9 @@ export function StepIndicator({ current, background }: { current: number; backgr
               <View style={[styles.dot, active && styles.dotActive, currentStep && styles.dotCurrent]}>
                 <Text style={[styles.dotText, active && styles.dotTextActive, currentStep && styles.dotTextCurrent]}>{step}</Text>
               </View>
-              <Text style={[styles.label, active && styles.labelActive]}>{label}</Text>
+              <Text style={[styles.label, active && styles.labelActive]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.82}>
+                {label}
+              </Text>
             </View>
           );
         })}
@@ -34,7 +40,7 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
   },
   track: {
-    minHeight: 54,
+    minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

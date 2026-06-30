@@ -29,17 +29,22 @@ export interface AnalysisResult {
   pairs: InteractionPair[];
 }
 
+/** 분석 세션 상태 */
+export type SessionStatus = 'recognizing' | 'ready' | 'analyzed';
+
 /**
- * 로컬에 저장되는 인식 기록 한 건(= 촬영 한 번).
- * 시간이 다르면 각각 별도의 기록으로 저장된다.
+ * 로컬에 저장되는 분석 세션 한 건.
+ * 같은 약을 재사용하더라도 새 분석을 시작하면 별도의 세션으로 저장된다.
  */
-export interface ScanRecord {
+export interface AnalysisSession {
   /** 고유 id (생성 시각 기반) */
   id: string;
   /** 생성 시각 (ISO) */
   createdAt: string;
-  /** 이 기록의 분류 */
+  /** 마지막으로 추가된 인식 분류 */
   category: ItemCategory;
+  /** 세션 진행 상태 */
+  status: SessionStatus;
   /** 인식 결과 (사용자가 추가·수정한 최종 항목 포함) */
   items: RecognizedItem[];
   /** 분석 완료 시각 (ISO) */
@@ -47,3 +52,6 @@ export interface ScanRecord {
   /** 상호작용 분석 결과 */
   analysis?: AnalysisResult;
 }
+
+/** @deprecated AnalysisSession을 사용하세요. */
+export type ScanRecord = AnalysisSession;

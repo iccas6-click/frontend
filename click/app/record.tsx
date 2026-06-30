@@ -3,54 +3,28 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { IconBadge, PrimaryButton, Screen, TopBar } from '@/components/app-ui';
+import { PairList, RiskSummaryCard } from '@/components/analysis-ui';
+import { IconBadge, PrimaryButton, Screen, SectionHeader, TopBar } from '@/components/app-ui';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
-import { formatRecordTime, formatRecordTitle, getScan } from '@/services/history-storage';
-import type { AnalysisResult, InteractionPair, ItemCategory, RecognizedItem, RiskLevel, ScanRecord } from '@/types/medication';
+import { formatRecordTime, formatRecordTitle, getSession } from '@/services/history-storage';
+import type { AnalysisSession, ItemCategory, RecognizedItem } from '@/types/medication';
 
 const TABS: { value: ItemCategory; label: string }[] = [
   { value: '알약', label: '알약' },
   { value: '건강기능식품 라벨', label: '건강기능식품' },
 ];
 
-const LEVEL_META: Record<RiskLevel, { label: string; title: string; color: string; bg: string; icon: 'alert-circle' | 'warning' | 'checkmark-circle'; tone: 'red' | 'amber' | 'green' }> = {
-  danger: {
-    label: '위험',
-    title: '전문가 상담이 필요해요',
-    color: Palette.rose,
-    bg: Palette.roseSoft,
-    icon: 'alert-circle',
-    tone: 'red',
-  },
-  caution: {
-    label: '주의',
-    title: '주의해서 확인해 주세요',
-    color: Palette.amber,
-    bg: Palette.amberSoft,
-    icon: 'warning',
-    tone: 'amber',
-  },
-  safe: {
-    label: '미탐지',
-    title: '중대한 주의사항 미탐지',
-    color: Palette.mint,
-    bg: Palette.mintSoft,
-    icon: 'checkmark-circle',
-    tone: 'green',
-  },
-};
-
 export default function RecordDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
 
-  const [record, setRecord] = useState<ScanRecord | null>(null);
+  const [record, setRecord] = useState<AnalysisSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<ItemCategory>('알약');
 
   useEffect(() => {
     let active = true;
-    getScan(id ?? '').then((data) => {
+    getSession(id ?? '').then((data) => {
       if (!active) return;
       setRecord(data);
       setLoading(false);
@@ -65,6 +39,8 @@ export default function RecordDetailScreen() {
   }, [id]);
 
   const items: RecognizedItem[] = record ? record.items.filter((it) => it.category === tab) : [];
+  const pillCount = record?.items.filter((item) => item.category === '알약').length ?? 0;
+  const supplementCount = record?.items.filter((item) => item.category === '건강기능식품 라벨').length ?? 0;
 
   return (
     <Screen
@@ -74,12 +50,13 @@ export default function RecordDetailScreen() {
             label={record.analysis ? '이 목록으로 다시 분석' : '이 목록으로 분석하기'}
             icon="analytics"
             onPress={() => router.push({ pathname: '/analyze', params: { items: JSON.stringify(record.items), recordId: record.id } })}
+            accessibilityHint="저장된 항목을 그대로 사용해 상호작용 분석을 시작합니다."
           />
         ) : null
       }>
       <TopBar
         title={record ? formatRecordTitle(record.createdAt) : '기록'}
-        subtitle={record ? formatRecordTime(record.createdAt) : '저장된 기록을 불러오고 있어요.'}
+        subtitle={record ? `${formatRecordTime(record.createdAt)} · ${record.analysis ? '분석 완료' : '분석 전'}` : '저장된 기록을 불러오고 있어요.'}
         backLabel="기록"
         onBack={() => router.back()}
       />
@@ -88,14 +65,20 @@ export default function RecordDetailScreen() {
         <View style={styles.summary}>
           <View>
             <Text style={styles.summaryLabel}>저장된 항목</Text>
-            <Text style={styles.summaryTitle}>{record.items.length}개</Text>
+            <Text style={styles.summaryTitle}>알약 {pillCount}개 · 건강기능식품 {supplementCount}개</Text>
           </View>
-          <IconBadge icon="archive" tone="dark" />
+          <IconBadge icon={record.analysis ? 'checkmark-circle' : 'archive'} tone={record.analysis ? 'green' : 'dark'} />
         </View>
       ) : null}
 
       {record?.analysis ? (
-        <AnalysisSnapshot result={record.analysis} analyzedAt={record.analyzedAt} />
+        <View style={styles.analysisWrap}>
+          <SectionHeader title="저장된 분석 결과" />
+          <View style={styles.sectionInset}>
+            <RiskSummaryCard result={record.analysis} compact />
+            <PairList pairs={record.analysis.pairs} limit={3} />
+          </View>
+        </View>
       ) : record ? (
         <View style={styles.noAnalysis}>
           <IconBadge icon="analytics-outline" tone="amber" />
@@ -106,11 +89,18 @@ export default function RecordDetailScreen() {
         </View>
       ) : null}
 
+      <SectionHeader title="저장된 항목" />
       <View style={styles.segment}>
         {TABS.map((t) => {
           const active = tab === t.value;
           return (
-            <Pressable key={t.value} style={[styles.segmentItem, active && styles.segmentItemActive]} onPress={() => setTab(t.value)}>
+            <Pressable
+              key={t.value}
+              style={[styles.segmentItem, active && styles.segmentItemActive]}
+              onPress={() => setTab(t.value)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={`${t.label} 항목 보기`}>
               <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{t.label}</Text>
             </Pressable>
           );
@@ -136,7 +126,7 @@ export default function RecordDetailScreen() {
 function ItemCard({ item }: { item: RecognizedItem }) {
   const isSupplement = item.category === '건강기능식품 라벨';
   return (
-    <View style={styles.card}>
+    <View style={styles.card} accessible accessibilityLabel={`${item.name}, ${isSupplement ? '건강기능식품' : '알약'}${item.dosage ? `, ${item.dosage}` : ''}`}>
       <IconBadge icon={isSupplement ? 'leaf' : 'medical'} tone={isSupplement ? 'green' : 'blue'} />
       <View style={styles.cardInfo}>
         <Text style={styles.cardName} numberOfLines={1}>
@@ -148,48 +138,6 @@ function ItemCard({ item }: { item: RecognizedItem }) {
         </Text>
       </View>
       <Ionicons name="checkmark-circle" size={20} color={Palette.mint} />
-    </View>
-  );
-}
-
-function AnalysisSnapshot({ result, analyzedAt }: { result: AnalysisResult; analyzedAt?: string }) {
-  const meta = LEVEL_META[result.overall];
-  const topPairs = result.pairs.slice(0, 3);
-
-  return (
-    <View style={styles.analysisWrap}>
-      <View style={styles.analysisCard}>
-        <View style={[styles.analysisIcon, { backgroundColor: meta.bg }]}>
-          <Ionicons name={meta.icon} size={28} color={meta.color} />
-        </View>
-        <View style={styles.analysisText}>
-          <Text style={[styles.analysisTitle, { color: meta.color }]}>{meta.title}</Text>
-          <Text style={styles.analysisBody}>{result.summary}</Text>
-          {analyzedAt ? <Text style={styles.analysisTime}>분석 {formatRecordTime(analyzedAt)}</Text> : null}
-        </View>
-      </View>
-
-      {topPairs.length > 0 ? (
-        <View style={styles.pairList}>
-          {topPairs.map((pair) => (
-            <PairSnapshot key={pair.id} pair={pair} />
-          ))}
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-function PairSnapshot({ pair }: { pair: InteractionPair }) {
-  const meta = LEVEL_META[pair.level];
-  return (
-    <View style={styles.pairCard}>
-      <View style={[styles.levelBadge, { backgroundColor: meta.bg }]}>
-        <Ionicons name={meta.icon} size={14} color={meta.color} />
-        <Text style={[styles.levelText, { color: meta.color }]}>{meta.label}</Text>
-      </View>
-      <Text style={styles.pairTitle}>{pair.items.join(' + ')}</Text>
-      <Text style={styles.pairDesc}>{pair.description}</Text>
     </View>
   );
 }
@@ -208,47 +156,23 @@ const styles = StyleSheet.create({
     padding: 16,
     ...Shadow.subtle,
   },
-  analysisWrap: {
-    marginHorizontal: Spacing.screen,
-    marginBottom: 16,
-    gap: 10,
+  summaryLabel: {
+    ...Typography.caption,
+    color: Palette.textMuted,
   },
-  analysisCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Palette.surface,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    padding: 16,
-    ...Shadow.subtle,
-  },
-  analysisIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  analysisText: {
-    flex: 1,
-    marginLeft: 14,
-  },
-  analysisTitle: {
-    fontSize: 19,
-    lineHeight: 25,
+  summaryTitle: {
+    fontSize: 20,
+    lineHeight: 26,
     fontWeight: '900',
-  },
-  analysisBody: {
-    ...Typography.body,
     color: Palette.text,
-    marginTop: 4,
+    marginTop: 3,
   },
-  analysisTime: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: Palette.textSubtle,
-    marginTop: 7,
+  analysisWrap: {
+    marginBottom: 16,
+  },
+  sectionInset: {
+    marginHorizontal: Spacing.screen,
+    gap: 10,
   },
   noAnalysis: {
     marginHorizontal: Spacing.screen,
@@ -276,52 +200,6 @@ const styles = StyleSheet.create({
     color: Palette.textMuted,
     marginTop: 3,
   },
-  pairList: {
-    gap: 8,
-  },
-  pairCard: {
-    backgroundColor: Palette.surface,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    padding: 14,
-  },
-  levelBadge: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: Radius.sm,
-    marginBottom: 8,
-  },
-  levelText: {
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  pairTitle: {
-    fontSize: 16,
-    lineHeight: 22,
-    fontWeight: '900',
-    color: Palette.text,
-  },
-  pairDesc: {
-    fontSize: 15,
-    lineHeight: 21,
-    color: Palette.textMuted,
-    marginTop: 5,
-  },
-  summaryLabel: {
-    ...Typography.caption,
-    color: Palette.textMuted,
-  },
-  summaryTitle: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: Palette.text,
-    marginTop: 3,
-  },
   segment: {
     flexDirection: 'row',
     backgroundColor: Palette.surfaceMuted,
@@ -332,7 +210,7 @@ const styles = StyleSheet.create({
   },
   segmentItem: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 44,
     borderRadius: Radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
@@ -342,7 +220,7 @@ const styles = StyleSheet.create({
     ...Shadow.subtle,
   },
   segmentText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
     color: Palette.textMuted,
   },
@@ -355,7 +233,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   card: {
-    minHeight: 82,
+    minHeight: 84,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Palette.surface,
@@ -371,12 +249,13 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   cardName: {
-    fontSize: 17,
+    fontSize: 18,
+    lineHeight: 24,
     fontWeight: '900',
     color: Palette.text,
   },
   cardCategory: {
-    fontSize: 14,
+    fontSize: 15,
     color: Palette.textMuted,
     marginTop: 4,
   },

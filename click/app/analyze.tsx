@@ -7,7 +7,7 @@ import { Screen, TopBar } from '@/components/app-ui';
 import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { devLog } from '@/services/debug-log';
-import { updateScanAnalysis } from '@/services/history-storage';
+import { updateSessionAnalysis } from '@/services/history-storage';
 import { analyzeInteractions } from '@/services/interactions';
 import type { RecognizedItem } from '@/types/medication';
 
@@ -37,7 +37,7 @@ export default function AnalyzeScreen() {
         }
 
         if (recordId) {
-          await updateScanAnalysis(recordId, result);
+          await updateSessionAnalysis(recordId, result);
         }
 
         router.replace({

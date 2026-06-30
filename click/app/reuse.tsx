@@ -7,8 +7,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { IconBadge, Screen, TopBar } from '@/components/app-ui';
 import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
-import { formatRecordTime, formatRecordTitle, getReusableScans } from '@/services/history-storage';
-import type { ItemCategory, RecognizedItem, ScanRecord } from '@/types/medication';
+import { formatRecordTime, formatRecordTitle, getReusableSessions } from '@/services/history-storage';
+import type { AnalysisSession, ItemCategory, RecognizedItem } from '@/types/medication';
 
 const CATEGORY_LABEL: Record<ItemCategory, string> = {
   알약: '알약',
@@ -17,9 +17,9 @@ const CATEGORY_LABEL: Record<ItemCategory, string> = {
 
 export default function ReuseScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ category?: string; prevItems?: string; recordId?: string }>();
+  const params = useLocalSearchParams<{ category?: string; prevItems?: string; recordId?: string; mode?: string }>();
   const category: ItemCategory = params.category === '건강기능식품 라벨' ? '건강기능식품 라벨' : '알약';
-  const [records, setRecords] = useState<ScanRecord[]>([]);
+  const [records, setRecords] = useState<AnalysisSession[]>([]);
 
   const prevItems = useMemo<RecognizedItem[]>(() => {
     if (!params.prevItems) return [];
@@ -34,7 +34,7 @@ export default function ReuseScreen() {
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      getReusableScans(category).then((data) => {
+      getReusableSessions(category).then((data) => {
         if (active) setRecords(data.slice(0, 8));
       });
       return () => {
@@ -64,7 +64,7 @@ export default function ReuseScreen() {
     router.push(next);
   };
 
-  const selectRecord = (record: ScanRecord) => {
+  const selectRecord = (record: AnalysisSession) => {
     const selectedItems = record.items.filter((item) => item.category === category);
     const next = {
       pathname: '/result',
@@ -87,8 +87,8 @@ export default function ReuseScreen() {
     <Screen>
       <StatusBar style="dark" />
       <TopBar
-        title={`${label} 선택`}
-        subtitle={`최근 인식 기록을 다시 쓰거나, 새 ${label} 사진을 촬영할 수 있어요.`}
+        title={isSupplement ? '건강기능식품 추가' : '알약으로 시작'}
+        subtitle={isSupplement ? '기존 라벨 기록을 쓰거나 새로 촬영해 알약 목록에 더합니다.' : '반복 복용 중인 약은 기존 기록으로 바로 시작할 수 있어요.'}
         backLabel="뒤로"
         onBack={() => router.back()}
       />
@@ -105,7 +105,16 @@ export default function ReuseScreen() {
           </View>
         ) : null}
 
-        <Pressable style={({ pressed }) => [styles.captureCard, pressed && styles.pressed]} onPress={startCamera}>
+        <View style={styles.choiceHeader}>
+          <Text style={styles.choiceTitle}>{label}을 어떻게 추가할까요?</Text>
+          <Text style={styles.choiceBody}>기록을 쓰면 확인 화면에서 다시 수정할 수 있습니다.</Text>
+        </View>
+
+        <Pressable
+          style={({ pressed }) => [styles.captureCard, pressed && styles.pressed]}
+          onPress={startCamera}
+          accessibilityRole="button"
+          accessibilityLabel={`새 ${label} 촬영하기`}>
           <IconBadge icon="camera" tone={isSupplement ? 'green' : 'blue'} />
           <View style={styles.captureText}>
             <Text style={styles.captureTitle}>새 {label} 촬영하기</Text>
@@ -113,10 +122,10 @@ export default function ReuseScreen() {
               {isSupplement ? '라벨과 성분표를 다시 촬영합니다.' : '알약과 포장 정보를 다시 촬영합니다.'}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color={Palette.textSubtle} />
+          <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
         </Pressable>
 
-        <Text style={styles.sectionTitle}>최근 인식 기록</Text>
+        <Text style={styles.sectionTitle}>기존 기록에서 선택</Text>
         {usableRecords.length === 0 ? (
           <View style={styles.empty}>
             <IconBadge icon="folder-open" tone="dark" size="lg" />
@@ -140,7 +149,7 @@ function ReuseCard({
   category,
   onPress,
 }: {
-  record: ScanRecord;
+  record: AnalysisSession;
   category: ItemCategory;
   onPress: () => void;
 }) {
@@ -149,7 +158,11 @@ function ReuseCard({
   const isSupplement = category === '건강기능식품 라벨';
 
   return (
-    <Pressable style={({ pressed }) => [styles.recordCard, pressed && styles.pressed]} onPress={onPress}>
+    <Pressable
+      style={({ pressed }) => [styles.recordCard, pressed && styles.pressed]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${formatRecordTitle(record.createdAt)}, ${formatRecordTime(record.createdAt)}, ${CATEGORY_LABEL[category]} ${items.length}개 사용`}>
       <IconBadge icon={isSupplement ? 'leaf' : 'medical'} tone={isSupplement ? 'green' : 'blue'} />
       <View style={styles.recordText}>
         <Text style={styles.recordTitle}>{formatRecordTitle(record.createdAt)}</Text>
@@ -175,11 +188,24 @@ const styles = StyleSheet.create({
     paddingBottom: 42,
     gap: 14,
   },
+  choiceHeader: {
+    gap: 4,
+  },
+  choiceTitle: {
+    fontSize: 21,
+    lineHeight: 28,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  choiceBody: {
+    ...Typography.body,
+    color: Palette.textMuted,
+  },
   captureCard: {
     minHeight: 92,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Palette.surface,
+    backgroundColor: Palette.primary,
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Palette.border,
@@ -195,12 +221,12 @@ const styles = StyleSheet.create({
     fontSize: 19,
     lineHeight: 25,
     fontWeight: '900',
-    color: Palette.text,
+    color: '#FFFFFF',
   },
   captureBody: {
     fontSize: 15,
     lineHeight: 21,
-    color: Palette.textMuted,
+    color: 'rgba(255,255,255,0.78)',
     marginTop: 3,
   },
   sectionTitle: {

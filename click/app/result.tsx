@@ -7,7 +7,7 @@ import { IconBadge, PrimaryButton, Screen, SectionHeader, TopBar } from '@/compo
 import { ItemEditModal } from '@/components/item-edit-modal';
 import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
-import { createScan, updateScan } from '@/services/history-storage';
+import { createSession, updateSessionItems } from '@/services/history-storage';
 import { analyzeImage } from '@/services/ocr';
 import type { ItemCategory, RecognizedItem } from '@/types/medication';
 
@@ -57,19 +57,31 @@ export default function ResultScreen() {
 
   const handleSave = useCallback((item: RecognizedItem) => {
     setItems((prev) => {
+      let nextItems: RecognizedItem[];
       if (item.id) {
-        return prev.map((it) => (it.id === item.id ? item : it));
+        nextItems = prev.map((it) => (it.id === item.id ? item : it));
+      } else {
+        nextId.current += 1;
+        nextItems = [...prev, { ...item, id: `new-${nextId.current}` }];
       }
-      nextId.current += 1;
-      return [...prev, { ...item, id: `new-${nextId.current}` }];
+      if (recordId) {
+        updateSessionItems(recordId, nextItems).catch((e) => console.warn('기록 갱신 실패:', e));
+      }
+      return nextItems;
     });
     setEditTarget(undefined);
-  }, []);
+  }, [recordId]);
 
   const handleDelete = useCallback((id: string) => {
-    setItems((prev) => prev.filter((it) => it.id !== id));
+    setItems((prev) => {
+      const nextItems = prev.filter((it) => it.id !== id);
+      if (recordId) {
+        updateSessionItems(recordId, nextItems).catch((e) => console.warn('기록 갱신 실패:', e));
+      }
+      return nextItems;
+    });
     setEditTarget(undefined);
-  }, []);
+  }, [recordId]);
 
   const runAnalysis = useCallback(async () => {
     setLoading(true);
@@ -80,10 +92,10 @@ export default function ResultScreen() {
       setItems(combined);
 
       if (recordIdParam) {
-        await updateScan(recordIdParam, combined);
+        await updateSessionItems(recordIdParam, combined);
         setRecordId(recordIdParam);
       } else {
-        const id = await createScan(selectedCategory, combined);
+        const id = await createSession(selectedCategory, combined);
         setRecordId(id);
       }
     } catch (e) {
@@ -98,12 +110,6 @@ export default function ResultScreen() {
     runAnalysis();
   }, [runAnalysis]);
 
-  useEffect(() => {
-    if (recordId && !loading && !error) {
-      updateScan(recordId, items).catch((e) => console.warn('기록 갱신 실패:', e));
-    }
-  }, [items, recordId, loading, error]);
-
   const pillCount = items.filter((item) => item.category === '알약').length;
   const supplementCount = items.filter((item) => item.category === '건강기능식품 라벨').length;
   const canAnalyze = !loading && !error && items.length > 0;
@@ -113,35 +119,55 @@ export default function ResultScreen() {
       bottom={
         <View style={styles.footer}>
           {!isSupplement ? (
+            <>
+              <PrimaryButton
+                label="건강기능식품 추가하기"
+                icon="leaf"
+                disabled={!canAnalyze}
+                onPress={() => {
+                  if (recordId) updateSessionItems(recordId, items).catch((e) => console.warn('기록 갱신 실패:', e));
+                  router.replace({
+                    pathname: '/reuse',
+                    params: {
+                      category: '건강기능식품 라벨',
+                      prevItems: JSON.stringify(items),
+                      recordId: recordId ?? '',
+                    },
+                  });
+                }}
+                accessibilityHint="건강기능식품 기록 선택 또는 새 촬영 화면으로 이동합니다."
+              />
+              <PrimaryButton
+                label="건강기능식품 없이 분석"
+                icon="analytics"
+                variant="secondary"
+                disabled={!canAnalyze}
+                onPress={() => {
+                  if (recordId) updateSessionItems(recordId, items).catch((e) => console.warn('기록 갱신 실패:', e));
+                  router.push({ pathname: '/analyze', params: { items: JSON.stringify(items), recordId: recordId ?? '' } });
+                }}
+              />
+            </>
+          ) : (
             <PrimaryButton
-              label="건강기능식품 이어서 선택"
-              icon="leaf"
-              variant="secondary"
+              label="상호작용 분석하기"
+              icon="analytics"
               disabled={!canAnalyze}
-              onPress={() =>
-                router.replace({
-                  pathname: '/reuse',
-                  params: {
-                    category: '건강기능식품 라벨',
-                    prevItems: JSON.stringify(items),
-                    recordId: recordId ?? '',
-                  },
-                })
-              }
+              onPress={() => {
+                if (recordId) updateSessionItems(recordId, items).catch((e) => console.warn('기록 갱신 실패:', e));
+                router.push({
+                  pathname: '/analyze',
+                  params: { items: JSON.stringify(items), recordId: recordId ?? '' },
+                });
+              }}
             />
-          ) : null}
-          <PrimaryButton
-            label={isSupplement ? '상호작용 분석하기' : '이대로 분석하기'}
-            icon="analytics"
-            disabled={!canAnalyze}
-            onPress={() => router.push({ pathname: '/analyze', params: { items: JSON.stringify(items), recordId: recordId ?? '' } })}
-          />
+          )}
         </View>
       }>
       <TopBar
         title="인식 결과 확인"
         subtitle="잘못 인식된 이름이나 함량은 분석 전에 수정할 수 있어요."
-        backLabel="촬영"
+        backLabel="이전"
         onBack={() => router.back()}
       />
       <StepIndicator current={isSupplement ? 2 : 1} />
@@ -153,7 +179,11 @@ export default function ResultScreen() {
             알약 {pillCount}개 · 건강기능식품 {supplementCount}개
           </Text>
         </View>
-        <Pressable style={styles.addMiniButton} onPress={() => setEditTarget(null)}>
+        <Pressable
+          style={styles.addMiniButton}
+          onPress={() => setEditTarget(null)}
+          accessibilityRole="button"
+          accessibilityLabel="항목 직접 추가">
           <Ionicons name="add" size={18} color={Palette.primary} />
           <Text style={styles.addMiniText}>직접 추가</Text>
         </Pressable>
@@ -172,7 +202,11 @@ export default function ResultScreen() {
             {items.map((item) => (
               <ItemCard key={item.id} item={item} onPress={() => setEditTarget(item)} />
             ))}
-            <Pressable style={({ pressed }) => [styles.addCard, pressed && styles.pressed]} onPress={() => setEditTarget(null)}>
+            <Pressable
+              style={({ pressed }) => [styles.addCard, pressed && styles.pressed]}
+              onPress={() => setEditTarget(null)}
+              accessibilityRole="button"
+              accessibilityLabel="목록에 없는 항목 직접 추가">
               <IconBadge icon="add" tone="dark" size="sm" />
               <Text style={styles.addCardText}>목록에 없는 항목 직접 추가</Text>
             </Pressable>
@@ -194,7 +228,11 @@ export default function ResultScreen() {
 function ItemCard({ item, onPress }: { item: RecognizedItem; onPress: () => void }) {
   const meta = CATEGORY_META[item.category] ?? CATEGORY_META['알약'];
   return (
-    <Pressable style={({ pressed }) => [styles.itemCard, pressed && styles.pressed]} onPress={onPress}>
+    <Pressable
+      style={({ pressed }) => [styles.itemCard, pressed && styles.pressed]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${item.name}, ${meta.label}${item.dosage ? `, ${item.dosage}` : ''}, 수정`}>
       <IconBadge icon={meta.icon} tone={meta.tone} />
       <View style={styles.itemText}>
         <Text style={styles.itemName} numberOfLines={1}>
@@ -255,6 +293,7 @@ const styles = StyleSheet.create({
   },
   summaryTitle: {
     fontSize: 20,
+    lineHeight: 26,
     fontWeight: '900',
     color: Palette.text,
     marginTop: 4,
@@ -270,6 +309,7 @@ const styles = StyleSheet.create({
   },
   addMiniText: {
     color: Palette.primary,
+    fontSize: 15,
     fontWeight: '800',
   },
   listContent: {

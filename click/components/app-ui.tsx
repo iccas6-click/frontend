@@ -43,7 +43,12 @@ export function TopBar({
     <View style={styles.topBar}>
       <View style={styles.navRow}>
         {onBack ? (
-          <Pressable style={styles.backButton} onPress={onBack} hitSlop={12}>
+          <Pressable
+            style={styles.backButton}
+            onPress={onBack}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={`${backLabel ?? '뒤로'}로 이동`}>
             <Ionicons name="chevron-back" size={22} color={Palette.primary} />
             <Text style={styles.backText}>{backLabel ?? '뒤로'}</Text>
           </Pressable>
@@ -110,7 +115,9 @@ export function ActionCard({
     <Pressable
       style={({ pressed }) => [styles.card, pressed && onPress ? styles.pressed : null]}
       onPress={onPress}
-      disabled={!onPress}>
+      disabled={!onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={subtitle ? `${title}. ${subtitle}` : title}>
       <IconBadge icon={icon} tone={tone} />
       <View style={styles.cardText}>
         <Text style={styles.cardTitle} numberOfLines={1}>
@@ -134,12 +141,14 @@ export function PrimaryButton({
   onPress,
   disabled,
   variant = 'primary',
+  accessibilityHint,
 }: {
   label: string;
   icon?: IconName;
   onPress: () => void;
   disabled?: boolean;
   variant?: 'primary' | 'secondary' | 'danger';
+  accessibilityHint?: string;
 }) {
   const variantStyle =
     variant === 'secondary' ? styles.secondaryButton : variant === 'danger' ? styles.dangerButton : styles.primaryButton;
@@ -156,7 +165,11 @@ export function PrimaryButton({
         pressed && !disabled ? styles.pressed : null,
       ]}
       disabled={disabled}
-      onPress={onPress}>
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled: Boolean(disabled) }}>
       {icon ? <Ionicons name={icon} size={19} color={iconColor} /> : null}
       <Text style={textStyle}>{label}</Text>
     </Pressable>
