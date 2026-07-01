@@ -44,6 +44,8 @@ export default function MainScreen() {
     return { attention, reusable, readySession, total: sessions.length, latest };
   }, [sessions]);
 
+  const lowVision = profile?.mode === 'lowVision';
+
   if (checking) {
     return (
       <Screen>
@@ -55,7 +57,7 @@ export default function MainScreen() {
   return (
     <Screen>
       <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.content, lowVision && styles.contentLowVision]} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={styles.brandLeft}>
             <View style={styles.logoMark}>
@@ -79,19 +81,30 @@ export default function MainScreen() {
         </View>
 
         <View style={styles.heroBlock}>
-          <Text style={styles.greeting}>{getDisplayName(profile)}님,</Text>
-          <Text style={styles.heroTitle}>같이 먹어도 괜찮은지{'\n'}사진으로 먼저 확인하세요!</Text>
+          <View style={styles.greetingRow}>
+            <Text style={[styles.greeting, lowVision && styles.greetingLowVision]}>{getDisplayName(profile)}님,</Text>
+            <View style={[styles.modeBadge, lowVision && styles.modeBadgeLowVision]}>
+              <Text style={[styles.modeBadgeText, lowVision && styles.modeBadgeTextLowVision]}>{lowVision ? '저시력자 모드' : '일반 모드'}</Text>
+            </View>
+          </View>
+          <Text style={[styles.heroTitle, lowVision && styles.heroTitleLowVision]}>같이 먹어도 괜찮은지{'\n'}사진으로 먼저 확인하세요!</Text>
+        </View>
+
+        <SectionTitle title="진행 방식" compact />
+        <View style={styles.flowStrip}>
+          <FlowPill icon="medical" label="알약 인식" large={lowVision} />
+          <Ionicons name="chevron-forward" size={16} color={Palette.textSubtle} />
+          <FlowPill icon="leaf" label="건강기능식품 인식" tone="green" large={lowVision} />
+          <Ionicons name="chevron-forward" size={16} color={Palette.textSubtle} />
+          <FlowPill icon="shield-checkmark" label="상호작용 분석" tone="dark" large={lowVision} />
         </View>
 
         <View style={styles.startPanel}>
-          <View style={styles.startPanelTop}>
-            <View>
-              <Text style={styles.startEyebrow}>복용 전 1분 체크</Text>
-              <Text style={styles.startTitle}>약과 영양제 조합을 한 번에 정리해요</Text>
-            </View>
-            <IconBadge icon="shield-checkmark" tone="green" size="sm" />
-          </View>
-          <Text style={styles.startBody}>반복 복용 중인 약은 기록에서 다시 쓰고, 새로 생긴 약만 사진으로 추가하면 됩니다.</Text>
+          <Text style={[styles.startEyebrow, lowVision && styles.startEyebrowLowVision]}>복용 전 1분 체크</Text>
+          <Text style={[styles.startTitle, lowVision && styles.startTitleLowVision]}>약과 영양제 조합을 확인해요</Text>
+          <Text style={[styles.startBody, lowVision && styles.startBodyLowVision]}>
+            반복 복용 중인 약은 기록에서 다시 쓰고,{'\n'}새로 생긴 약만 사진으로 추가하면 됩니다.
+          </Text>
           <PrimaryButton
             label="사진으로 확인 시작"
             icon="camera"
@@ -104,19 +117,13 @@ export default function MainScreen() {
           </Pressable>
         </View>
 
-        <SectionTitle title="진행 방식" />
-        <View style={styles.stepPanel}>
-          <StepLine index="1" icon="medical" title="알약 추가" body="처방약, 상비약을 촬영하거나 기존 기록에서 선택해요." />
-          <StepLine index="2" icon="leaf" title="건강기능식품 추가" body="영양제와 건강기능식품 라벨을 따로 확인해요." tone="green" />
-          <StepLine index="3" icon="analytics" title="복용 전 분석" body="두 목록을 한 화면에서 검토한 뒤 상호작용을 확인해요." tone="dark" isLast />
-        </View>
-
         <SectionTitle title="내 기록 상태" />
         <StatusBoard
           attention={stats.attention}
           reusable={stats.reusable}
           readySession={stats.readySession}
           latest={stats.latest}
+          large={lowVision}
           onStart={() => router.push({ pathname: '/reuse', params: { category: '알약', mode: 'start' } })}
           onHistory={() => router.push('/history')}
           onRecord={(id) => router.push({ pathname: '/record', params: { id } })}
@@ -124,49 +131,40 @@ export default function MainScreen() {
 
         <SectionTitle title="복용 전 체크 포인트" />
         <View style={styles.tipList}>
-          <TipRow icon="repeat" title="반복 복용 약은 재사용" body="매번 다시 찍지 않고 기존 인식 기록에서 바로 가져올 수 있어요." />
-          <TipRow icon="list" title="분석 전 전체 검토" body="알약과 건강기능식품 목록을 한 번에 확인한 뒤 분석합니다." />
-          <TipRow icon="medkit" title="복용 변경은 상담 후" body="결과는 상담 전 확인용이며 처방을 대신하지 않습니다." />
+          <TipRow icon="repeat" title="반복 복용 약은 재사용" body="매번 다시 찍지 않고 기존 인식 기록에서 바로 가져올 수 있어요." large={lowVision} />
+          <TipRow icon="list" title="분석 전 전체 검토" body="알약과 건강기능식품 목록을 한 번에 확인한 뒤 분석합니다." large={lowVision} />
+          <TipRow icon="medkit" title="복용 변경은 상담 후" body="결과는 상담 전 확인용이며 처방을 대신하지 않습니다." large={lowVision} />
         </View>
       </ScrollView>
     </Screen>
   );
 }
 
-function StepLine({
-  index,
+function FlowPill({
   icon,
-  title,
-  body,
+  label,
   tone = 'blue',
-  isLast,
+  large,
 }: {
-  index: string;
-  icon: 'medical' | 'leaf' | 'analytics';
-  title: string;
-  body: string;
+  icon: 'medical' | 'leaf' | 'shield-checkmark';
+  label: string;
   tone?: 'blue' | 'green' | 'dark';
-  isLast?: boolean;
+  large?: boolean;
 }) {
+  const color = tone === 'green' ? Palette.mint : tone === 'dark' ? Palette.blueGrey : Palette.primary;
+  const backgroundColor = tone === 'green' ? Palette.mintSoft : tone === 'dark' ? Palette.surfaceMuted : Palette.primarySoft;
   return (
-    <View style={styles.stepLine}>
-      <View style={styles.stepRail}>
-        <View style={styles.stepIndex}>
-          <Text style={styles.stepIndexText}>{index}</Text>
-        </View>
-        {isLast ? null : <View style={styles.stepRailLine} />}
+    <View style={styles.flowPill}>
+      <View style={[styles.flowIcon, large && styles.flowIconLarge, { backgroundColor }]}>
+        <Ionicons name={icon} size={large ? 18 : 16} color={color} />
       </View>
-      <IconBadge icon={icon} tone={tone} size="sm" />
-      <View style={styles.stepText}>
-        <Text style={styles.stepTitle}>{title}</Text>
-        <Text style={styles.stepBody}>{body}</Text>
-      </View>
+      <Text style={[styles.flowPillText, large && styles.flowPillTextLarge]}>{label}</Text>
     </View>
   );
 }
 
-function SectionTitle({ title }: { title: string }) {
-  return <Text style={styles.sectionTitle}>{title}</Text>;
+function SectionTitle({ title, compact }: { title: string; compact?: boolean }) {
+  return <Text style={[styles.sectionTitle, compact && styles.sectionTitleCompact]}>{title}</Text>;
 }
 
 function StatusBoard({
@@ -174,6 +172,7 @@ function StatusBoard({
   reusable,
   readySession,
   latest,
+  large,
   onStart,
   onHistory,
   onRecord,
@@ -182,6 +181,7 @@ function StatusBoard({
   reusable: number;
   readySession: AnalysisSession | null;
   latest: AnalysisSession | null;
+  large: boolean;
   onStart: () => void;
   onHistory: () => void;
   onRecord: (id: string) => void;
@@ -195,6 +195,7 @@ function StatusBoard({
         value={`${attention}건`}
         body={attention > 0 ? '주의 표시된 조합을 다시 열어보세요.' : '현재 주의 표시된 기록이 없어요.'}
         action="보기"
+        large={large}
         onPress={onHistory}
       />
       <StatusRow
@@ -204,6 +205,7 @@ function StatusBoard({
         value={`${reusable}건`}
         body="반복 처방약이나 매일 먹는 영양제를 다시 촬영하지 않아도 돼요."
         action="시작"
+        large={large}
         onPress={onStart}
       />
       <StatusRow
@@ -213,6 +215,7 @@ function StatusBoard({
         value={readySession ? '대기 중' : latest ? formatRecordTitle(latest.createdAt) : '없음'}
         body={readySession ? '인식은 끝났고 분석 전 검토가 남아 있어요.' : latest ? `${formatRecordTime(latest.createdAt)}에 저장된 기록이 있어요.` : '첫 기록을 만들면 여기에서 상태를 볼 수 있어요.'}
         action={readySession ? '열기' : latest ? '기록' : '시작'}
+        large={large}
         onPress={() => {
           if (readySession) {
             onRecord(readySession.id);
@@ -236,6 +239,7 @@ function StatusRow({
   value,
   body,
   action,
+  large,
   onPress,
 }: {
   icon: 'warning' | 'checkmark-circle' | 'archive' | 'document-text' | 'time';
@@ -244,19 +248,20 @@ function StatusRow({
   value: string;
   body: string;
   action: string;
+  large: boolean;
   onPress: () => void;
 }) {
   return (
-    <Pressable style={({ pressed }) => [styles.statusRow, pressed && styles.pressed]} onPress={onPress} accessibilityRole="button" accessibilityLabel={`${label}, ${value}. ${body}`}>
+    <Pressable style={({ pressed }) => [styles.statusRow, large && styles.statusRowLarge, pressed && styles.pressed]} onPress={onPress} accessibilityRole="button" accessibilityLabel={`${label}, ${value}. ${body}`}>
       <IconBadge icon={icon} tone={tone} size="sm" />
       <View style={styles.statusText}>
         <View style={styles.statusTitleRow}>
-          <Text style={styles.statusLabel}>{label}</Text>
-          <Text style={styles.statusValue}>{value}</Text>
+          <Text style={[styles.statusLabel, large && styles.statusLabelLarge]}>{label}</Text>
+          <Text style={[styles.statusValue, large && styles.statusValueLarge]}>{value}</Text>
         </View>
-        <Text style={styles.statusBody}>{body}</Text>
+        <Text style={[styles.statusBody, large && styles.statusBodyLarge]}>{body}</Text>
       </View>
-      <Text style={styles.statusAction}>{action}</Text>
+      <Text style={[styles.statusAction, large && styles.statusActionLarge]}>{action}</Text>
     </Pressable>
   );
 }
@@ -265,17 +270,19 @@ function TipRow({
   icon,
   title,
   body,
+  large,
 }: {
   icon: 'repeat' | 'list' | 'medkit';
   title: string;
   body: string;
+  large: boolean;
 }) {
   return (
-    <View style={styles.tipRow}>
+    <View style={[styles.tipRow, large && styles.tipRowLarge]}>
       <IconBadge icon={icon} tone="dark" size="sm" />
       <View style={styles.tipText}>
-        <Text style={styles.tipTitle}>{title}</Text>
-        <Text style={styles.tipBody}>{body}</Text>
+        <Text style={[styles.tipTitle, large && styles.tipTitleLarge]}>{title}</Text>
+        <Text style={[styles.tipBody, large && styles.tipBodyLarge]}>{body}</Text>
       </View>
     </View>
   );
@@ -286,6 +293,9 @@ const styles = StyleSheet.create({
     padding: Spacing.screen,
     paddingBottom: 40,
     gap: 16,
+  },
+  contentLowVision: {
+    gap: 18,
   },
   header: {
     flexDirection: 'row',
@@ -354,14 +364,90 @@ const styles = StyleSheet.create({
   heroBlock: {
     marginTop: 6,
   },
+  greetingRow: {
+    minHeight: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 6,
+  },
   greeting: {
     ...Typography.body,
     color: Palette.textMuted,
-    marginBottom: 6,
+  },
+  greetingLowVision: {
+    fontSize: 19,
+    lineHeight: 27,
+  },
+  modeBadge: {
+    minHeight: 30,
+    paddingHorizontal: 10,
+    borderRadius: Radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Palette.surfaceMuted,
+  },
+  modeBadgeLowVision: {
+    minHeight: 34,
+    backgroundColor: Palette.primarySoft,
+  },
+  modeBadgeText: {
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '900',
+    color: Palette.blueGrey,
+  },
+  modeBadgeTextLowVision: {
+    fontSize: 14,
+    color: Palette.primary,
   },
   heroTitle: {
     ...Typography.hero,
     color: Palette.text,
+  },
+  heroTitleLowVision: {
+    fontSize: 38,
+    lineHeight: 45,
+  },
+  flowStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 5,
+    padding: 12,
+    borderRadius: Radius.lg,
+    backgroundColor: Palette.surface,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    ...Shadow.subtle,
+  },
+  flowPill: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 6,
+  },
+  flowIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: Radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flowIconLarge: {
+    width: 40,
+    height: 40,
+  },
+  flowPillText: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '900',
+    color: Palette.text,
+    textAlign: 'center',
+  },
+  flowPillTextLarge: {
+    fontSize: 14,
+    lineHeight: 19,
   },
   startPanel: {
     gap: 14,
@@ -372,17 +458,15 @@ const styles = StyleSheet.create({
     padding: 18,
     ...Shadow.card,
   },
-  startPanelTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
   startEyebrow: {
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '900',
     color: Palette.primary,
+  },
+  startEyebrowLowVision: {
+    fontSize: 16,
+    lineHeight: 22,
   },
   startTitle: {
     fontSize: 21,
@@ -391,10 +475,18 @@ const styles = StyleSheet.create({
     color: Palette.text,
     marginTop: 3,
   },
+  startTitleLowVision: {
+    fontSize: 25,
+    lineHeight: 32,
+  },
   startBody: {
     fontSize: 16,
     lineHeight: 23,
     color: Palette.textMuted,
+  },
+  startBodyLowVision: {
+    fontSize: 19,
+    lineHeight: 28,
   },
   secondaryStartButton: {
     minHeight: 54,
@@ -417,61 +509,9 @@ const styles = StyleSheet.create({
     color: Palette.text,
     marginTop: 6,
   },
-  stepPanel: {
-    backgroundColor: Palette.surface,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    ...Shadow.subtle,
-  },
-  stepLine: {
-    minHeight: 92,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: 16,
-  },
-  stepRail: {
-    width: 28,
-    alignItems: 'center',
-    alignSelf: 'stretch',
-    marginRight: 10,
-  },
-  stepIndex: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Palette.text,
-  },
-  stepIndexText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '900',
-  },
-  stepRailLine: {
-    width: 2,
-    flex: 1,
-    backgroundColor: Palette.border,
-    marginTop: 7,
-  },
-  stepText: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  stepTitle: {
-    fontSize: 17,
-    lineHeight: 23,
-    fontWeight: '900',
-    color: Palette.text,
-  },
-  stepBody: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: Palette.textMuted,
-    marginTop: 3,
+  sectionTitleCompact: {
+    marginTop: 0,
+    marginBottom: -6,
   },
   statusBoard: {
     backgroundColor: Palette.surface,
@@ -488,6 +528,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Palette.border,
     paddingVertical: 14,
+  },
+  statusRowLarge: {
+    minHeight: 104,
   },
   statusText: {
     flex: 1,
@@ -507,10 +550,17 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: Palette.text,
   },
+  statusLabelLarge: {
+    fontSize: 18,
+    lineHeight: 25,
+  },
   statusValue: {
     color: Palette.text,
     fontSize: 16,
     fontWeight: '900',
+  },
+  statusValueLarge: {
+    fontSize: 18,
   },
   statusBody: {
     fontSize: 14,
@@ -518,12 +568,19 @@ const styles = StyleSheet.create({
     color: Palette.textMuted,
     marginTop: 3,
   },
+  statusBodyLarge: {
+    fontSize: 16,
+    lineHeight: 23,
+  },
   statusAction: {
     minWidth: 36,
     textAlign: 'right',
     fontSize: 14,
     fontWeight: '900',
     color: Palette.primary,
+  },
+  statusActionLarge: {
+    fontSize: 16,
   },
   tipList: {
     backgroundColor: Palette.surface,
@@ -541,6 +598,9 @@ const styles = StyleSheet.create({
     borderBottomColor: Palette.border,
     paddingVertical: 14,
   },
+  tipRowLarge: {
+    minHeight: 96,
+  },
   tipText: {
     flex: 1,
     marginLeft: 12,
@@ -550,11 +610,18 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: Palette.text,
   },
+  tipTitleLarge: {
+    fontSize: 18,
+  },
   tipBody: {
     fontSize: 14,
     lineHeight: 20,
     color: Palette.textMuted,
     marginTop: 3,
+  },
+  tipBodyLarge: {
+    fontSize: 16,
+    lineHeight: 23,
   },
   pressed: {
     opacity: 0.78,

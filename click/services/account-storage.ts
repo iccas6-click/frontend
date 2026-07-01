@@ -1,10 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+export type UserMode = 'standard' | 'lowVision';
+
 export interface UserProfile {
   id: string;
   name: string;
   phone: string;
   nickname?: string;
+  mode: UserMode;
   createdAt: string;
 }
 
@@ -36,6 +39,7 @@ export async function getProfile(): Promise<UserProfile | null> {
       name: parsed.name,
       phone: parsed.phone,
       nickname: parsed.nickname,
+      mode: parsed.mode === 'lowVision' ? 'lowVision' : 'standard',
       createdAt: parsed.createdAt,
     };
   } catch (e) {
@@ -44,13 +48,14 @@ export async function getProfile(): Promise<UserProfile | null> {
   }
 }
 
-export async function saveProfile(input: { name: string; phone: string; nickname?: string }): Promise<UserProfile> {
+export async function saveProfile(input: { name: string; phone: string; nickname?: string; mode?: UserMode }): Promise<UserProfile> {
   const existing = await getProfile();
   const profile: UserProfile = {
     id: existing?.id ?? String(Date.now()),
     name: input.name.trim(),
     phone: normalizePhone(input.phone),
     nickname: input.nickname?.trim() || undefined,
+    mode: input.mode ?? existing?.mode ?? 'standard',
     createdAt: existing?.createdAt ?? new Date().toISOString(),
   };
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(profile));

@@ -6,7 +6,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 
 import { IconBadge, PrimaryButton, Screen, TopBar } from '@/components/app-ui';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
-import { deleteProfile, formatPhone, getDisplayName, getInitial, getProfile, saveProfile, type UserProfile } from '@/services/account-storage';
+import { deleteProfile, formatPhone, getDisplayName, getInitial, getProfile, saveProfile, type UserMode, type UserProfile } from '@/services/account-storage';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -14,6 +14,7 @@ export default function ProfileScreen() {
   const [name, setName] = useState('');
   const [nickname, setNickname] = useState('');
   const [phone, setPhone] = useState('');
+  const [mode, setMode] = useState<UserMode>('standard');
 
   useFocusEffect(
     useCallback(() => {
@@ -28,6 +29,7 @@ export default function ProfileScreen() {
         setName(data.name);
         setNickname(data.nickname ?? '');
         setPhone(data.phone);
+        setMode(data.mode);
       });
       return () => {
         active = false;
@@ -36,7 +38,7 @@ export default function ProfileScreen() {
   );
 
   const save = async () => {
-    const next = await saveProfile({ name, phone, nickname });
+    const next = await saveProfile({ name, phone, nickname, mode });
     setProfile(next);
     Alert.alert('저장 완료', '프로필 정보가 저장되었습니다.');
   };
@@ -99,6 +101,12 @@ export default function ProfileScreen() {
             keyboardType="phone-pad"
           />
 
+          <Text style={styles.label}>사용 모드</Text>
+          <View style={styles.modeToggle}>
+            <ModeOption title="일반" body="요양사 · 보호자" active={mode === 'standard'} onPress={() => setMode('standard')} />
+            <ModeOption title="저시력자" body="노인 직접 사용" active={mode === 'lowVision'} onPress={() => setMode('lowVision')} />
+          </View>
+
           <PrimaryButton label="프로필 저장" icon="save" onPress={save} />
         </View>
 
@@ -141,6 +149,30 @@ function MenuRow({
         <Text style={styles.menuBody}>{body}</Text>
       </View>
       {onPress ? <Ionicons name="chevron-forward" size={18} color={Palette.textSubtle} /> : <Text style={styles.readyText}>준비 중</Text>}
+    </Pressable>
+  );
+}
+
+function ModeOption({
+  title,
+  body,
+  active,
+  onPress,
+}: {
+  title: string;
+  body: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.modeOption, active && styles.modeOptionActive, pressed && styles.pressed]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={`${title} 모드, ${body}`}>
+      <Text style={[styles.modeOptionTitle, active && styles.modeOptionTitleActive]}>{title}</Text>
+      <Text style={styles.modeOptionBody}>{body}</Text>
     </Pressable>
   );
 }
@@ -206,6 +238,41 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: Palette.text,
     marginBottom: 7,
+  },
+  modeToggle: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 10,
+  },
+  modeOption: {
+    flex: 1,
+    minHeight: 82,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    backgroundColor: Palette.background,
+    justifyContent: 'center',
+    padding: 13,
+  },
+  modeOptionActive: {
+    borderColor: Palette.primary,
+    backgroundColor: Palette.primarySoft,
+  },
+  modeOptionTitle: {
+    fontSize: 17,
+    lineHeight: 23,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  modeOptionTitleActive: {
+    color: Palette.primary,
+  },
+  modeOptionBody: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '700',
+    color: Palette.textMuted,
+    marginTop: 3,
   },
   menuCard: {
     backgroundColor: Palette.surface,
