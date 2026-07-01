@@ -24,18 +24,14 @@ export default function CameraScreen() {
   const compact = height < 760;
 
   const handleBack = () => {
-    if (isSupplement && params.recordId) {
-      router.replace({
-        pathname: '/reuse',
-        params: {
-          category,
-          prevItems: params.prevItems,
-          recordId: params.recordId,
-        },
-      });
-      return;
-    }
-    router.back();
+    router.replace({
+      pathname: '/reuse',
+      params: {
+        category,
+        prevItems: params.prevItems,
+        recordId: params.recordId,
+      },
+    });
   };
 
   if (!permission) {
@@ -52,7 +48,7 @@ export default function CameraScreen() {
     return (
       <Screen>
         <StatusBar style="dark" />
-        <TopBar backLabel="홈" onBack={handleBack} />
+        <TopBar backLabel="뒤로" onBack={handleBack} />
         <View style={styles.permissionBox}>
           <IconBadge icon="camera-outline" tone="blue" size="lg" />
           <Text style={[styles.permissionTitle, lowVision && styles.permissionTitleLowVision]}>카메라 권한이 필요해요</Text>

@@ -85,6 +85,18 @@ export default function ReviewScreen() {
     });
   };
 
+  const handleBack = () => {
+    router.replace({
+      pathname: '/result',
+      params: {
+        category: '건강기능식품 라벨',
+        prevItems: JSON.stringify(pillItems),
+        items: JSON.stringify(supplementItems),
+        recordId: recordId ?? '',
+      },
+    });
+  };
+
   return (
     <Screen
       bottom={
@@ -92,7 +104,7 @@ export default function ReviewScreen() {
           <PrimaryButton label="상호작용 분석하기" icon="analytics" disabled={items.length === 0} onPress={analyze} />
         </View>
       }>
-      <TopBar title="전체 인식 결과" backLabel="이전" onBack={() => router.back()} />
+      <TopBar title="전체 인식 결과" backLabel="뒤로" onBack={handleBack} />
       <StepIndicator current={3} />
 
       <ScrollView contentContainerStyle={[styles.content, lowVision && styles.contentLowVision]} showsVerticalScrollIndicator={false}>

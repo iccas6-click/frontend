@@ -50,6 +50,21 @@ export default function ReuseScreen() {
   const label = CATEGORY_LABEL[category];
   const usableRecords = isSupplement && params.recordId ? records.filter((record) => record.id !== params.recordId) : records;
 
+  const handleBack = () => {
+    if (isSupplement && params.prevItems) {
+      router.replace({
+        pathname: '/result',
+        params: {
+          category: '알약',
+          items: params.prevItems,
+          recordId: params.recordId ?? '',
+        },
+      });
+      return;
+    }
+    router.replace('/');
+  };
+
   const startCamera = () => {
     const next = {
       pathname: '/camera',
@@ -85,7 +100,7 @@ export default function ReuseScreen() {
       <TopBar
         title={isSupplement ? '건강기능식품 추가' : '알약 추가'}
         backLabel="뒤로"
-        onBack={() => router.back()}
+        onBack={handleBack}
       />
       <StepIndicator current={isSupplement ? 2 : 1} />
 

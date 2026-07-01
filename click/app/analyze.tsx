@@ -44,7 +44,7 @@ export default function AnalyzeScreen() {
 
         router.replace({
           pathname: '/analysis',
-          params: { result: JSON.stringify(result), recordId: recordId ?? '' },
+          params: { result: JSON.stringify(result), items: itemsParam, recordId: recordId ?? '' },
         });
       } catch (e) {
         console.warn('상호작용 분석 실패:', e);

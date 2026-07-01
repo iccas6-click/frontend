@@ -13,7 +13,7 @@ import type { AnalysisResult, InteractionPair } from '@/types/medication';
 
 export default function AnalysisScreen() {
   const router = useRouter();
-  const { result: resultParam } = useLocalSearchParams<{ result?: string }>();
+  const { result: resultParam, items: itemsParam, recordId } = useLocalSearchParams<{ result?: string; items?: string; recordId?: string }>();
   const { lowVision } = useUserMode();
   const [attentionOpen, setAttentionOpen] = useState(true);
   const [safeOpen, setSafeOpen] = useState(false);
@@ -38,10 +38,24 @@ export default function AnalysisScreen() {
     router.replace('/');
   };
 
+  const handleBack = () => {
+    if (itemsParam) {
+      router.replace({
+        pathname: '/review',
+        params: {
+          items: itemsParam,
+          recordId: recordId ?? '',
+        },
+      });
+      return;
+    }
+    router.replace('/');
+  };
+
   if (!result) {
     return (
       <Screen>
-        <TopBar title="분석 결과" backLabel="뒤로" onBack={() => router.back()} />
+        <TopBar title="분석 결과" backLabel="뒤로" onBack={handleBack} />
         <View style={styles.empty}>
           <IconBadge icon="alert-circle" tone="amber" size="lg" />
           <Text style={styles.emptyTitle}>결과를 불러올 수 없어요</Text>
@@ -57,7 +71,7 @@ export default function AnalysisScreen() {
           <PrimaryButton label="처음으로 돌아가기" icon="home" onPress={goHome} />
         </View>
       }>
-      <TopBar title="분석 결과" backLabel="뒤로" onBack={() => router.back()} />
+      <TopBar title="분석 결과" backLabel="뒤로" onBack={handleBack} />
       <StepIndicator current={4} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>

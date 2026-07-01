@@ -166,6 +166,29 @@ export default function ResultScreen() {
     });
   };
 
+  const handleBack = () => {
+    if (itemsParam && !photoUri) {
+      router.replace({
+        pathname: '/reuse',
+        params: {
+          category: selectedCategory,
+          prevItems,
+          recordId: recordId ?? recordIdParam ?? '',
+        },
+      });
+      return;
+    }
+
+    router.replace({
+      pathname: '/camera',
+      params: {
+        category: selectedCategory,
+        prevItems,
+        recordId: recordId ?? recordIdParam ?? '',
+      },
+    });
+  };
+
   return (
     <Screen
       bottom={
@@ -184,7 +207,7 @@ export default function ResultScreen() {
           </View>
         </View>
       }>
-      <TopBar title={`${meta.label} 결과`} backLabel="이전" onBack={() => router.back()} />
+      <TopBar title={`${meta.label} 결과`} backLabel="뒤로" onBack={handleBack} />
       <StepIndicator current={isSupplement ? 2 : 1} />
 
       {loading ? (
