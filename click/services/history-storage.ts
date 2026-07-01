@@ -66,6 +66,16 @@ export async function getSession(id: string): Promise<AnalysisSession | null> {
   return records.find((r) => r.id === id) ?? null;
 }
 
+/** 선택한 세션들을 삭제한다. 반환값은 실제 삭제된 개수다. */
+export async function deleteSessions(ids: string[]): Promise<number> {
+  if (ids.length === 0) return 0;
+  const idSet = new Set(ids);
+  const records = await loadAll();
+  const next = records.filter((record) => !idSet.has(record.id));
+  await persist(next);
+  return records.length - next.length;
+}
+
 /**
  * 새 분석 세션을 만든다. 생성된 세션의 id를 반환한다.
  * 같은 항목을 재사용하더라도 시간이 다르면 매번 새 세션으로 저장된다.

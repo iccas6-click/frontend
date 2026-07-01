@@ -8,7 +8,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { IconBadge, PrimaryButton, Screen } from '@/components/app-ui';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { getDisplayName, getInitial, getProfile, type UserProfile } from '@/services/account-storage';
-import { getAllSessions } from '@/services/history-storage';
+import { formatRecordTime, formatRecordTitle, getAllSessions } from '@/services/history-storage';
 import type { AnalysisSession } from '@/types/medication';
 
 export default function MainScreen() {
@@ -83,40 +83,38 @@ export default function MainScreen() {
           <Text style={styles.heroTitle}>같이 먹어도 괜찮은지{'\n'}사진으로 먼저 확인하세요!</Text>
         </View>
 
-        <View style={styles.flowStrip}>
-          <FlowPill icon="medical" label="알약 인식" />
-          <Ionicons name="chevron-forward" size={16} color={Palette.textSubtle} />
-          <FlowPill icon="leaf" label="건강기능식품 인식" tone="green" />
-          <Ionicons name="chevron-forward" size={16} color={Palette.textSubtle} />
-          <FlowPill icon="shield-checkmark" label="상호작용 분석" tone="dark" />
-        </View>
-
-        <View style={styles.actionPanel}>
+        <View style={styles.startPanel}>
+          <View style={styles.startPanelTop}>
+            <View>
+              <Text style={styles.startEyebrow}>복용 전 1분 체크</Text>
+              <Text style={styles.startTitle}>약과 영양제 조합을 한 번에 정리해요</Text>
+            </View>
+            <IconBadge icon="shield-checkmark" tone="green" size="sm" />
+          </View>
+          <Text style={styles.startBody}>반복 복용 중인 약은 기록에서 다시 쓰고, 새로 생긴 약만 사진으로 추가하면 됩니다.</Text>
           <PrimaryButton
-            label="인식 시작하기"
+            label="사진으로 확인 시작"
             icon="camera"
             onPress={() => router.push({ pathname: '/reuse', params: { category: '알약', mode: 'start' } })}
             accessibilityHint="기존 알약 기록을 선택하거나 새 촬영을 시작합니다."
           />
-          <Pressable style={styles.historyLink} onPress={() => router.push('/history')} accessibilityRole="button" accessibilityLabel="기록 보기">
-            <Ionicons name="time-outline" size={19} color={Palette.primary} />
-            <Text style={styles.historyLinkText}>분석 기록 보기</Text>
+          <Pressable style={styles.secondaryStartButton} onPress={() => router.push('/history')} accessibilityRole="button" accessibilityLabel="저장된 기록 보기">
+            <Ionicons name="folder-open-outline" size={19} color={Palette.blueGrey} />
+            <Text style={styles.secondaryStartText}>저장된 기록 보기</Text>
           </Pressable>
         </View>
 
-        <View style={styles.statsGrid}>
-          <StatCard
-            label="상담 확인 필요"
-            value={`${stats.attention}건`}
-            icon={stats.attention > 0 ? 'warning' : 'checkmark-circle'}
-            tone={stats.attention > 0 ? 'amber' : 'green'}
-          />
-          <StatCard label="재사용 가능 기록" value={`${stats.reusable}건`} icon="archive" tone="blue" />
+        <SectionTitle title="진행 방식" />
+        <View style={styles.stepPanel}>
+          <StepLine index="1" icon="medical" title="알약 추가" body="처방약, 상비약을 촬영하거나 기존 기록에서 선택해요." />
+          <StepLine index="2" icon="leaf" title="건강기능식품 추가" body="영양제와 건강기능식품 라벨을 따로 확인해요." tone="green" />
+          <StepLine index="3" icon="analytics" title="복용 전 분석" body="두 목록을 한 화면에서 검토한 뒤 상호작용을 확인해요." tone="dark" isLast />
         </View>
 
-        <SectionTitle title="다음에 할 일" />
-        <NextActionCard
+        <SectionTitle title="내 기록 상태" />
+        <StatusBoard
           attention={stats.attention}
+          reusable={stats.reusable}
           readySession={stats.readySession}
           latest={stats.latest}
           onStart={() => router.push({ pathname: '/reuse', params: { category: '알약', mode: 'start' } })}
@@ -124,7 +122,7 @@ export default function MainScreen() {
           onRecord={(id) => router.push({ pathname: '/record', params: { id } })}
         />
 
-        <SectionTitle title="안전 체크 포인트" />
+        <SectionTitle title="복용 전 체크 포인트" />
         <View style={styles.tipList}>
           <TipRow icon="repeat" title="반복 복용 약은 재사용" body="매번 다시 찍지 않고 기존 인식 기록에서 바로 가져올 수 있어요." />
           <TipRow icon="list" title="분석 전 전체 검토" body="알약과 건강기능식품 목록을 한 번에 확인한 뒤 분석합니다." />
@@ -135,23 +133,34 @@ export default function MainScreen() {
   );
 }
 
-function FlowPill({
+function StepLine({
+  index,
   icon,
-  label,
+  title,
+  body,
   tone = 'blue',
+  isLast,
 }: {
-  icon: 'medical' | 'leaf' | 'shield-checkmark';
-  label: string;
+  index: string;
+  icon: 'medical' | 'leaf' | 'analytics';
+  title: string;
+  body: string;
   tone?: 'blue' | 'green' | 'dark';
+  isLast?: boolean;
 }) {
-  const color = tone === 'green' ? Palette.mint : tone === 'dark' ? Palette.blueGrey : Palette.primary;
-  const backgroundColor = tone === 'green' ? Palette.mintSoft : tone === 'dark' ? Palette.surfaceMuted : Palette.primarySoft;
   return (
-    <View style={styles.flowPill}>
-      <View style={[styles.flowIcon, { backgroundColor }]}>
-        <Ionicons name={icon} size={16} color={color} />
+    <View style={styles.stepLine}>
+      <View style={styles.stepRail}>
+        <View style={styles.stepIndex}>
+          <Text style={styles.stepIndexText}>{index}</Text>
+        </View>
+        {isLast ? null : <View style={styles.stepRailLine} />}
       </View>
-      <Text style={styles.flowPillText}>{label}</Text>
+      <IconBadge icon={icon} tone={tone} size="sm" />
+      <View style={styles.stepText}>
+        <Text style={styles.stepTitle}>{title}</Text>
+        <Text style={styles.stepBody}>{body}</Text>
+      </View>
     </View>
   );
 }
@@ -160,28 +169,9 @@ function SectionTitle({ title }: { title: string }) {
   return <Text style={styles.sectionTitle}>{title}</Text>;
 }
 
-function StatCard({
-  label,
-  value,
-  icon,
-  tone,
-}: {
-  label: string;
-  value: string;
-  icon: 'checkmark-circle' | 'warning' | 'archive';
-  tone: 'green' | 'amber' | 'blue';
-}) {
-  return (
-    <View style={styles.statCard}>
-      <IconBadge icon={icon} tone={tone} size="sm" />
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function NextActionCard({
+function StatusBoard({
   attention,
+  reusable,
   readySession,
   latest,
   onStart,
@@ -189,89 +179,84 @@ function NextActionCard({
   onRecord,
 }: {
   attention: number;
+  reusable: number;
   readySession: AnalysisSession | null;
   latest: AnalysisSession | null;
   onStart: () => void;
   onHistory: () => void;
   onRecord: (id: string) => void;
 }) {
-  if (readySession) {
-    return (
-      <ActionNotice
-        icon="document-text"
-        tone="amber"
-        title="분석 전 기록이 있어요"
-        body="인식 목록을 확인하고 상호작용 분석까지 이어가세요."
-        action="기록 열기"
-        onPress={() => onRecord(readySession.id)}
-      />
-    );
-  }
-
-  if (attention > 0) {
-    return (
-      <ActionNotice
-        icon="warning"
-        tone="amber"
-        title="상담 확인이 필요한 기록이 있어요"
-        body="주의 또는 위험으로 표시된 조합을 다시 확인해 보세요."
-        action="기록 보기"
+  return (
+    <View style={styles.statusBoard}>
+      <StatusRow
+        icon={attention > 0 ? 'warning' : 'checkmark-circle'}
+        tone={attention > 0 ? 'amber' : 'green'}
+        label="상담 확인 필요"
+        value={`${attention}건`}
+        body={attention > 0 ? '주의 표시된 조합을 다시 열어보세요.' : '현재 주의 표시된 기록이 없어요.'}
+        action="보기"
         onPress={onHistory}
       />
-    );
-  }
-
-  if (latest) {
-    return (
-      <ActionNotice
-        icon="checkmark-circle"
-        tone="green"
-        title="최근 분석까지 정리되어 있어요"
-        body="새 약이나 건강기능식품이 생기면 새 조합으로 확인하세요."
-        action="새 조합 시작"
+      <StatusRow
+        icon="archive"
+        tone="blue"
+        label="다시 쓸 수 있는 기록"
+        value={`${reusable}건`}
+        body="반복 처방약이나 매일 먹는 영양제를 다시 촬영하지 않아도 돼요."
+        action="시작"
         onPress={onStart}
       />
-    );
-  }
-
-  return (
-    <ActionNotice
-      icon="sparkles"
-      tone="blue"
-      title="첫 조합 확인을 시작해 보세요"
-      body="알약과 건강기능식품을 순서대로 추가하면 분석 전 전체 목록을 한 번 더 확인합니다."
-      action="시작하기"
-      onPress={onStart}
-    />
+      <StatusRow
+        icon={readySession ? 'document-text' : 'time'}
+        tone={readySession ? 'amber' : 'dark'}
+        label={readySession ? '분석 이어가기' : '최근 확인'}
+        value={readySession ? '대기 중' : latest ? formatRecordTitle(latest.createdAt) : '없음'}
+        body={readySession ? '인식은 끝났고 분석 전 검토가 남아 있어요.' : latest ? `${formatRecordTime(latest.createdAt)}에 저장된 기록이 있어요.` : '첫 기록을 만들면 여기에서 상태를 볼 수 있어요.'}
+        action={readySession ? '열기' : latest ? '기록' : '시작'}
+        onPress={() => {
+          if (readySession) {
+            onRecord(readySession.id);
+            return;
+          }
+          if (latest) {
+            onHistory();
+            return;
+          }
+          onStart();
+        }}
+      />
+    </View>
   );
 }
 
-function ActionNotice({
+function StatusRow({
   icon,
   tone,
-  title,
+  label,
+  value,
   body,
   action,
   onPress,
 }: {
-  icon: 'document-text' | 'warning' | 'checkmark-circle' | 'sparkles';
-  tone: 'amber' | 'green' | 'blue';
-  title: string;
+  icon: 'warning' | 'checkmark-circle' | 'archive' | 'document-text' | 'time';
+  tone: 'amber' | 'green' | 'blue' | 'dark';
+  label: string;
+  value: string;
   body: string;
   action: string;
   onPress: () => void;
 }) {
   return (
-    <Pressable style={({ pressed }) => [styles.actionNotice, pressed && styles.pressed]} onPress={onPress} accessibilityRole="button" accessibilityLabel={`${title}, ${body}`}>
-      <IconBadge icon={icon} tone={tone} />
-      <View style={styles.actionNoticeText}>
-        <Text style={styles.actionNoticeTitle}>{title}</Text>
-        <Text style={styles.actionNoticeBody}>{body}</Text>
+    <Pressable style={({ pressed }) => [styles.statusRow, pressed && styles.pressed]} onPress={onPress} accessibilityRole="button" accessibilityLabel={`${label}, ${value}. ${body}`}>
+      <IconBadge icon={icon} tone={tone} size="sm" />
+      <View style={styles.statusText}>
+        <View style={styles.statusTitleRow}>
+          <Text style={styles.statusLabel}>{label}</Text>
+          <Text style={styles.statusValue}>{value}</Text>
+        </View>
+        <Text style={styles.statusBody}>{body}</Text>
       </View>
-      <View style={styles.actionChip}>
-        <Text style={styles.actionChipText}>{action}</Text>
-        <Ionicons name="chevron-forward" size={15} color={Palette.primary} />
-      </View>
+      <Text style={styles.statusAction}>{action}</Text>
     </Pressable>
   );
 }
@@ -378,81 +363,52 @@ const styles = StyleSheet.create({
     ...Typography.hero,
     color: Palette.text,
   },
-  flowStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 5,
-    padding: 12,
-    borderRadius: Radius.lg,
+  startPanel: {
+    gap: 14,
     backgroundColor: Palette.surface,
+    borderRadius: Radius.xl,
     borderWidth: 1,
     borderColor: Palette.border,
-    ...Shadow.subtle,
+    padding: 18,
+    ...Shadow.card,
   },
-  flowPill: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 6,
+  startPanelTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
   },
-  flowIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: Radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
+  startEyebrow: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '900',
+    color: Palette.primary,
   },
-  flowPillText: {
-    fontSize: 12,
-    lineHeight: 16,
+  startTitle: {
+    fontSize: 21,
+    lineHeight: 28,
     fontWeight: '900',
     color: Palette.text,
-    textAlign: 'center',
+    marginTop: 3,
   },
-  actionPanel: {
-    gap: 10,
+  startBody: {
+    fontSize: 16,
+    lineHeight: 23,
+    color: Palette.textMuted,
   },
-  historyLink: {
+  secondaryStartButton: {
     minHeight: 54,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 7,
     borderRadius: Radius.lg,
-    backgroundColor: Palette.primarySoft,
+    backgroundColor: Palette.surfaceMuted,
   },
-  historyLinkText: {
-    color: Palette.primary,
+  secondaryStartText: {
+    color: Palette.blueGrey,
     fontSize: 17,
     fontWeight: '900',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  statCard: {
-    flex: 1,
-    minHeight: 118,
-    backgroundColor: Palette.surface,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    padding: 14,
-    ...Shadow.subtle,
-  },
-  statValue: {
-    fontSize: 24,
-    lineHeight: 30,
-    fontWeight: '900',
-    color: Palette.text,
-    marginTop: 12,
-  },
-  statLabel: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '800',
-    color: Palette.textMuted,
-    marginTop: 1,
   },
   sectionTitle: {
     fontSize: 20,
@@ -461,45 +417,110 @@ const styles = StyleSheet.create({
     color: Palette.text,
     marginTop: 6,
   },
-  actionNotice: {
-    minHeight: 112,
-    flexDirection: 'row',
-    alignItems: 'center',
+  stepPanel: {
     backgroundColor: Palette.surface,
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Palette.border,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
     ...Shadow.subtle,
   },
-  actionNoticeText: {
-    flex: 1,
-    marginLeft: 14,
+  stepLine: {
+    minHeight: 92,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 16,
+  },
+  stepRail: {
+    width: 28,
+    alignItems: 'center',
+    alignSelf: 'stretch',
     marginRight: 10,
   },
-  actionNoticeTitle: {
-    fontSize: 18,
-    lineHeight: 24,
+  stepIndex: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Palette.text,
+  },
+  stepIndexText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  stepRailLine: {
+    width: 2,
+    flex: 1,
+    backgroundColor: Palette.border,
+    marginTop: 7,
+  },
+  stepText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  stepTitle: {
+    fontSize: 17,
+    lineHeight: 23,
     fontWeight: '900',
     color: Palette.text,
   },
-  actionNoticeBody: {
-    fontSize: 15,
-    lineHeight: 21,
+  stepBody: {
+    fontSize: 14,
+    lineHeight: 20,
     color: Palette.textMuted,
-    marginTop: 4,
+    marginTop: 3,
   },
-  actionChip: {
-    minHeight: 36,
+  statusBoard: {
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    paddingHorizontal: 14,
+    ...Shadow.subtle,
+  },
+  statusRow: {
+    minHeight: 88,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
-    paddingLeft: 10,
-    paddingRight: 8,
-    borderRadius: Radius.sm,
-    backgroundColor: Palette.primarySoft,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Palette.border,
+    paddingVertical: 14,
   },
-  actionChipText: {
+  statusText: {
+    flex: 1,
+    marginLeft: 12,
+    marginRight: 8,
+  },
+  statusTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  statusLabel: {
+    flex: 1,
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  statusValue: {
+    color: Palette.text,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  statusBody: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: Palette.textMuted,
+    marginTop: 3,
+  },
+  statusAction: {
+    minWidth: 36,
+    textAlign: 'right',
     fontSize: 14,
     fontWeight: '900',
     color: Palette.primary,

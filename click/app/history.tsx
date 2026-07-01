@@ -2,11 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { IconBadge, Screen, TopBar } from '@/components/app-ui';
+import { IconBadge, PrimaryButton, Screen, TopBar } from '@/components/app-ui';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
-import { formatRecordTime, formatRecordTitle, getAllSessions } from '@/services/history-storage';
+import { deleteSessions, formatRecordTime, formatRecordTitle, getAllSessions } from '@/services/history-storage';
 import type { AnalysisSession, RecognizedItem, SessionStatus } from '@/types/medication';
 
 type HistoryFilter = 'all' | 'analyzed' | 'ready';
@@ -34,6 +34,8 @@ export default function HistoryScreen() {
   const router = useRouter();
   const [records, setRecords] = useState<AnalysisSession[]>([]);
   const [filter, setFilter] = useState<HistoryFilter>('all');
+  const [selecting, setSelecting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -53,14 +55,67 @@ export default function HistoryScreen() {
     return records.filter((record) => record.status !== 'analyzed');
   }, [filter, records]);
 
+  const selectedCount = selectedIds.length;
+  const allFilteredSelected = filteredRecords.length > 0 && filteredRecords.every((record) => selectedIds.includes(record.id));
+
+  const toggleSelecting = () => {
+    setSelecting((current) => !current);
+    setSelectedIds([]);
+  };
+
+  const toggleRecord = (id: string) => {
+    setSelectedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+  };
+
+  const toggleAllFiltered = () => {
+    if (allFilteredSelected) {
+      setSelectedIds((current) => current.filter((id) => !filteredRecords.some((record) => record.id === id)));
+      return;
+    }
+    setSelectedIds((current) => Array.from(new Set([...current, ...filteredRecords.map((record) => record.id)])));
+  };
+
+  const confirmDelete = () => {
+    if (selectedCount === 0) return;
+    Alert.alert('선택 기록 삭제', `${selectedCount}개의 기록을 삭제할까요? 삭제한 기록은 되돌릴 수 없습니다.`, [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '삭제',
+        style: 'destructive',
+        onPress: async () => {
+          await deleteSessions(selectedIds);
+          const next = await getAllSessions();
+          setRecords(next);
+          setSelectedIds([]);
+          setSelecting(false);
+        },
+      },
+    ]);
+  };
+
   return (
-    <Screen>
+    <Screen
+      bottom={
+        selecting ? (
+          <View style={styles.deleteBar}>
+            <Text style={styles.deleteSummary}>선택 {selectedCount}개</Text>
+            <PrimaryButton label="선택 삭제" icon="trash" variant="danger" disabled={selectedCount === 0} onPress={confirmDelete} />
+          </View>
+        ) : undefined
+      }>
       <StatusBar style="dark" />
       <TopBar
         title="기록"
         subtitle="인식한 약과 건강기능식품 조합, 저장된 분석 결과를 다시 열어볼 수 있어요."
         backLabel="홈"
         onBack={() => router.back()}
+        right={
+          records.length > 0 ? (
+            <Pressable style={styles.selectButton} onPress={toggleSelecting} accessibilityRole="button" accessibilityLabel={selecting ? '기록 선택 취소' : '기록 선택 삭제'}>
+              <Text style={styles.selectButtonText}>{selecting ? '취소' : '선택'}</Text>
+            </Pressable>
+          ) : null
+        }
       />
 
       {records.length === 0 ? (
@@ -88,6 +143,15 @@ export default function HistoryScreen() {
             })}
           </View>
 
+          {selecting ? (
+            <View style={styles.selectionRow}>
+              <Text style={styles.selectionText}>삭제할 기록을 선택하세요</Text>
+              <Pressable style={styles.selectAllButton} onPress={toggleAllFiltered} accessibilityRole="button" accessibilityLabel={allFilteredSelected ? '현재 목록 선택 해제' : '현재 목록 전체 선택'}>
+                <Text style={styles.selectAllText}>{allFilteredSelected ? '선택 해제' : '전체 선택'}</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
           {filteredRecords.length === 0 ? (
             <View style={styles.filteredEmpty}>
               <IconBadge icon="search" tone="dark" size="lg" />
@@ -98,9 +162,20 @@ export default function HistoryScreen() {
               data={filteredRecords}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
-                <RecordCard record={item} onPress={() => router.push({ pathname: '/record', params: { id: item.id } })} />
+                <RecordCard
+                  record={item}
+                  selecting={selecting}
+                  selected={selectedIds.includes(item.id)}
+                  onPress={() => {
+                    if (selecting) {
+                      toggleRecord(item.id);
+                      return;
+                    }
+                    router.push({ pathname: '/record', params: { id: item.id } });
+                  }}
+                />
               )}
-              contentContainerStyle={styles.list}
+              contentContainerStyle={[styles.list, selecting && styles.listWithDeleteBar]}
               showsVerticalScrollIndicator={false}
             />
           )}
@@ -110,17 +185,33 @@ export default function HistoryScreen() {
   );
 }
 
-function RecordCard({ record, onPress }: { record: AnalysisSession; onPress: () => void }) {
+function RecordCard({
+  record,
+  selecting,
+  selected,
+  onPress,
+}: {
+  record: AnalysisSession;
+  selecting: boolean;
+  selected: boolean;
+  onPress: () => void;
+}) {
   const pill = record.items.some((item) => item.category === '알약');
   const supp = record.items.some((item) => item.category === '건강기능식품 라벨');
   const analyzed = record.status === 'analyzed';
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.card, selected && styles.cardSelected, pressed && styles.pressed]}
       onPress={onPress}
       accessibilityRole="button"
+      accessibilityState={selecting ? { selected } : undefined}
       accessibilityLabel={`${formatRecordTitle(record.createdAt)}, ${formatRecordTime(record.createdAt)}, ${getStatusLabel(record.status)}, ${summarize(record.items)}`}>
+      {selecting ? (
+        <View style={[styles.checkCircle, selected && styles.checkCircleSelected]}>
+          {selected ? <Ionicons name="checkmark" size={17} color="#FFFFFF" /> : null}
+        </View>
+      ) : null}
       <IconBadge icon={pill && supp ? 'layers' : pill ? 'medical' : 'leaf'} tone={analyzed ? 'green' : pill ? 'blue' : 'green'} />
       <View style={styles.cardText}>
         <View style={styles.cardTitleRow}>
@@ -135,7 +226,7 @@ function RecordCard({ record, onPress }: { record: AnalysisSession; onPress: () 
           {supp ? <Chip label="건강기능식품" /> : null}
         </View>
       </View>
-      <Ionicons name="chevron-forward" size={19} color={Palette.textSubtle} />
+      {selecting ? null : <Ionicons name="chevron-forward" size={19} color={Palette.textSubtle} />}
     </Pressable>
   );
 }
@@ -184,10 +275,54 @@ const styles = StyleSheet.create({
   filterTextActive: {
     color: Palette.text,
   },
+  selectButton: {
+    minHeight: 36,
+    paddingHorizontal: 12,
+    borderRadius: Radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Palette.primarySoft,
+  },
+  selectButtonText: {
+    color: Palette.primary,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  selectionRow: {
+    minHeight: 42,
+    marginHorizontal: Spacing.screen,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  selectionText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: Palette.textMuted,
+  },
+  selectAllButton: {
+    minHeight: 36,
+    paddingHorizontal: 12,
+    borderRadius: Radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Palette.surface,
+    borderWidth: 1,
+    borderColor: Palette.border,
+  },
+  selectAllText: {
+    color: Palette.text,
+    fontSize: 14,
+    fontWeight: '900',
+  },
   list: {
     paddingHorizontal: Spacing.screen,
     paddingBottom: 36,
     gap: 10,
+  },
+  listWithDeleteBar: {
+    paddingBottom: 120,
   },
   card: {
     minHeight: 112,
@@ -199,6 +334,25 @@ const styles = StyleSheet.create({
     borderColor: Palette.border,
     padding: 16,
     ...Shadow.subtle,
+  },
+  cardSelected: {
+    borderColor: Palette.rose,
+    backgroundColor: Palette.roseSoft,
+  },
+  checkCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: Palette.borderStrong,
+    marginRight: 12,
+    backgroundColor: Palette.surface,
+  },
+  checkCircleSelected: {
+    borderColor: Palette.rose,
+    backgroundColor: Palette.rose,
   },
   pressed: {
     opacity: 0.78,
@@ -289,5 +443,14 @@ const styles = StyleSheet.create({
     color: Palette.textMuted,
     textAlign: 'center',
     marginTop: 8,
+  },
+  deleteBar: {
+    gap: 10,
+  },
+  deleteSummary: {
+    color: Palette.textMuted,
+    fontSize: 14,
+    fontWeight: '800',
+    textAlign: 'center',
   },
 });

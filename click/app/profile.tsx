@@ -55,6 +55,19 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const logout = () => {
+    Alert.alert('로그아웃', '이 기기에서 현재 계정을 로그아웃할까요? 저장된 분석 기록은 그대로 남겨둡니다.', [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '로그아웃',
+        onPress: async () => {
+          await deleteProfile();
+          router.replace('/login');
+        },
+      },
+    ]);
+  };
+
   return (
     <Screen>
       <StatusBar style="dark" />
@@ -94,6 +107,11 @@ export default function ProfileScreen() {
           <MenuRow icon="notifications" title="복용 알림" body="추후 복용 시간 알림과 보호자 공유를 연결합니다." />
           <MenuRow icon="shield-checkmark" title="개인정보 설정" body="백엔드 연결 시 계정과 기록 보관 정책을 관리합니다." />
         </View>
+
+        <Pressable style={({ pressed }) => [styles.logoutButton, pressed && styles.pressed]} onPress={logout} accessibilityRole="button" accessibilityLabel="로그아웃">
+          <Ionicons name="log-out-outline" size={19} color={Palette.primary} />
+          <Text style={styles.logoutText}>로그아웃</Text>
+        </Pressable>
 
         <Pressable style={styles.withdrawButton} onPress={withdraw} accessibilityRole="button" accessibilityLabel="회원탈퇴">
           <Ionicons name="trash-outline" size={18} color={Palette.rose} />
@@ -226,6 +244,20 @@ const styles = StyleSheet.create({
   readyText: {
     ...Typography.caption,
     color: Palette.textSubtle,
+  },
+  logoutButton: {
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    borderRadius: Radius.lg,
+    backgroundColor: Palette.primarySoft,
+  },
+  logoutText: {
+    color: Palette.primary,
+    fontSize: 17,
+    fontWeight: '900',
   },
   withdrawButton: {
     minHeight: 54,
