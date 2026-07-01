@@ -133,7 +133,7 @@ export default function ResultScreen() {
   const goSupplement = () => {
     const allItems = buildAllItems(items);
     if (recordId) updateSessionItems(recordId, allItems).catch((e) => console.warn('기록 갱신 실패:', e));
-    router.push({
+    router.replace({
       pathname: '/reuse',
       params: {
         category: '건강기능식품 라벨',
@@ -146,7 +146,7 @@ export default function ResultScreen() {
   const goReview = () => {
     const allItems = buildAllItems(items);
     if (recordId) updateSessionItems(recordId, allItems).catch((e) => console.warn('기록 갱신 실패:', e));
-    router.push({
+    router.replace({
       pathname: '/review',
       params: {
         items: JSON.stringify(allItems),
@@ -156,7 +156,7 @@ export default function ResultScreen() {
   };
 
   const retake = () => {
-    router.push({
+    router.replace({
       pathname: '/camera',
       params: {
         category: selectedCategory,
@@ -176,7 +176,7 @@ export default function ResultScreen() {
             </View>
             <View style={styles.footerButton}>
               {!isSupplement ? (
-                <PrimaryButton label="건기식 추가" icon="leaf" disabled={!canContinue} onPress={goSupplement} />
+                <PrimaryButton label="건강기능식품 추가" icon="leaf" disabled={!canContinue} onPress={goSupplement} />
               ) : (
                 <PrimaryButton label="전체 확인" icon="list" disabled={!canContinue} onPress={goReview} />
               )}

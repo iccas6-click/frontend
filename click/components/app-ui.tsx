@@ -178,7 +178,9 @@ export function PrimaryButton({
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: Boolean(disabled) }}>
       {icon ? <Ionicons name={icon} size={lowVision ? 23 : 19} color={iconColor} /> : null}
-      <Text style={[textStyle, lowVision && styles.buttonTextLowVision]}>{label}</Text>
+      <Text style={[textStyle, lowVision && styles.buttonTextLowVision]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>
+        {label}
+      </Text>
     </Pressable>
   );
 }

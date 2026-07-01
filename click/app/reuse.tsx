@@ -60,7 +60,7 @@ export default function ReuseScreen() {
       },
     } as const;
 
-    router.push(next);
+    router.replace(next);
   };
 
   const selectRecord = (record: AnalysisSession) => {
@@ -76,7 +76,7 @@ export default function ReuseScreen() {
       },
     } as const;
 
-    router.push(next);
+    router.replace(next);
   };
 
   return (

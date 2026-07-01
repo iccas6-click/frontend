@@ -76,7 +76,7 @@ export default function ReviewScreen() {
 
   const analyze = () => {
     persist(items);
-    router.push({
+    router.replace({
       pathname: '/analyze',
       params: {
         items: JSON.stringify(items),

@@ -6,6 +6,14 @@ import { devLog } from './debug-log';
 
 const STORAGE_KEY = 'click.history.v2';
 
+function isAnalyzed(record: AnalysisSession): boolean {
+  return Boolean(record.analysis) || record.status === 'analyzed';
+}
+
+function removeIncomplete(records: AnalysisSession[], keepId?: string): AnalysisSession[] {
+  return records.filter((record) => isAnalyzed(record) || record.id === keepId);
+}
+
 /** ISO → 'M월 D일 기록' */
 export function formatRecordTitle(iso: string): string {
   const d = new Date(iso);
@@ -66,10 +74,20 @@ async function persist(records: AnalysisSession[]): Promise<void> {
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(records));
 }
 
+function pruneToSingleIncomplete(records: AnalysisSession[]): AnalysisSession[] {
+  const sorted = [...records].sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
+  const latestIncomplete = sorted.find((record) => !isAnalyzed(record));
+  return sorted.filter((record) => isAnalyzed(record) || record.id === latestIncomplete?.id);
+}
+
 /** 모든 세션을 최신순(생성 시각 내림차순)으로 반환 */
 export async function getAllSessions(): Promise<AnalysisSession[]> {
   const records = await loadAll();
-  return records.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
+  const pruned = pruneToSingleIncomplete(records);
+  if (pruned.length !== records.length) {
+    await persist(pruned);
+  }
+  return pruned.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
 }
 
 /** 특정 세션을 id로 반환 (없으면 null) */
@@ -83,7 +101,10 @@ export async function deleteSessions(ids: string[]): Promise<number> {
   if (ids.length === 0) return 0;
   const idSet = new Set(ids);
   const records = await loadAll();
-  const next = records.filter((record) => !idSet.has(record.id));
+  const remaining = records.filter((record) => !idSet.has(record.id));
+  const deletedAnalyzed = records.some((record) => idSet.has(record.id) && isAnalyzed(record));
+  const hasAnalyzedRemaining = remaining.some(isAnalyzed);
+  const next = deletedAnalyzed && !hasAnalyzedRemaining ? remaining.filter(isAnalyzed) : remaining;
   await persist(next);
   return records.length - next.length;
 }
@@ -101,8 +122,7 @@ export async function createSession(
   const record: AnalysisSession = { id, createdAt: now.toISOString(), category, status: 'ready', items };
 
   const records = await loadAll();
-  records.push(record);
-  await persist(records);
+  await persist([...removeIncomplete(records), record]);
 
   devLog(
     '[history] ◀ 새 세션 저장:',
@@ -131,7 +151,7 @@ export async function createSessionFromItems(items: RecognizedItem[]): Promise<s
 /** 특정 분류 항목이 들어 있는 최근 세션을 반환한다. */
 export async function getReusableSessions(category: ItemCategory): Promise<AnalysisSession[]> {
   const records = await getAllSessions();
-  return records.filter((record) => record.items.some((item) => item.category === category));
+  return records.filter((record) => isAnalyzed(record) && record.items.some((item) => item.category === category));
 }
 
 /** 분석 결과를 해당 세션 안에 저장한다. */
@@ -139,8 +159,9 @@ export async function updateSessionAnalysis(id: string, analysis: AnalysisResult
   const records = await loadAll();
   const idx = records.findIndex((r) => r.id === id);
   if (idx === -1) return;
-  records[idx] = { ...records[idx], status: 'analyzed', analysis, analyzedAt: new Date().toISOString() };
-  await persist(records);
+  const next = [...records];
+  next[idx] = { ...next[idx], status: 'analyzed', analysis, analyzedAt: new Date().toISOString() };
+  await persist(removeIncomplete(next));
 }
 
 /** @deprecated getAllSessions를 사용하세요. */

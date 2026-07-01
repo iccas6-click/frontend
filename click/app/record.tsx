@@ -94,7 +94,7 @@ export default function RecordDetailScreen() {
           <View style={[styles.summary, lowVision && styles.summaryLowVision]}>
             <CountBlock icon="medical" label="알약" value={pillCount} />
             <View style={styles.summaryDivider} />
-            <CountBlock icon="leaf" label="건기식" value={supplementCount} />
+            <CountBlock icon="leaf" label="건강기능식품" value={supplementCount} />
           </View>
 
           <View style={styles.segment}>

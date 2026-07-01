@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Palette, Radius, Spacing } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
 
-const STEPS = ['알약', '건기식', '분석', '결과'];
+const STEPS = ['알약', '건강기능식품', '분석', '결과'];
 const STEP_ACCESSIBILITY_LABELS = ['알약 추가', '건강기능식품 추가', '분석', '결과'];
 
 export function StepIndicator({ current, background }: { current: number; background?: string }) {
@@ -24,7 +24,7 @@ export function StepIndicator({ current, background }: { current: number; backgr
               <View style={[styles.dot, lowVision && styles.dotLowVision, active && styles.dotActive, currentStep && styles.dotCurrent]}>
                 <Text style={[styles.dotText, lowVision && styles.dotTextLowVision, active && styles.dotTextActive, currentStep && styles.dotTextCurrent]}>{step}</Text>
               </View>
-              <Text style={[styles.label, lowVision && styles.labelLowVision, active && styles.labelActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>
+              <Text style={[styles.label, lowVision && styles.labelLowVision, active && styles.labelActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.56}>
                 {label}
               </Text>
             </View>
@@ -54,11 +54,11 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Palette.border,
-    paddingHorizontal: 11,
+    paddingHorizontal: 8,
   },
   trackLowVision: {
     minHeight: 72,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
   },
   item: {
     flex: 1,
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   label: {
-    fontSize: 12,
+    fontSize: 11,
     lineHeight: 16,
     fontWeight: '800',
     letterSpacing: 0,
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   labelLowVision: {
-    fontSize: 14,
+    fontSize: 13,
     lineHeight: 18,
     fontWeight: '900',
   },
