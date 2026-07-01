@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -169,40 +168,18 @@ export default function ResultScreen() {
           )}
         </View>
       }>
-      <TopBar
-        title={`${meta.label} 결과 확인`}
-        subtitle={`이번 단계에서 인식한 ${meta.label}만 확인합니다.`}
-        backLabel="이전"
-        onBack={() => router.back()}
-      />
+      <TopBar title={`${meta.label} 결과`} backLabel="이전" onBack={() => router.back()} />
       <StepIndicator current={isSupplement ? 2 : 1} />
 
-      <View style={[styles.summaryCard, lowVision && styles.summaryCardLowVision]}>
-        <View>
-          <Text style={[styles.summaryLabel, lowVision && styles.summaryLabelLowVision]}>이번 인식 결과</Text>
-          <Text style={[styles.summaryTitle, lowVision && styles.summaryTitleLowVision]}>
-            {meta.label} {items.length}개
-          </Text>
-        </View>
-        <Pressable
-          style={[styles.addMiniButton, lowVision && styles.addMiniButtonLowVision]}
-          onPress={() => setEditTarget(null)}
-          accessibilityRole="button"
-          accessibilityLabel={`${meta.label} 직접 추가`}>
-          <Ionicons name="add" size={lowVision ? 22 : 18} color={Palette.primary} />
-          <Text style={[styles.addMiniText, lowVision && styles.addMiniTextLowVision]}>직접 추가</Text>
-        </Pressable>
-      </View>
-
       {loading ? (
-        <StateView icon="scan" title={`${meta.label}을 분석하고 있어요`} body="잠시만 기다려 주세요." loading />
+        <StateView icon="scan" title="인식 중" loading />
       ) : error ? (
-        <StateView icon="alert-circle" title="인식에 실패했어요" body="다시 촬영하거나 직접 추가해 분석을 계속할 수 있어요.">
+        <StateView icon="alert-circle" title="인식 실패">
           <PrimaryButton label="다시 시도" icon="refresh" onPress={runRecognition} />
         </StateView>
       ) : (
         <>
-          <SectionHeader title={`인식된 ${meta.label}`} />
+          <SectionHeader title={`인식된 ${meta.label}`} action={<CountBadge count={items.length} lowVision={lowVision} />} />
           <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
             {items.map((item) => (
               <ItemCard key={item.id} item={item} lowVision={lowVision} onPress={() => setEditTarget(item)} />
@@ -222,6 +199,7 @@ export default function ResultScreen() {
       <ItemEditModal
         visible={editTarget !== undefined}
         initial={editTarget ?? null}
+        initialCategory={selectedCategory}
         onClose={() => setEditTarget(undefined)}
         onSave={handleSave}
         onDelete={handleDelete}
@@ -258,13 +236,11 @@ function ItemCard({ item, lowVision, onPress }: { item: RecognizedItem; lowVisio
 function StateView({
   icon,
   title,
-  body,
   loading,
   children,
 }: {
   icon: 'scan' | 'alert-circle';
   title: string;
-  body: string;
   loading?: boolean;
   children?: React.ReactNode;
 }) {
@@ -272,70 +248,40 @@ function StateView({
     <View style={styles.state}>
       {loading ? <ActivityIndicator color={Palette.primary} size="large" /> : <IconBadge icon={icon} tone="amber" size="lg" />}
       <Text style={styles.stateTitle}>{title}</Text>
-      <Text style={styles.stateBody}>{body}</Text>
       {children ? <View style={styles.stateAction}>{children}</View> : null}
     </View>
   );
 }
 
+function CountBadge({ count, lowVision }: { count: number; lowVision: boolean }) {
+  return (
+    <View style={[styles.countBadge, lowVision && styles.countBadgeLowVision]}>
+      <Text style={[styles.countBadgeText, lowVision && styles.countBadgeTextLowVision]}>{count}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  summaryCard: {
-    marginHorizontal: Spacing.screen,
-    marginBottom: 18,
-    backgroundColor: Palette.surface,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    padding: 16,
-    flexDirection: 'row',
+  countBadge: {
+    minWidth: 34,
+    minHeight: 30,
+    borderRadius: Radius.sm,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    ...Shadow.subtle,
+    justifyContent: 'center',
+    backgroundColor: Palette.surfaceMuted,
+    paddingHorizontal: 10,
   },
-  summaryCardLowVision: {
-    marginBottom: 14,
-    padding: 18,
+  countBadgeLowVision: {
+    minWidth: 42,
+    minHeight: 38,
   },
-  summaryLabel: {
-    ...Typography.caption,
-    color: Palette.textMuted,
-  },
-  summaryLabelLowVision: {
+  countBadgeText: {
     fontSize: 15,
-    lineHeight: 21,
-  },
-  summaryTitle: {
-    fontSize: 20,
-    lineHeight: 26,
     fontWeight: '900',
     color: Palette.text,
-    marginTop: 4,
   },
-  summaryTitleLowVision: {
-    fontSize: 24,
-    lineHeight: 31,
-  },
-  addMiniButton: {
-    minHeight: 42,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    borderRadius: Radius.md,
-    backgroundColor: Palette.primarySoft,
-  },
-  addMiniButtonLowVision: {
-    minHeight: 50,
-    paddingHorizontal: 14,
-  },
-  addMiniText: {
-    color: Palette.primary,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  addMiniTextLowVision: {
-    fontSize: 18,
-    fontWeight: '900',
+  countBadgeTextLowVision: {
+    fontSize: 19,
   },
   listContent: {
     paddingHorizontal: Spacing.screen,
@@ -439,12 +385,6 @@ const styles = StyleSheet.create({
     color: Palette.text,
     textAlign: 'center',
     marginTop: 16,
-  },
-  stateBody: {
-    ...Typography.body,
-    color: Palette.textMuted,
-    textAlign: 'center',
-    marginTop: 8,
   },
   stateAction: {
     width: '100%',

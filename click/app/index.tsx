@@ -7,52 +7,52 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { IconBadge, PrimaryButton, Screen } from '@/components/app-ui';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
-import { getDisplayName, getInitial, getProfile, type UserProfile } from '@/services/account-storage';
 import { formatRecordTime, formatRecordTitle, getAllSessions } from '@/services/history-storage';
-import type { AnalysisSession } from '@/types/medication';
+import { getSettings, type AppSettings } from '@/services/settings-storage';
+import type { AnalysisSession, RiskLevel } from '@/types/medication';
+
+function countByCategory(record: AnalysisSession) {
+  return {
+    pill: record.items.filter((item) => item.category === '알약').length,
+    supplement: record.items.filter((item) => item.category === '건강기능식품 라벨').length,
+  };
+}
+
+function riskLabel(level?: RiskLevel) {
+  if (level === 'danger') return '위험';
+  if (level === 'caution') return '주의';
+  if (level === 'safe') return '미탐지';
+  return '결과 없음';
+}
+
+function riskTone(level?: RiskLevel): 'red' | 'amber' | 'green' | 'dark' {
+  if (level === 'danger') return 'red';
+  if (level === 'caution') return 'amber';
+  if (level === 'safe') return 'green';
+  return 'dark';
+}
 
 export default function MainScreen() {
   const router = useRouter();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [settings, setSettings] = useState<AppSettings>({ mode: 'standard' });
   const [sessions, setSessions] = useState<AnalysisSession[]>([]);
-  const [checking, setChecking] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      Promise.all([getProfile(), getAllSessions()]).then(([profileData, sessionData]) => {
+      Promise.all([getSettings(), getAllSessions()]).then(([settingsData, sessionData]) => {
         if (!active) return;
-        if (!profileData) {
-          router.replace('/login');
-          return;
-        }
-        setProfile(profileData);
+        setSettings(settingsData);
         setSessions(sessionData);
-        setChecking(false);
       });
       return () => {
         active = false;
       };
-    }, [router]),
+    }, []),
   );
 
-  const stats = useMemo(() => {
-    const attention = sessions.filter((session) => session.analysis?.overall === 'danger' || session.analysis?.overall === 'caution').length;
-    const reusable = sessions.filter((session) => session.items.length > 0).length;
-    const readySession = sessions.find((session) => session.status !== 'analyzed') ?? null;
-    const latest = sessions[0] ?? null;
-    return { attention, reusable, readySession, total: sessions.length, latest };
-  }, [sessions]);
-
-  const lowVision = profile?.mode === 'lowVision';
-
-  if (checking) {
-    return (
-      <Screen>
-        <StatusBar style="dark" />
-      </Screen>
-    );
-  }
+  const lowVision = settings.mode === 'lowVision';
+  const recentRecords = useMemo(() => sessions.slice(0, 5), [sessions]);
 
   return (
     <Screen>
@@ -63,36 +63,29 @@ export default function MainScreen() {
             <View style={styles.logoMark}>
               <Image source={require('@/assets/images/click.png')} style={styles.logoImage} contentFit="contain" />
             </View>
-            <Text style={styles.logoText}>CLICK</Text>
+            <Text style={[styles.logoText, lowVision && styles.logoTextLowVision]}>CLICK</Text>
           </View>
 
           <Pressable
-            style={({ pressed }) => [styles.profileButton, pressed && styles.pressed]}
-            onPress={() => router.push('/profile')}
+            style={({ pressed }) => [styles.settingsButton, lowVision && styles.settingsButtonLowVision, pressed && styles.pressed]}
+            onPress={() => router.push('/settings')}
             accessibilityRole="button"
-            accessibilityLabel={`${getDisplayName(profile)} 프로필 열기`}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{getInitial(profile)}</Text>
-            </View>
-            <Text style={styles.profileName} numberOfLines={1}>
-              {getDisplayName(profile)}
-            </Text>
+            accessibilityLabel="설정 열기">
+            <Ionicons name="settings-outline" size={lowVision ? 25 : 22} color={Palette.text} />
           </Pressable>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={[styles.content, lowVision && styles.contentLowVision]} showsVerticalScrollIndicator={false}>
         <View style={styles.heroBlock}>
-          <View style={styles.greetingRow}>
-            <Text style={[styles.greeting, lowVision && styles.greetingLowVision]}>{getDisplayName(profile)}님,</Text>
-            <View style={[styles.modeBadge, lowVision && styles.modeBadgeLowVision]}>
-              <Text style={[styles.modeBadgeText, lowVision && styles.modeBadgeTextLowVision]}>{lowVision ? '저시력자 모드' : '일반 모드'}</Text>
-            </View>
-          </View>
           <Text style={[styles.heroTitle, lowVision && styles.heroTitleLowVision]}>같이 먹어도 괜찮은지{'\n'}사진으로 먼저 확인하세요!</Text>
+          <View style={[styles.modeBadge, lowVision && styles.modeBadgeLowVision]}>
+            <Text style={[styles.modeBadgeText, lowVision && styles.modeBadgeTextLowVision]}>
+              {lowVision ? '저시력자 모드' : '일반 모드'}
+            </Text>
+          </View>
         </View>
 
-        <SectionTitle title="진행 방식" compact />
         <View style={styles.flowStrip}>
           <FlowPill icon="medical" label="알약 인식" large={lowVision} />
           <Ionicons name="chevron-forward" size={16} color={Palette.textSubtle} />
@@ -102,41 +95,39 @@ export default function MainScreen() {
         </View>
 
         <View style={styles.startPanel}>
-          <Text style={[styles.startEyebrow, lowVision && styles.startEyebrowLowVision]}>복용 전 1분 체크</Text>
-          <Text style={[styles.startTitle, lowVision && styles.startTitleLowVision]}>약과 영양제 조합을 확인해요</Text>
-          <Text style={[styles.startBody, lowVision && styles.startBodyLowVision]}>
-            반복 복용 중인 약은 기록에서 다시 쓰고,{'\n'}새로 생긴 약만 사진으로 추가하면 됩니다.
-          </Text>
+          <Text style={[styles.startTitle, lowVision && styles.startTitleLowVision]}>복용 전 1분 체크</Text>
           <PrimaryButton
-            label="사진으로 확인 시작"
+            label="인식 시작하기"
             icon="camera"
             onPress={() => router.push({ pathname: '/reuse', params: { category: '알약', mode: 'start' } })}
-            accessibilityHint="기존 알약 기록을 선택하거나 새 촬영을 시작합니다."
           />
-          <Pressable style={styles.secondaryStartButton} onPress={() => router.push('/history')} accessibilityRole="button" accessibilityLabel="저장된 기록 보기">
-            <Ionicons name="folder-open-outline" size={19} color={Palette.blueGrey} />
-            <Text style={styles.secondaryStartText}>저장된 기록 보기</Text>
+        </View>
+
+        <View style={styles.sectionRow}>
+          <Text style={[styles.sectionTitle, lowVision && styles.sectionTitleLowVision]}>최근 기록</Text>
+          <Pressable onPress={() => router.push('/history')} hitSlop={10} accessibilityRole="button" accessibilityLabel="전체 기록 보기">
+            <Text style={[styles.sectionAction, lowVision && styles.sectionActionLowVision]}>전체</Text>
           </Pressable>
         </View>
 
-        <SectionTitle title="내 기록 상태" />
-        <StatusBoard
-          attention={stats.attention}
-          reusable={stats.reusable}
-          readySession={stats.readySession}
-          latest={stats.latest}
-          large={lowVision}
-          onStart={() => router.push({ pathname: '/reuse', params: { category: '알약', mode: 'start' } })}
-          onHistory={() => router.push('/history')}
-          onRecord={(id) => router.push({ pathname: '/record', params: { id } })}
-        />
-
-        <SectionTitle title="복용 전 체크 포인트" />
-        <View style={styles.tipList}>
-          <TipRow icon="repeat" title="반복 복용 약은 재사용" body="매번 다시 찍지 않고 기존 인식 기록에서 바로 가져올 수 있어요." large={lowVision} />
-          <TipRow icon="list" title="분석 전 전체 검토" body="알약과 건강기능식품 목록을 한 번에 확인한 뒤 분석합니다." large={lowVision} />
-          <TipRow icon="medkit" title="복용 변경은 상담 후" body="결과는 상담 전 확인용이며 처방을 대신하지 않습니다." large={lowVision} />
-        </View>
+        {recentRecords.length === 0 ? (
+          <View style={[styles.emptyTimeline, lowVision && styles.emptyTimelineLowVision]}>
+            <IconBadge icon="folder-open" tone="dark" />
+            <Text style={[styles.emptyTitle, lowVision && styles.emptyTitleLowVision]}>아직 기록이 없어요</Text>
+          </View>
+        ) : (
+          <View style={styles.timeline}>
+            {recentRecords.map((record, index) => (
+              <TimelineCard
+                key={record.id}
+                record={record}
+                first={index === 0}
+                lowVision={lowVision}
+                onPress={() => router.push({ pathname: '/record', params: { id: record.id } })}
+              />
+            ))}
+          </View>
+        )}
       </ScrollView>
     </Screen>
   );
@@ -165,141 +156,66 @@ function FlowPill({
   );
 }
 
-function SectionTitle({ title, compact }: { title: string; compact?: boolean }) {
-  return <Text style={[styles.sectionTitle, compact && styles.sectionTitleCompact]}>{title}</Text>;
-}
-
-function StatusBoard({
-  attention,
-  reusable,
-  readySession,
-  latest,
-  large,
-  onStart,
-  onHistory,
-  onRecord,
-}: {
-  attention: number;
-  reusable: number;
-  readySession: AnalysisSession | null;
-  latest: AnalysisSession | null;
-  large: boolean;
-  onStart: () => void;
-  onHistory: () => void;
-  onRecord: (id: string) => void;
-}) {
-  return (
-    <View style={styles.statusBoard}>
-      <StatusRow
-        icon={attention > 0 ? 'warning' : 'checkmark-circle'}
-        tone={attention > 0 ? 'amber' : 'green'}
-        label="상담 확인 필요"
-        value={`${attention}건`}
-        body={attention > 0 ? '주의 표시된 조합을 다시 열어보세요.' : '현재 주의 표시된 기록이 없어요.'}
-        action="보기"
-        large={large}
-        onPress={onHistory}
-      />
-      <StatusRow
-        icon="archive"
-        tone="blue"
-        label="다시 쓸 수 있는 기록"
-        value={`${reusable}건`}
-        body="반복 처방약이나 매일 먹는 영양제를 다시 촬영하지 않아도 돼요."
-        action="시작"
-        large={large}
-        onPress={onStart}
-      />
-      <StatusRow
-        icon={readySession ? 'document-text' : 'time'}
-        tone={readySession ? 'amber' : 'dark'}
-        label={readySession ? '분석 이어가기' : '최근 확인'}
-        value={readySession ? '대기 중' : latest ? formatRecordTitle(latest.createdAt) : '없음'}
-        body={readySession ? '인식은 끝났고 분석 전 검토가 남아 있어요.' : latest ? `${formatRecordTime(latest.createdAt)}에 저장된 기록이 있어요.` : '첫 기록을 만들면 여기에서 상태를 볼 수 있어요.'}
-        action={readySession ? '열기' : latest ? '기록' : '시작'}
-        large={large}
-        onPress={() => {
-          if (readySession) {
-            onRecord(readySession.id);
-            return;
-          }
-          if (latest) {
-            onHistory();
-            return;
-          }
-          onStart();
-        }}
-      />
-    </View>
-  );
-}
-
-function StatusRow({
-  icon,
-  tone,
-  label,
-  value,
-  body,
-  action,
-  large,
+function TimelineCard({
+  record,
+  first,
+  lowVision,
   onPress,
 }: {
-  icon: 'warning' | 'checkmark-circle' | 'archive' | 'document-text' | 'time';
-  tone: 'amber' | 'green' | 'blue' | 'dark';
-  label: string;
-  value: string;
-  body: string;
-  action: string;
-  large: boolean;
+  record: AnalysisSession;
+  first: boolean;
+  lowVision: boolean;
   onPress: () => void;
 }) {
+  const counts = countByCategory(record);
+  const level = record.analysis?.overall;
   return (
-    <Pressable style={({ pressed }) => [styles.statusRow, large && styles.statusRowLarge, pressed && styles.pressed]} onPress={onPress} accessibilityRole="button" accessibilityLabel={`${label}, ${value}. ${body}`}>
-      <IconBadge icon={icon} tone={tone} size="sm" />
-      <View style={styles.statusText}>
-        <View style={styles.statusTitleRow}>
-          <Text style={[styles.statusLabel, large && styles.statusLabelLarge]}>{label}</Text>
-          <Text style={[styles.statusValue, large && styles.statusValueLarge]}>{value}</Text>
-        </View>
-        <Text style={[styles.statusBody, large && styles.statusBodyLarge]}>{body}</Text>
+    <Pressable
+      style={({ pressed }) => [styles.timelineCard, lowVision && styles.timelineCardLowVision, first && styles.timelineCardFirst, pressed && styles.pressed]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${formatRecordTitle(record.createdAt)} ${formatRecordTime(record.createdAt)}, ${riskLabel(level)}`}>
+      <View style={styles.timelineLeft}>
+        <View style={[styles.timelineDot, { backgroundColor: Palette[riskTone(level) === 'red' ? 'rose' : riskTone(level) === 'amber' ? 'amber' : riskTone(level) === 'green' ? 'mint' : 'blueGrey'] }]} />
+        <View style={styles.timelineLine} />
       </View>
-      <Text style={[styles.statusAction, large && styles.statusActionLarge]}>{action}</Text>
+      <View style={styles.timelineBody}>
+        <View style={styles.timelineTop}>
+          <Text style={[styles.timelineTitle, lowVision && styles.timelineTitleLowVision]}>{formatRecordTitle(record.createdAt)}</Text>
+          <RiskChip level={level} />
+        </View>
+        <Text style={[styles.timelineTime, lowVision && styles.timelineTimeLowVision]}>{formatRecordTime(record.createdAt)}</Text>
+        <View style={styles.countRow}>
+          <CountChip icon="medical" label={`알약 ${counts.pill}`} />
+          <CountChip icon="leaf" label={`건강기능식품 ${counts.supplement}`} />
+        </View>
+      </View>
+      <Ionicons name="chevron-forward" size={lowVision ? 22 : 19} color={Palette.textSubtle} />
     </Pressable>
   );
 }
 
-function TipRow({
-  icon,
-  title,
-  body,
-  large,
-}: {
-  icon: 'repeat' | 'list' | 'medkit';
-  title: string;
-  body: string;
-  large: boolean;
-}) {
+function RiskChip({ level }: { level?: RiskLevel }) {
+  const tone = riskTone(level);
+  const color = tone === 'red' ? Palette.rose : tone === 'amber' ? Palette.amber : tone === 'green' ? Palette.mint : Palette.blueGrey;
+  const backgroundColor = tone === 'red' ? Palette.roseSoft : tone === 'amber' ? Palette.amberSoft : tone === 'green' ? Palette.mintSoft : Palette.surfaceMuted;
   return (
-    <View style={[styles.tipRow, large && styles.tipRowLarge]}>
-      <IconBadge icon={icon} tone="dark" size="sm" />
-      <View style={styles.tipText}>
-        <Text style={[styles.tipTitle, large && styles.tipTitleLarge]}>{title}</Text>
-        <Text style={[styles.tipBody, large && styles.tipBodyLarge]}>{body}</Text>
-      </View>
+    <View style={[styles.riskChip, { backgroundColor }]}>
+      <Text style={[styles.riskChipText, { color }]}>{riskLabel(level)}</Text>
+    </View>
+  );
+}
+
+function CountChip({ icon, label }: { icon: 'medical' | 'leaf'; label: string }) {
+  return (
+    <View style={styles.countChip}>
+      <Ionicons name={icon} size={14} color={Palette.textMuted} />
+      <Text style={styles.countChipText}>{label}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    paddingHorizontal: Spacing.screen,
-    paddingTop: 8,
-    paddingBottom: 40,
-    gap: 16,
-  },
-  contentLowVision: {
-    gap: 14,
-  },
   fixedHeader: {
     backgroundColor: Palette.background,
     paddingHorizontal: Spacing.screen,
@@ -313,7 +229,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
   },
   brandLeft: {
     flexDirection: 'row',
@@ -336,63 +251,52 @@ const styles = StyleSheet.create({
     height: 32,
   },
   logoText: {
-    fontSize: 25,
-    lineHeight: 31,
+    fontSize: 28,
+    lineHeight: 34,
     fontWeight: '900',
     color: Palette.text,
   },
-  profileButton: {
-    maxWidth: 150,
-    minHeight: 44,
-    flexDirection: 'row',
+  logoTextLowVision: {
+    fontSize: 31,
+    lineHeight: 37,
+  },
+  settingsButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: 'center',
-    gap: 8,
-    borderRadius: 22,
+    justifyContent: 'center',
     backgroundColor: Palette.surface,
     borderWidth: 1,
     borderColor: Palette.border,
-    paddingLeft: 5,
-    paddingRight: 12,
   },
-  avatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Palette.primary,
+  settingsButtonLowVision: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
   },
-  avatarText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '900',
+  content: {
+    paddingHorizontal: Spacing.screen,
+    paddingTop: 18,
+    paddingBottom: 40,
+    gap: 16,
   },
-  profileName: {
-    flexShrink: 1,
-    fontSize: 15,
-    fontWeight: '900',
-    color: Palette.text,
+  contentLowVision: {
+    gap: 15,
   },
   heroBlock: {
-    marginTop: 6,
+    gap: 12,
   },
-  greetingRow: {
-    minHeight: 32,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    marginBottom: 6,
+  heroTitle: {
+    ...Typography.hero,
+    color: Palette.text,
   },
-  greeting: {
-    ...Typography.body,
-    color: Palette.textMuted,
-  },
-  greetingLowVision: {
-    fontSize: 19,
-    lineHeight: 27,
+  heroTitleLowVision: {
+    fontSize: 35,
+    lineHeight: 42,
   },
   modeBadge: {
+    alignSelf: 'flex-start',
     minHeight: 30,
     paddingHorizontal: 10,
     borderRadius: Radius.sm,
@@ -401,7 +305,7 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.surfaceMuted,
   },
   modeBadgeLowVision: {
-    minHeight: 34,
+    minHeight: 36,
     backgroundColor: Palette.primarySoft,
   },
   modeBadgeText: {
@@ -411,16 +315,8 @@ const styles = StyleSheet.create({
     color: Palette.blueGrey,
   },
   modeBadgeTextLowVision: {
-    fontSize: 14,
+    fontSize: 15,
     color: Palette.primary,
-  },
-  heroTitle: {
-    ...Typography.hero,
-    color: Palette.text,
-  },
-  heroTitleLowVision: {
-    fontSize: 35,
-    lineHeight: 42,
   },
   flowStrip: {
     flexDirection: 'row',
@@ -447,8 +343,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   flowIconLarge: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
   },
   flowPillText: {
     fontSize: 12,
@@ -458,8 +354,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   flowPillTextLarge: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 19,
   },
   startPanel: {
     gap: 14,
@@ -470,170 +366,159 @@ const styles = StyleSheet.create({
     padding: 18,
     ...Shadow.card,
   },
-  startEyebrow: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '900',
-    color: Palette.primary,
-  },
-  startEyebrowLowVision: {
-    fontSize: 16,
-    lineHeight: 22,
-  },
   startTitle: {
     fontSize: 21,
     lineHeight: 28,
     fontWeight: '900',
     color: Palette.text,
-    marginTop: 3,
   },
   startTitleLowVision: {
-    fontSize: 23,
-    lineHeight: 30,
+    fontSize: 25,
+    lineHeight: 32,
   },
-  startBody: {
-    fontSize: 16,
-    lineHeight: 23,
-    color: Palette.textMuted,
-  },
-  startBodyLowVision: {
-    fontSize: 18,
-    lineHeight: 26,
-  },
-  secondaryStartButton: {
-    minHeight: 54,
+  sectionRow: {
+    marginTop: 4,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-    borderRadius: Radius.lg,
-    backgroundColor: Palette.surfaceMuted,
-  },
-  secondaryStartText: {
-    color: Palette.blueGrey,
-    fontSize: 17,
-    fontWeight: '900',
+    justifyContent: 'space-between',
   },
   sectionTitle: {
-    fontSize: 20,
-    lineHeight: 26,
-    fontWeight: '900',
-    color: Palette.text,
-    marginTop: 6,
-  },
-  sectionTitleCompact: {
-    marginTop: 0,
-    marginBottom: -6,
-  },
-  statusBoard: {
-    backgroundColor: Palette.surface,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    paddingHorizontal: 14,
-    ...Shadow.subtle,
-  },
-  statusRow: {
-    minHeight: 88,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Palette.border,
-    paddingVertical: 14,
-  },
-  statusRowLarge: {
-    minHeight: 96,
-  },
-  statusText: {
-    flex: 1,
-    marginLeft: 12,
-    marginRight: 8,
-  },
-  statusTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  statusLabel: {
-    flex: 1,
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: 21,
+    lineHeight: 28,
     fontWeight: '900',
     color: Palette.text,
   },
-  statusLabelLarge: {
-    fontSize: 17,
-    lineHeight: 24,
+  sectionTitleLowVision: {
+    fontSize: 24,
+    lineHeight: 31,
   },
-  statusValue: {
-    color: Palette.text,
-    fontSize: 16,
-    fontWeight: '900',
-  },
-  statusValueLarge: {
-    fontSize: 17,
-  },
-  statusBody: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: Palette.textMuted,
-    marginTop: 3,
-  },
-  statusBodyLarge: {
+  sectionAction: {
     fontSize: 15,
-    lineHeight: 22,
-  },
-  statusAction: {
-    minWidth: 36,
-    textAlign: 'right',
-    fontSize: 14,
     fontWeight: '900',
     color: Palette.primary,
   },
-  statusActionLarge: {
-    fontSize: 15,
+  sectionActionLowVision: {
+    fontSize: 18,
   },
-  tipList: {
+  emptyTimeline: {
+    minHeight: 150,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
     backgroundColor: Palette.surface,
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Palette.border,
-    paddingHorizontal: 14,
     ...Shadow.subtle,
   },
-  tipRow: {
-    minHeight: 82,
+  emptyTimelineLowVision: {
+    minHeight: 174,
+  },
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: Palette.textMuted,
+  },
+  emptyTitleLowVision: {
+    fontSize: 21,
+  },
+  timeline: {
+    gap: 10,
+  },
+  timelineCard: {
+    minHeight: 112,
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Palette.border,
-    paddingVertical: 14,
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    padding: 16,
+    ...Shadow.subtle,
   },
-  tipRowLarge: {
-    minHeight: 90,
+  timelineCardFirst: {
+    borderColor: Palette.primarySoft,
   },
-  tipText: {
+  timelineCardLowVision: {
+    minHeight: 126,
+    padding: 17,
+  },
+  timelineLeft: {
+    width: 18,
+    height: 68,
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  timelineDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  timelineLine: {
     flex: 1,
-    marginLeft: 12,
+    width: 2,
+    marginTop: 6,
+    backgroundColor: Palette.border,
   },
-  tipTitle: {
-    fontSize: 16,
+  timelineBody: {
+    flex: 1,
+    marginRight: 8,
+  },
+  timelineTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  timelineTitle: {
+    flex: 1,
+    fontSize: 18,
+    lineHeight: 24,
     fontWeight: '900',
     color: Palette.text,
   },
-  tipTitleLarge: {
-    fontSize: 17,
+  timelineTitleLowVision: {
+    fontSize: 21,
+    lineHeight: 28,
   },
-  tipBody: {
+  timelineTime: {
     fontSize: 14,
     lineHeight: 20,
     color: Palette.textMuted,
     marginTop: 3,
   },
-  tipBodyLarge: {
-    fontSize: 15,
-    lineHeight: 22,
+  timelineTimeLowVision: {
+    fontSize: 17,
+    lineHeight: 24,
+  },
+  riskChip: {
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: Radius.sm,
+  },
+  riskChipText: {
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  countRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 10,
+  },
+  countChip: {
+    minHeight: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    borderRadius: Radius.sm,
+    backgroundColor: Palette.surfaceMuted,
+  },
+  countChipText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: Palette.textMuted,
   },
   pressed: {
     opacity: 0.78,

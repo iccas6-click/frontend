@@ -92,26 +92,14 @@ export default function ReuseScreen() {
       <StatusBar style="dark" />
       <TopBar
         title={isSupplement ? '건강기능식품 추가' : '알약 추가'}
-        subtitle={isSupplement ? '기존 라벨 기록을 쓰거나 새로 촬영해 알약 목록에 더합니다.' : '반복 복용 중인 약은 기존 기록으로 바로 시작할 수 있어요.'}
         backLabel="뒤로"
         onBack={() => router.back()}
       />
       <StepIndicator current={isSupplement ? 2 : 1} />
 
       <ScrollView contentContainerStyle={[styles.content, lowVision && styles.contentLowVision]} showsVerticalScrollIndicator={false}>
-        {isSupplement && prevItems.length > 0 ? (
-          <View style={[styles.contextCard, lowVision && styles.contextCardLowVision]}>
-            <IconBadge icon="medical" tone="blue" />
-            <View style={styles.contextText}>
-              <Text style={[styles.contextTitle, lowVision && styles.contextTitleLowVision]}>알약 {prevItems.filter((item) => item.category === '알약').length}개 선택됨</Text>
-              <Text style={[styles.contextBody, lowVision && styles.contextBodyLowVision]}>이어서 건강기능식품을 선택하면 한 기록으로 분석됩니다.</Text>
-            </View>
-          </View>
-        ) : null}
-
         <View style={styles.choiceHeader}>
           <Text style={[styles.choiceTitle, lowVision && styles.choiceTitleLowVision]}>{label}을 어떻게 추가할까요?</Text>
-          <Text style={[styles.choiceBody, lowVision && styles.choiceBodyLowVision]}>기록을 쓰면 확인 화면에서 다시 수정할 수 있습니다.</Text>
         </View>
 
         <Pressable
@@ -122,9 +110,6 @@ export default function ReuseScreen() {
           <IconBadge icon="camera" tone={isSupplement ? 'green' : 'blue'} />
           <View style={styles.captureText}>
             <Text style={[styles.captureTitle, lowVision && styles.choiceTitleTextLowVision]}>새 {label} 촬영하기</Text>
-            <Text style={[styles.captureBody, lowVision && styles.choiceBodyTextLowVision]}>
-              {isSupplement ? '라벨과 성분표를 다시 촬영합니다.' : '알약과 포장 정보를 다시 촬영합니다.'}
-            </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
         </Pressable>
@@ -137,17 +122,10 @@ export default function ReuseScreen() {
           <IconBadge icon="folder-open" tone="dark" />
           <View style={styles.recordChoiceText}>
             <Text style={[styles.recordChoiceTitle, lowVision && styles.choiceTitleTextLowVision]}>기존 기록에서 선택하기</Text>
-            <Text style={[styles.recordChoiceBody, lowVision && styles.choiceBodyTextLowVision]}>
-              {usableRecords.length > 0 ? `최근 ${usableRecords.length}개 기록에서 고릅니다.` : `저장된 ${label} 기록이 있는지 확인합니다.`}
-            </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={Palette.textSubtle} />
         </Pressable>
 
-        <View style={[styles.noteCard, lowVision && styles.noteCardLowVision]}>
-          <Ionicons name="shield-checkmark" size={lowVision ? 23 : 19} color={Palette.mint} />
-          <Text style={[styles.noteText, lowVision && styles.noteTextLowVision]}>기존 기록을 골라도 다음 화면에서 이름과 용량을 다시 확인할 수 있습니다.</Text>
-        </View>
       </ScrollView>
 
       <Modal visible={recordsOpen} transparent animationType="slide" onRequestClose={() => setRecordsOpen(false)}>
@@ -157,7 +135,6 @@ export default function ReuseScreen() {
           <View style={styles.sheetHeader}>
             <View>
               <Text style={[styles.sheetTitle, lowVision && styles.sheetTitleLowVision]}>기존 {label} 기록</Text>
-              <Text style={[styles.sheetSubtitle, lowVision && styles.sheetSubtitleLowVision]}>최근 인식 기록을 최신순으로 정렬했어요.</Text>
             </View>
             <Pressable
               style={styles.closeButton}

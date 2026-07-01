@@ -1,7 +1,7 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
-import { getProfile, type UserMode } from '@/services/account-storage';
+import { getSettings, type UserMode } from '@/services/settings-storage';
 
 export function useUserMode() {
   const [mode, setMode] = useState<UserMode>('standard');
@@ -9,8 +9,8 @@ export function useUserMode() {
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      getProfile().then((profile) => {
-        if (active) setMode(profile?.mode ?? 'standard');
+      getSettings().then((settings) => {
+        if (active) setMode(settings.mode);
       });
       return () => {
         active = false;

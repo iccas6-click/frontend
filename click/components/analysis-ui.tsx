@@ -44,9 +44,9 @@ export function RiskSummaryCard({ result, compact = false }: { result: AnalysisR
   return (
     <View style={[styles.summaryCard, compact && styles.summaryCardCompact, lowVision && styles.summaryCardLowVision]}>
       <View style={[styles.summaryIcon, compact && styles.summaryIconCompact, lowVision && styles.summaryIconLowVision, { backgroundColor: meta.bg }]}>
-        <Ionicons name={meta.icon} size={lowVision ? 36 : compact ? 28 : 34} color={meta.color} />
+        <Ionicons name={meta.icon} size={lowVision ? 31 : compact ? 26 : 28} color={meta.color} />
       </View>
-      <View style={compact ? styles.compactText : null}>
+      <View style={styles.summaryTextWrap}>
         <Text style={[styles.summaryTitle, compact && styles.summaryTitleCompact, lowVision && styles.summaryTitleLowVision, { color: meta.color }]}>{meta.title}</Text>
         <Text style={[styles.summaryText, compact && styles.summaryTextCompact, lowVision && styles.summaryTextLowVision]}>{result.summary}</Text>
       </View>
@@ -93,14 +93,15 @@ export function ConsultationNotice() {
 const styles = StyleSheet.create({
   summaryCard: {
     marginHorizontal: Spacing.screen,
-    marginBottom: 24,
+    marginBottom: 14,
+    flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Palette.surface,
-    borderRadius: Radius.xl,
+    borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Palette.border,
-    padding: 24,
-    ...Shadow.card,
+    padding: 16,
+    ...Shadow.subtle,
   },
   summaryCardCompact: {
     marginHorizontal: 0,
@@ -112,15 +113,14 @@ const styles = StyleSheet.create({
     ...Shadow.subtle,
   },
   summaryCardLowVision: {
-    padding: 20,
+    padding: 18,
   },
   summaryIcon: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 56,
+    height: 56,
+    borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
   },
   summaryIconCompact: {
     width: 58,
@@ -129,17 +129,19 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   summaryIconLowVision: {
-    width: 74,
-    height: 74,
-    borderRadius: 37,
+    width: 64,
+    height: 64,
+    borderRadius: Radius.md,
   },
-  compactText: {
+  summaryTextWrap: {
     flex: 1,
     marginLeft: 14,
   },
   summaryTitle: {
-    ...Typography.section,
-    textAlign: 'center',
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: '900',
+    textAlign: 'left',
   },
   summaryTitleCompact: {
     fontSize: 19,
@@ -147,15 +149,15 @@ const styles = StyleSheet.create({
     textAlign: 'left',
   },
   summaryTitleLowVision: {
-    fontSize: 24,
-    lineHeight: 31,
+    fontSize: 23,
+    lineHeight: 30,
     fontWeight: '900',
   },
   summaryText: {
     ...Typography.body,
     color: Palette.text,
-    textAlign: 'center',
-    marginTop: 10,
+    textAlign: 'left',
+    marginTop: 4,
   },
   summaryTextCompact: {
     textAlign: 'left',

@@ -1,19 +1,22 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { ConsultationNotice, PairList, RiskSummaryCard } from '@/components/analysis-ui';
-import { IconBadge, PrimaryButton, Screen, SectionHeader, TopBar } from '@/components/app-ui';
+import { ConsultationNotice, PairCard, RiskSummaryCard } from '@/components/analysis-ui';
+import { IconBadge, PrimaryButton, Screen, TopBar } from '@/components/app-ui';
 import { StepIndicator } from '@/components/step-indicator';
-import { Palette, Radius, Spacing, Typography } from '@/constants/theme';
+import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
 import { devLog } from '@/services/debug-log';
-import type { AnalysisResult } from '@/types/medication';
+import type { AnalysisResult, InteractionPair } from '@/types/medication';
 
 export default function AnalysisScreen() {
   const router = useRouter();
   const { result: resultParam } = useLocalSearchParams<{ result?: string }>();
   const { lowVision } = useUserMode();
+  const [attentionOpen, setAttentionOpen] = useState(true);
+  const [safeOpen, setSafeOpen] = useState(false);
 
   const result = useMemo<AnalysisResult | null>(() => {
     if (!resultParam) return null;
@@ -54,35 +57,79 @@ export default function AnalysisScreen() {
           <PrimaryButton label="처음으로 돌아가기" icon="home" onPress={goHome} />
         </View>
       }>
-      <TopBar title="분석 결과" subtitle="이 결과는 복약 결정을 대신하지 않으며, 상담 전 확인용으로 사용해 주세요." backLabel="뒤로" onBack={() => router.back()} />
+      <TopBar title="분석 결과" backLabel="뒤로" onBack={() => router.back()} />
       <StepIndicator current={4} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <RiskSummaryCard result={result} />
         <ConsultationNotice />
 
-        <SectionHeader title="조합별 확인" />
         <View style={styles.sectionBody}>
-          <PairList pairs={result.pairs} />
+          <PairSection
+            title="주의할 조합"
+            pairs={result.pairs.filter((pair) => pair.level !== 'safe')}
+            open={attentionOpen}
+            onToggle={() => setAttentionOpen((value) => !value)}
+            lowVision={lowVision}
+            tone="amber"
+          />
+          <PairSection
+            title="미탐지 조합"
+            pairs={result.pairs.filter((pair) => pair.level === 'safe')}
+            open={safeOpen}
+            onToggle={() => setSafeOpen((value) => !value)}
+            lowVision={lowVision}
+            tone="green"
+          />
         </View>
-
-        <Pressable
-          style={[styles.questionCard, lowVision && styles.questionCardLowVision]}
-          disabled
-          accessibilityRole="button"
-          accessibilityState={{ disabled: true }}
-          accessibilityLabel="결과에 대해 물어보기, 준비 중">
-          <IconBadge icon="chatbubble-ellipses" tone="dark" />
-          <View style={styles.questionText}>
-            <Text style={[styles.questionTitle, lowVision && styles.questionTitleLowVision]}>결과에 대해 물어보기</Text>
-            <Text style={[styles.questionBody, lowVision && styles.questionBodyLowVision]}>후속 질문 기능은 백엔드 연결 후 열릴 예정입니다.</Text>
-          </View>
-          <View style={[styles.disabledChip, lowVision && styles.disabledChipLowVision]}>
-            <Text style={[styles.disabledChipText, lowVision && styles.disabledChipTextLowVision]}>준비 중</Text>
-          </View>
-        </Pressable>
       </ScrollView>
     </Screen>
+  );
+}
+
+function PairSection({
+  title,
+  pairs,
+  open,
+  onToggle,
+  lowVision,
+  tone,
+}: {
+  title: string;
+  pairs: InteractionPair[];
+  open: boolean;
+  onToggle: () => void;
+  lowVision: boolean;
+  tone: 'amber' | 'green';
+}) {
+  const color = tone === 'amber' ? Palette.amber : Palette.mint;
+  const bg = tone === 'amber' ? Palette.amberSoft : Palette.mintSoft;
+  return (
+    <View style={styles.pairSection}>
+      <Pressable
+        style={({ pressed }) => [styles.pairSectionHeader, lowVision && styles.pairSectionHeaderLowVision, pressed && styles.pressed]}
+        onPress={onToggle}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel={`${title} ${pairs.length}개`}>
+        <View style={[styles.pairSectionIcon, { backgroundColor: bg }]}>
+          <Ionicons name={tone === 'amber' ? 'warning' : 'checkmark-circle'} size={lowVision ? 23 : 19} color={color} />
+        </View>
+        <Text style={[styles.pairSectionTitle, lowVision && styles.pairSectionTitleLowVision]}>{title}</Text>
+        <Text style={[styles.pairSectionCount, lowVision && styles.pairSectionCountLowVision]}>{pairs.length}</Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={lowVision ? 24 : 20} color={Palette.textSubtle} />
+      </Pressable>
+
+      {open ? (
+        <View style={styles.pairSectionBody}>
+          {pairs.length === 0 ? (
+            <Text style={[styles.emptyPairText, lowVision && styles.emptyPairTextLowVision]}>해당 조합이 없어요</Text>
+          ) : (
+            pairs.map((pair) => <PairCard key={pair.id} pair={pair} />)
+          )}
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -92,60 +139,71 @@ const styles = StyleSheet.create({
   },
   sectionBody: {
     paddingHorizontal: Spacing.screen,
+    gap: 12,
   },
-  questionCard: {
-    marginHorizontal: Spacing.screen,
-    marginTop: 18,
+  pairSection: {
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    overflow: 'hidden',
+    ...Shadow.subtle,
+  },
+  pairSectionHeader: {
+    minHeight: 68,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Palette.primarySoft,
-    borderRadius: Radius.lg,
-    padding: 16,
-    opacity: 0.72,
+    paddingHorizontal: 14,
+    gap: 10,
   },
-  questionCardLowVision: {
-    padding: 18,
+  pairSectionHeaderLowVision: {
+    minHeight: 80,
+    paddingHorizontal: 16,
   },
-  questionText: {
+  pairSectionIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: Radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pairSectionTitle: {
     flex: 1,
-    marginLeft: 12,
-    marginRight: 8,
-  },
-  questionTitle: {
-    fontSize: 16,
+    fontSize: 18,
+    lineHeight: 24,
     fontWeight: '900',
     color: Palette.text,
   },
-  questionTitleLowVision: {
-    fontSize: 20,
-    lineHeight: 27,
+  pairSectionTitleLowVision: {
+    fontSize: 22,
+    lineHeight: 29,
   },
-  questionBody: {
-    fontSize: 14,
-    lineHeight: 20,
+  pairSectionCount: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  pairSectionCountLowVision: {
+    fontSize: 22,
+  },
+  pairSectionBody: {
+    gap: 10,
+    padding: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Palette.border,
+  },
+  emptyPairText: {
+    ...Typography.body,
     color: Palette.textMuted,
-    marginTop: 3,
+    textAlign: 'center',
+    paddingVertical: 18,
   },
-  questionBodyLowVision: {
-    fontSize: 17,
-    lineHeight: 24,
+  emptyPairTextLowVision: {
+    fontSize: 18,
+    lineHeight: 26,
   },
-  disabledChip: {
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: Radius.sm,
-    backgroundColor: Palette.surface,
-  },
-  disabledChipLowVision: {
-    paddingHorizontal: 11,
-    paddingVertical: 7,
-  },
-  disabledChipText: {
-    ...Typography.caption,
-    color: Palette.textMuted,
-  },
-  disabledChipTextLowVision: {
-    fontSize: 15,
+  pressed: {
+    opacity: 0.78,
   },
   footer: {
     paddingBottom: 8,

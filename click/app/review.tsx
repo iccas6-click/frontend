@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { IconBadge, PrimaryButton, Screen, SectionHeader, TopBar } from '@/components/app-ui';
+import { IconBadge, PrimaryButton, Screen, TopBar } from '@/components/app-ui';
 import { ItemEditModal } from '@/components/item-edit-modal';
 import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
@@ -27,7 +27,7 @@ function parseItems(raw?: string): RecognizedItem[] {
 }
 
 function normalizeItems(items: RecognizedItem[]) {
-  return items.map((item, index) => ({ ...item, id: `review-${index}` }));
+  return items.map((item, index) => ({ ...item, id: item.id || `review-${index}` }));
 }
 
 export default function ReviewScreen() {
@@ -36,6 +36,7 @@ export default function ReviewScreen() {
   const initialItems = useMemo(() => normalizeItems(parseItems(itemsParam)), [itemsParam]);
   const [items, setItems] = useState<RecognizedItem[]>(initialItems);
   const [editTarget, setEditTarget] = useState<RecognizedItem | null | undefined>(undefined);
+  const [addCategory, setAddCategory] = useState<ItemCategory>('알약');
   const { lowVision } = useUserMode();
 
   const pillItems = items.filter((item) => item.category === '알약');
@@ -85,32 +86,40 @@ export default function ReviewScreen() {
           <PrimaryButton label="상호작용 분석하기" icon="analytics" disabled={items.length === 0} onPress={analyze} />
         </View>
       }>
-      <TopBar title="전체 인식 결과 확인" subtitle="분석에 들어가기 전 알약과 건강기능식품 목록을 한 번에 확인하세요." backLabel="이전" onBack={() => router.back()} />
+      <TopBar title="전체 인식 결과" backLabel="이전" onBack={() => router.back()} />
       <StepIndicator current={3} />
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={[styles.summaryCard, lowVision && styles.summaryCardLowVision]}>
-          <View>
-            <Text style={[styles.summaryLabel, lowVision && styles.summaryLabelLowVision]}>분석할 목록</Text>
-            <Text style={[styles.summaryTitle, lowVision && styles.summaryTitleLowVision]}>알약 {pillItems.length}개 · 건강기능식품 {supplementItems.length}개</Text>
-          </View>
-          <Pressable
-            style={[styles.addButton, lowVision && styles.addButtonLowVision]}
-            onPress={() => setEditTarget(null)}
-            accessibilityRole="button"
-            accessibilityLabel="항목 직접 추가">
-            <Ionicons name="add" size={lowVision ? 22 : 18} color={Palette.primary} />
-            <Text style={[styles.addButtonText, lowVision && styles.addButtonTextLowVision]}>추가</Text>
-          </Pressable>
+      <ScrollView contentContainerStyle={[styles.content, lowVision && styles.contentLowVision]} showsVerticalScrollIndicator={false}>
+        <View style={styles.split}>
+          <ItemColumn
+            title="알약"
+            category="알약"
+            items={pillItems}
+            lowVision={lowVision}
+            onAdd={() => {
+              setAddCategory('알약');
+              setEditTarget(null);
+            }}
+            onPress={setEditTarget}
+          />
+          <ItemColumn
+            title="건강기능식품"
+            category="건강기능식품 라벨"
+            items={supplementItems}
+            lowVision={lowVision}
+            onAdd={() => {
+              setAddCategory('건강기능식품 라벨');
+              setEditTarget(null);
+            }}
+            onPress={setEditTarget}
+          />
         </View>
-
-        <ItemGroup title="알약" empty="알약 항목이 없어요" items={pillItems} lowVision={lowVision} onPress={setEditTarget} />
-        <ItemGroup title="건강기능식품" empty="건강기능식품 항목이 없어요" items={supplementItems} lowVision={lowVision} onPress={setEditTarget} />
       </ScrollView>
 
       <ItemEditModal
         visible={editTarget !== undefined}
         initial={editTarget ?? null}
+        initialCategory={addCategory}
         onClose={() => setEditTarget(undefined)}
         onSave={handleSave}
         onDelete={handleDelete}
@@ -119,200 +128,185 @@ export default function ReviewScreen() {
   );
 }
 
-function ItemGroup({
+function ItemColumn({
   title,
-  empty,
+  category,
   items,
   lowVision,
+  onAdd,
   onPress,
 }: {
   title: string;
-  empty: string;
+  category: ItemCategory;
   items: RecognizedItem[];
   lowVision: boolean;
+  onAdd: () => void;
   onPress: (item: RecognizedItem) => void;
 }) {
+  const meta = CATEGORY_META[category];
   return (
-    <View>
-      <SectionHeader title={title} />
-      <View style={styles.groupList}>
-        {items.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>{empty}</Text>
-          </View>
-        ) : (
-          items.map((item) => <ReviewItemCard key={item.id} item={item} lowVision={lowVision} onPress={() => onPress(item)} />)
-        )}
+    <View style={styles.column}>
+      <View style={styles.columnHeader}>
+        <View style={styles.columnTitleRow}>
+          <IconBadge icon={meta.icon} tone={meta.tone} size="sm" />
+          <Text style={[styles.columnTitle, lowVision && styles.columnTitleLowVision]}>{title}</Text>
+        </View>
+        <Text style={[styles.columnCount, lowVision && styles.columnCountLowVision]}>{items.length}</Text>
+      </View>
+
+      <View style={styles.tileGrid}>
+        {items.map((item) => (
+          <ItemTile key={item.id} item={item} lowVision={lowVision} onPress={() => onPress(item)} />
+        ))}
+        <Pressable
+          style={({ pressed }) => [styles.addTile, lowVision && styles.addTileLowVision, pressed && styles.pressed]}
+          onPress={onAdd}
+          accessibilityRole="button"
+          accessibilityLabel={`${title} 직접 추가`}>
+          <Ionicons name="add" size={lowVision ? 25 : 21} color={Palette.textMuted} />
+          <Text style={[styles.addTileText, lowVision && styles.addTileTextLowVision]}>추가</Text>
+        </Pressable>
       </View>
     </View>
   );
 }
 
-function ReviewItemCard({ item, lowVision, onPress }: { item: RecognizedItem; lowVision: boolean; onPress: () => void }) {
+function ItemTile({ item, lowVision, onPress }: { item: RecognizedItem; lowVision: boolean; onPress: () => void }) {
   const meta = CATEGORY_META[item.category] ?? CATEGORY_META['알약'];
   return (
     <Pressable
-      style={({ pressed }) => [styles.itemCard, lowVision && styles.itemCardLowVision, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.tile, lowVision && styles.tileLowVision, pressed && styles.pressed]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${item.name}, ${meta.label}${item.dosage ? `, ${item.dosage}` : ''}, 수정`}>
-      <IconBadge icon={meta.icon} tone={meta.tone} />
-      <View style={styles.itemText}>
-        <Text style={[styles.itemName, lowVision && styles.itemNameLowVision]} numberOfLines={lowVision ? 2 : 1}>
-          {item.name}
+      accessibilityLabel={`${item.name}, 수정`}>
+      <Ionicons name={meta.icon} size={lowVision ? 22 : 18} color={meta.tone === 'green' ? Palette.mint : Palette.primary} />
+      <Text style={[styles.tileName, lowVision && styles.tileNameLowVision]} numberOfLines={3}>
+        {item.name}
+      </Text>
+      {item.dosage ? (
+        <Text style={[styles.tileDose, lowVision && styles.tileDoseLowVision]} numberOfLines={1}>
+          {item.dosage}
         </Text>
-        <Text style={[styles.itemMeta, lowVision && styles.itemMetaLowVision]}>
-          {meta.label}
-          {item.dosage ? ` · ${item.dosage}` : ''}
-        </Text>
-      </View>
-      <View style={[styles.editPill, lowVision && styles.editPillLowVision]}>
-        <Text style={[styles.editPillText, lowVision && styles.editPillTextLowVision]}>수정</Text>
-      </View>
+      ) : null}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
+    paddingHorizontal: Spacing.screen,
     paddingBottom: 28,
   },
-  summaryCard: {
-    marginHorizontal: Spacing.screen,
-    marginBottom: 18,
-    backgroundColor: Palette.surface,
+  contentLowVision: {
+    paddingBottom: 34,
+  },
+  split: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  column: {
+    flex: 1,
+    minHeight: 360,
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Palette.border,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    backgroundColor: Palette.surface,
+    padding: 12,
     ...Shadow.subtle,
   },
-  summaryCardLowVision: {
-    marginBottom: 14,
-    padding: 18,
-  },
-  summaryLabel: {
-    ...Typography.caption,
-    color: Palette.textMuted,
-  },
-  summaryLabelLowVision: {
-    fontSize: 15,
-    lineHeight: 21,
-  },
-  summaryTitle: {
-    fontSize: 20,
-    lineHeight: 26,
-    fontWeight: '900',
-    color: Palette.text,
-    marginTop: 4,
-  },
-  summaryTitleLowVision: {
-    fontSize: 23,
-    lineHeight: 30,
-  },
-  addButton: {
+  columnHeader: {
     minHeight: 42,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    borderRadius: Radius.md,
-    backgroundColor: Palette.primarySoft,
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
-  addButtonLowVision: {
-    minHeight: 50,
-    paddingHorizontal: 14,
-  },
-  addButtonText: {
-    color: Palette.primary,
-    fontSize: 15,
-    fontWeight: '900',
-  },
-  addButtonTextLowVision: {
-    fontSize: 18,
-  },
-  groupList: {
-    paddingHorizontal: Spacing.screen,
-    gap: 10,
-    marginBottom: 20,
-  },
-  itemCard: {
-    minHeight: 82,
+  columnTitleRow: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Palette.surface,
-    borderRadius: Radius.lg,
+    gap: 8,
+  },
+  columnTitle: {
+    flex: 1,
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  columnTitleLowVision: {
+    fontSize: 19,
+    lineHeight: 25,
+  },
+  columnCount: {
+    minWidth: 30,
+    textAlign: 'right',
+    fontSize: 19,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  columnCountLowVision: {
+    fontSize: 23,
+  },
+  tileGrid: {
+    gap: 9,
+  },
+  tile: {
+    aspectRatio: 1,
+    borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: Palette.border,
-    padding: 16,
-    ...Shadow.subtle,
+    backgroundColor: Palette.background,
+    padding: 11,
+    justifyContent: 'space-between',
   },
-  itemCardLowVision: {
-    minHeight: 100,
-    padding: 17,
+  tileLowVision: {
+    minHeight: 152,
+    padding: 12,
+  },
+  tileName: {
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  tileNameLowVision: {
+    fontSize: 18,
+    lineHeight: 24,
+  },
+  tileDose: {
+    ...Typography.caption,
+    color: Palette.textMuted,
+  },
+  tileDoseLowVision: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  addTile: {
+    aspectRatio: 1,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Palette.borderStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: Palette.surfaceMuted,
+  },
+  addTileLowVision: {
+    minHeight: 152,
+  },
+  addTileText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: Palette.textMuted,
+  },
+  addTileTextLowVision: {
+    fontSize: 17,
   },
   pressed: {
     opacity: 0.78,
     transform: [{ scale: 0.99 }],
-  },
-  itemText: {
-    flex: 1,
-    marginLeft: 14,
-    marginRight: 10,
-  },
-  itemName: {
-    fontSize: 17,
-    fontWeight: '900',
-    color: Palette.text,
-  },
-  itemNameLowVision: {
-    fontSize: 21,
-    lineHeight: 28,
-  },
-  itemMeta: {
-    fontSize: 14,
-    color: Palette.textMuted,
-    marginTop: 4,
-  },
-  itemMetaLowVision: {
-    fontSize: 17,
-    lineHeight: 23,
-  },
-  editPill: {
-    paddingHorizontal: 11,
-    paddingVertical: 6,
-    borderRadius: Radius.sm,
-    backgroundColor: Palette.surfaceMuted,
-  },
-  editPillLowVision: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-  },
-  editPillText: {
-    ...Typography.caption,
-    color: Palette.textMuted,
-  },
-  editPillTextLowVision: {
-    fontSize: 17,
-    lineHeight: 23,
-    fontWeight: '900',
-  },
-  emptyCard: {
-    minHeight: 66,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: Palette.borderStrong,
-    backgroundColor: Palette.surface,
-  },
-  emptyText: {
-    ...Typography.body,
-    color: Palette.textMuted,
   },
   footer: {
     paddingBottom: 8,

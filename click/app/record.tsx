@@ -1,14 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { PairList, RiskSummaryCard } from '@/components/analysis-ui';
-import { IconBadge, PrimaryButton, Screen, SectionHeader, TopBar } from '@/components/app-ui';
+import { PairCard, RiskSummaryCard } from '@/components/analysis-ui';
+import { IconBadge, Screen, TopBar } from '@/components/app-ui';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
 import { formatRecordTime, formatRecordTitle, getSession } from '@/services/history-storage';
-import type { AnalysisSession, ItemCategory, RecognizedItem } from '@/types/medication';
+import type { AnalysisSession, InteractionPair, ItemCategory, RecognizedItem } from '@/types/medication';
 
 const TABS: { value: ItemCategory; label: string }[] = [
   { value: '알약', label: '알약' },
@@ -22,6 +22,8 @@ export default function RecordDetailScreen() {
   const [record, setRecord] = useState<AnalysisSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<ItemCategory>('알약');
+  const [attentionOpen, setAttentionOpen] = useState(true);
+  const [safeOpen, setSafeOpen] = useState(false);
   const { lowVision } = useUserMode();
 
   useEffect(() => {
@@ -40,160 +42,263 @@ export default function RecordDetailScreen() {
     };
   }, [id]);
 
-  const items: RecognizedItem[] = record ? record.items.filter((it) => it.category === tab) : [];
   const pillCount = record?.items.filter((item) => item.category === '알약').length ?? 0;
   const supplementCount = record?.items.filter((item) => item.category === '건강기능식품 라벨').length ?? 0;
+  const items: RecognizedItem[] = useMemo(() => (record ? record.items.filter((it) => it.category === tab) : []), [record, tab]);
+  const attentionPairs = record?.analysis?.pairs.filter((pair) => pair.level !== 'safe') ?? [];
+  const safePairs = record?.analysis?.pairs.filter((pair) => pair.level === 'safe') ?? [];
 
   return (
-    <Screen
-      bottom={
-        record ? (
-          <PrimaryButton
-            label={record.analysis ? '이 목록으로 다시 분석' : '이 목록으로 분석하기'}
-            icon="analytics"
-            onPress={() => router.push({ pathname: '/analyze', params: { items: JSON.stringify(record.items), recordId: record.id } })}
-            accessibilityHint="저장된 항목을 그대로 사용해 상호작용 분석을 시작합니다."
-          />
-        ) : null
-      }>
+    <Screen>
       <TopBar
         title={record ? formatRecordTitle(record.createdAt) : '기록'}
-        subtitle={record ? `${formatRecordTime(record.createdAt)} · ${record.analysis ? '분석 완료' : '분석 전'}` : '저장된 기록을 불러오고 있어요.'}
+        subtitle={record ? formatRecordTime(record.createdAt) : undefined}
         backLabel="기록"
         onBack={() => router.back()}
       />
 
-      {record ? (
-        <View style={[styles.summary, lowVision && styles.summaryLowVision]}>
-          <View>
-            <Text style={[styles.summaryLabel, lowVision && styles.summaryLabelLowVision]}>저장된 항목</Text>
-            <Text style={[styles.summaryTitle, lowVision && styles.summaryTitleLowVision]}>알약 {pillCount}개 · 건강기능식품 {supplementCount}개</Text>
-          </View>
-          <IconBadge icon={record.analysis ? 'checkmark-circle' : 'archive'} tone={record.analysis ? 'green' : 'dark'} />
-        </View>
-      ) : null}
-
-      {record?.analysis ? (
-        <View style={styles.analysisWrap}>
-          <SectionHeader title="저장된 분석 결과" />
-          <View style={styles.sectionInset}>
-            <RiskSummaryCard result={record.analysis} compact />
-            <PairList pairs={record.analysis.pairs} limit={3} />
-          </View>
-        </View>
-      ) : record ? (
-        <View style={styles.noAnalysis}>
-          <IconBadge icon="analytics-outline" tone="amber" />
-          <View style={styles.noAnalysisText}>
-            <Text style={styles.noAnalysisTitle}>아직 분석 전 기록이에요</Text>
-            <Text style={styles.noAnalysisBody}>아래 버튼으로 이 목록의 상호작용을 분석할 수 있습니다.</Text>
-          </View>
-        </View>
-      ) : null}
-
-      <SectionHeader title="저장된 항목" />
-      <View style={styles.segment}>
-        {TABS.map((t) => {
-          const active = tab === t.value;
-          return (
-            <Pressable
-              key={t.value}
-              style={[styles.segmentItem, lowVision && styles.segmentItemLowVision, active && styles.segmentItemActive]}
-              onPress={() => setTab(t.value)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              accessibilityLabel={`${t.label} 항목 보기`}>
-              <Text style={[styles.segmentText, lowVision && styles.segmentTextLowVision, active && styles.segmentTextActive]}>{t.label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {loading ? null : items.length === 0 ? (
+      {loading ? null : !record ? (
         <View style={styles.empty}>
           <IconBadge icon="document-outline" tone="dark" size="lg" />
-          <Text style={styles.emptyText}>이 종류의 인식 기록이 없어요</Text>
+          <Text style={styles.emptyText}>기록을 찾을 수 없어요</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-          {items.map((item) => (
-            <ItemCard key={item.id} item={item} lowVision={lowVision} />
-          ))}
+        <ScrollView contentContainerStyle={[styles.content, lowVision && styles.contentLowVision]} showsVerticalScrollIndicator={false}>
+          <View style={[styles.summary, lowVision && styles.summaryLowVision]}>
+            <CountBlock icon="medical" label="알약" value={pillCount} />
+            <View style={styles.summaryDivider} />
+            <CountBlock icon="leaf" label="건강기능식품" value={supplementCount} />
+          </View>
+
+          {record.analysis ? (
+            <View style={styles.analysisBox}>
+              <RiskSummaryCard result={record.analysis} compact />
+              <PairAccordion
+                title="주의할 조합"
+                pairs={attentionPairs}
+                open={attentionOpen}
+                onToggle={() => setAttentionOpen((value) => !value)}
+                tone="amber"
+                lowVision={lowVision}
+              />
+              <PairAccordion
+                title="미탐지 조합"
+                pairs={safePairs}
+                open={safeOpen}
+                onToggle={() => setSafeOpen((value) => !value)}
+                tone="green"
+                lowVision={lowVision}
+              />
+            </View>
+          ) : (
+            <View style={styles.noAnalysis}>
+              <IconBadge icon="analytics-outline" tone="dark" />
+              <Text style={[styles.noAnalysisText, lowVision && styles.noAnalysisTextLowVision]}>분석 결과가 없어요</Text>
+            </View>
+          )}
+
+          <View style={styles.segment}>
+            {TABS.map((t) => {
+              const active = tab === t.value;
+              return (
+                <Pressable
+                  key={t.value}
+                  style={[styles.segmentItem, lowVision && styles.segmentItemLowVision, active && styles.segmentItemActive]}
+                  onPress={() => setTab(t.value)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}>
+                  <Text style={[styles.segmentText, lowVision && styles.segmentTextLowVision, active && styles.segmentTextActive]}>{t.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <View style={styles.itemList}>
+            {items.length === 0 ? (
+              <View style={styles.emptyItems}>
+                <Text style={styles.emptyItemsText}>인식 기록 없음</Text>
+              </View>
+            ) : (
+              items.map((item) => <ItemCard key={item.id} item={item} lowVision={lowVision} />)
+            )}
+          </View>
         </ScrollView>
       )}
     </Screen>
   );
 }
 
+function CountBlock({ icon, label, value }: { icon: 'medical' | 'leaf'; label: string; value: number }) {
+  return (
+    <View style={styles.countBlock}>
+      <IconBadge icon={icon} tone={icon === 'leaf' ? 'green' : 'blue'} size="sm" />
+      <Text style={styles.countValue}>{value}</Text>
+      <Text style={styles.countLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function PairAccordion({
+  title,
+  pairs,
+  open,
+  onToggle,
+  tone,
+  lowVision,
+}: {
+  title: string;
+  pairs: InteractionPair[];
+  open: boolean;
+  onToggle: () => void;
+  tone: 'amber' | 'green';
+  lowVision: boolean;
+}) {
+  const color = tone === 'amber' ? Palette.amber : Palette.mint;
+  const bg = tone === 'amber' ? Palette.amberSoft : Palette.mintSoft;
+  return (
+    <View style={styles.accordion}>
+      <Pressable style={styles.accordionHeader} onPress={onToggle} accessibilityRole="button" accessibilityState={{ expanded: open }}>
+        <View style={[styles.accordionIcon, { backgroundColor: bg }]}>
+          <Ionicons name={tone === 'amber' ? 'warning' : 'checkmark-circle'} size={lowVision ? 21 : 18} color={color} />
+        </View>
+        <Text style={[styles.accordionTitle, lowVision && styles.accordionTitleLowVision]}>{title}</Text>
+        <Text style={[styles.accordionCount, lowVision && styles.accordionCountLowVision]}>{pairs.length}</Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={lowVision ? 23 : 20} color={Palette.textSubtle} />
+      </Pressable>
+      {open ? (
+        <View style={styles.accordionBody}>
+          {pairs.length === 0 ? (
+            <Text style={styles.emptyPairText}>해당 조합이 없어요</Text>
+          ) : (
+            pairs.map((pair) => <PairCard key={pair.id} pair={pair} compact />)
+          )}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 function ItemCard({ item, lowVision }: { item: RecognizedItem; lowVision: boolean }) {
   const isSupplement = item.category === '건강기능식품 라벨';
   return (
-    <View style={[styles.card, lowVision && styles.cardLowVision]} accessible accessibilityLabel={`${item.name}, ${isSupplement ? '건강기능식품' : '알약'}${item.dosage ? `, ${item.dosage}` : ''}`}>
+    <View style={[styles.card, lowVision && styles.cardLowVision]} accessible accessibilityLabel={`${item.name}`}>
       <IconBadge icon={isSupplement ? 'leaf' : 'medical'} tone={isSupplement ? 'green' : 'blue'} />
       <View style={styles.cardInfo}>
         <Text style={[styles.cardName, lowVision && styles.cardNameLowVision]} numberOfLines={lowVision ? 2 : 1}>
           {item.name}
         </Text>
-        <Text style={[styles.cardCategory, lowVision && styles.cardCategoryLowVision]}>
-          {isSupplement ? '건강기능식품' : '알약'}
-          {item.dosage ? ` · ${item.dosage}` : ''}
-        </Text>
+        {item.dosage ? <Text style={[styles.cardDose, lowVision && styles.cardDoseLowVision]}>{item.dosage}</Text> : null}
       </View>
-      <Ionicons name="checkmark-circle" size={lowVision ? 23 : 20} color={Palette.mint} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  content: {
+    paddingHorizontal: Spacing.screen,
+    paddingBottom: 36,
+    gap: 14,
+  },
+  contentLowVision: {
+    gap: 15,
+  },
   summary: {
-    marginHorizontal: Spacing.screen,
-    marginBottom: 14,
+    minHeight: 112,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: Palette.surface,
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Palette.border,
-    padding: 16,
     ...Shadow.subtle,
   },
   summaryLowVision: {
-    padding: 18,
-    marginBottom: 12,
+    minHeight: 128,
   },
-  summaryLabel: {
-    ...Typography.caption,
-    color: Palette.textMuted,
+  summaryDivider: {
+    width: StyleSheet.hairlineWidth,
+    alignSelf: 'stretch',
+    backgroundColor: Palette.border,
   },
-  summaryLabelLowVision: {
-    fontSize: 15,
-    lineHeight: 21,
+  countBlock: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
   },
-  summaryTitle: {
-    fontSize: 20,
-    lineHeight: 26,
+  countValue: {
+    fontSize: 27,
+    lineHeight: 33,
     fontWeight: '900',
     color: Palette.text,
-    marginTop: 3,
   },
-  summaryTitleLowVision: {
-    fontSize: 23,
-    lineHeight: 30,
+  countLabel: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '900',
+    color: Palette.textMuted,
   },
-  analysisWrap: {
-    marginBottom: 16,
-  },
-  sectionInset: {
-    marginHorizontal: Spacing.screen,
+  analysisBox: {
     gap: 10,
   },
+  accordion: {
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    overflow: 'hidden',
+    ...Shadow.subtle,
+  },
+  accordionHeader: {
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    gap: 10,
+  },
+  accordionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accordionTitle: {
+    flex: 1,
+    fontSize: 17,
+    lineHeight: 23,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  accordionTitleLowVision: {
+    fontSize: 21,
+    lineHeight: 28,
+  },
+  accordionCount: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  accordionCountLowVision: {
+    fontSize: 21,
+  },
+  accordionBody: {
+    gap: 10,
+    padding: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Palette.border,
+  },
+  emptyPairText: {
+    ...Typography.body,
+    color: Palette.textMuted,
+    textAlign: 'center',
+    paddingVertical: 16,
+  },
   noAnalysis: {
-    marginHorizontal: Spacing.screen,
-    marginBottom: 16,
     minHeight: 88,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
     backgroundColor: Palette.surface,
     borderRadius: Radius.lg,
     borderWidth: 1,
@@ -201,26 +306,18 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   noAnalysisText: {
-    flex: 1,
-    marginLeft: 14,
-  },
-  noAnalysisTitle: {
     fontSize: 18,
     fontWeight: '900',
     color: Palette.text,
   },
-  noAnalysisBody: {
-    ...Typography.body,
-    color: Palette.textMuted,
-    marginTop: 3,
+  noAnalysisTextLowVision: {
+    fontSize: 22,
   },
   segment: {
     flexDirection: 'row',
     backgroundColor: Palette.surfaceMuted,
     borderRadius: Radius.md,
     padding: 3,
-    marginHorizontal: Spacing.screen,
-    marginBottom: 16,
   },
   segmentItem: {
     flex: 1,
@@ -230,7 +327,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   segmentItemLowVision: {
-    minHeight: 52,
+    minHeight: 54,
   },
   segmentItemActive: {
     backgroundColor: Palette.surface,
@@ -242,15 +339,13 @@ const styles = StyleSheet.create({
     color: Palette.textMuted,
   },
   segmentTextLowVision: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '900',
   },
   segmentTextActive: {
     color: Palette.text,
   },
-  list: {
-    paddingHorizontal: Spacing.screen,
-    paddingBottom: 24,
+  itemList: {
     gap: 10,
   },
   card: {
@@ -271,7 +366,6 @@ const styles = StyleSheet.create({
   cardInfo: {
     flex: 1,
     marginLeft: 14,
-    marginRight: 12,
   },
   cardName: {
     fontSize: 18,
@@ -283,14 +377,29 @@ const styles = StyleSheet.create({
     fontSize: 21,
     lineHeight: 28,
   },
-  cardCategory: {
+  cardDose: {
     fontSize: 15,
     color: Palette.textMuted,
     marginTop: 4,
   },
-  cardCategoryLowVision: {
-    fontSize: 17,
-    lineHeight: 23,
+  cardDoseLowVision: {
+    fontSize: 18,
+    lineHeight: 24,
+  },
+  emptyItems: {
+    minHeight: 74,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Palette.borderStrong,
+    backgroundColor: Palette.surface,
+  },
+  emptyItemsText: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: Palette.textMuted,
   },
   empty: {
     flex: 1,

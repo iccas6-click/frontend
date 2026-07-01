@@ -26,12 +26,13 @@ type Props = {
   visible: boolean;
   /** 수정할 항목. null이면 새 항목 추가 모드 */
   initial: RecognizedItem | null;
+  initialCategory?: ItemCategory;
   onClose: () => void;
   onSave: (item: RecognizedItem) => void;
   onDelete?: (id: string) => void;
 };
 
-export function ItemEditModal({ visible, initial, onClose, onSave, onDelete }: Props) {
+export function ItemEditModal({ visible, initial, initialCategory = '알약', onClose, onSave, onDelete }: Props) {
   const { lowVision } = useUserMode();
   const isNew = initial === null;
   const [name, setName] = useState('');
@@ -43,9 +44,9 @@ export function ItemEditModal({ visible, initial, onClose, onSave, onDelete }: P
     if (visible) {
       setName(initial?.name ?? '');
       setDosage(initial?.dosage ?? '');
-      setCategory(initial?.category ?? '알약');
+      setCategory(initial?.category ?? initialCategory);
     }
-  }, [visible, initial]);
+  }, [visible, initial, initialCategory]);
 
   const canSave = name.trim().length > 0;
 
