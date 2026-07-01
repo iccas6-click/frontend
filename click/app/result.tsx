@@ -16,6 +16,20 @@ const CATEGORY_META: Record<ItemCategory, { label: string; icon: 'medical' | 'le
   '건강기능식품 라벨': { label: '건강기능식품', icon: 'leaf', tone: 'green' },
 };
 
+function parseItems(raw?: string): RecognizedItem[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as RecognizedItem[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function normalizeItems(items: RecognizedItem[]) {
+  return items.map((item, index) => ({ ...item, id: `r${index}` }));
+}
+
 export default function ResultScreen() {
   const router = useRouter();
   const { photoUri, category, prevItems, items: itemsParam, recordId: recordIdParam } = useLocalSearchParams<{
@@ -26,27 +40,12 @@ export default function ResultScreen() {
     recordId?: string;
   }>();
 
-  const parsedPrevItems = useMemo<RecognizedItem[]>(() => {
-    if (!prevItems) return [];
-    try {
-      return JSON.parse(prevItems);
-    } catch {
-      return [];
-    }
-  }, [prevItems]);
+  const parsedPrevItems = useMemo(() => parseItems(prevItems), [prevItems]);
+  const parsedCurrentItems = useMemo(() => parseItems(itemsParam), [itemsParam]);
 
   const selectedCategory: ItemCategory = category === '건강기능식품 라벨' ? '건강기능식품 라벨' : '알약';
   const isSupplement = selectedCategory === '건강기능식품 라벨';
-
-  const parsedCurrentItems = useMemo<RecognizedItem[] | null>(() => {
-    if (!itemsParam) return null;
-    try {
-      const parsed = JSON.parse(itemsParam);
-      return Array.isArray(parsed) ? (parsed as RecognizedItem[]) : null;
-    } catch {
-      return null;
-    }
-  }, [itemsParam]);
+  const meta = CATEGORY_META[selectedCategory];
 
   const [items, setItems] = useState<RecognizedItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,47 +54,64 @@ export default function ResultScreen() {
   const [editTarget, setEditTarget] = useState<RecognizedItem | null | undefined>(undefined);
   const nextId = useRef(0);
 
-  const handleSave = useCallback((item: RecognizedItem) => {
-    setItems((prev) => {
-      let nextItems: RecognizedItem[];
-      if (item.id) {
-        nextItems = prev.map((it) => (it.id === item.id ? item : it));
-      } else {
-        nextId.current += 1;
-        nextItems = [...prev, { ...item, id: `new-${nextId.current}` }];
-      }
-      if (recordId) {
-        updateSessionItems(recordId, nextItems).catch((e) => console.warn('기록 갱신 실패:', e));
-      }
-      return nextItems;
-    });
-    setEditTarget(undefined);
-  }, [recordId]);
+  const buildAllItems = useCallback((current: RecognizedItem[]) => normalizeItems([...parsedPrevItems, ...current]), [parsedPrevItems]);
 
-  const handleDelete = useCallback((id: string) => {
-    setItems((prev) => {
-      const nextItems = prev.filter((it) => it.id !== id);
+  const persistCurrent = useCallback(
+    (current: RecognizedItem[]) => {
       if (recordId) {
-        updateSessionItems(recordId, nextItems).catch((e) => console.warn('기록 갱신 실패:', e));
+        updateSessionItems(recordId, buildAllItems(current)).catch((e) => console.warn('기록 갱신 실패:', e));
       }
-      return nextItems;
-    });
-    setEditTarget(undefined);
-  }, [recordId]);
+    },
+    [buildAllItems, recordId],
+  );
 
-  const runAnalysis = useCallback(async () => {
+  const handleSave = useCallback(
+    (item: RecognizedItem) => {
+      const nextItem = { ...item, category: selectedCategory };
+      setItems((prev) => {
+        let nextItems: RecognizedItem[];
+        if (nextItem.id) {
+          nextItems = prev.map((it) => (it.id === nextItem.id ? nextItem : it));
+        } else {
+          nextId.current += 1;
+          nextItems = [...prev, { ...nextItem, id: `new-${nextId.current}` }];
+        }
+        persistCurrent(nextItems);
+        return nextItems;
+      });
+      setEditTarget(undefined);
+    },
+    [persistCurrent, selectedCategory],
+  );
+
+  const handleDelete = useCallback(
+    (id: string) => {
+      setItems((prev) => {
+        const nextItems = prev.filter((it) => it.id !== id);
+        persistCurrent(nextItems);
+        return nextItems;
+      });
+      setEditTarget(undefined);
+    },
+    [persistCurrent],
+  );
+
+  const runRecognition = useCallback(async () => {
     setLoading(true);
     setError(false);
     try {
-      const result = parsedCurrentItems ?? (await analyzeImage(photoUri ?? '', selectedCategory));
-      const combined = [...parsedPrevItems, ...result].map((it, i) => ({ ...it, id: `r${i}` }));
-      setItems(combined);
+      const source = parsedCurrentItems.length > 0 ? parsedCurrentItems : await analyzeImage(photoUri ?? '', selectedCategory);
+      const current = source
+        .filter((item) => item.category === selectedCategory)
+        .map((item, index) => ({ ...item, id: `current-${index}` }));
+      const allItems = buildAllItems(current);
+      setItems(current);
 
       if (recordIdParam) {
-        await updateSessionItems(recordIdParam, combined);
+        await updateSessionItems(recordIdParam, allItems);
         setRecordId(recordIdParam);
       } else {
-        const id = await createSession(selectedCategory, combined);
+        const id = await createSession(selectedCategory, allItems);
         setRecordId(id);
       }
     } catch (e) {
@@ -104,15 +120,38 @@ export default function ResultScreen() {
     } finally {
       setLoading(false);
     }
-  }, [photoUri, selectedCategory, recordIdParam, parsedPrevItems, parsedCurrentItems]);
+  }, [buildAllItems, parsedCurrentItems, photoUri, recordIdParam, selectedCategory]);
 
   useEffect(() => {
-    runAnalysis();
-  }, [runAnalysis]);
+    runRecognition();
+  }, [runRecognition]);
 
-  const pillCount = items.filter((item) => item.category === '알약').length;
-  const supplementCount = items.filter((item) => item.category === '건강기능식품 라벨').length;
-  const canAnalyze = !loading && !error && items.length > 0;
+  const canContinue = !loading && !error && items.length > 0;
+
+  const goSupplement = () => {
+    const allItems = buildAllItems(items);
+    if (recordId) updateSessionItems(recordId, allItems).catch((e) => console.warn('기록 갱신 실패:', e));
+    router.replace({
+      pathname: '/reuse',
+      params: {
+        category: '건강기능식품 라벨',
+        prevItems: JSON.stringify(allItems),
+        recordId: recordId ?? '',
+      },
+    });
+  };
+
+  const goReview = () => {
+    const allItems = buildAllItems(items);
+    if (recordId) updateSessionItems(recordId, allItems).catch((e) => console.warn('기록 갱신 실패:', e));
+    router.push({
+      pathname: '/review',
+      params: {
+        items: JSON.stringify(allItems),
+        recordId: recordId ?? '',
+      },
+    });
+  };
 
   return (
     <Screen
@@ -120,53 +159,17 @@ export default function ResultScreen() {
         <View style={styles.footer}>
           {!isSupplement ? (
             <>
-              <PrimaryButton
-                label="건강기능식품 추가하기"
-                icon="leaf"
-                disabled={!canAnalyze}
-                onPress={() => {
-                  if (recordId) updateSessionItems(recordId, items).catch((e) => console.warn('기록 갱신 실패:', e));
-                  router.replace({
-                    pathname: '/reuse',
-                    params: {
-                      category: '건강기능식품 라벨',
-                      prevItems: JSON.stringify(items),
-                      recordId: recordId ?? '',
-                    },
-                  });
-                }}
-                accessibilityHint="건강기능식품 기록 선택 또는 새 촬영 화면으로 이동합니다."
-              />
-              <PrimaryButton
-                label="건강기능식품 없이 분석"
-                icon="analytics"
-                variant="secondary"
-                disabled={!canAnalyze}
-                onPress={() => {
-                  if (recordId) updateSessionItems(recordId, items).catch((e) => console.warn('기록 갱신 실패:', e));
-                  router.push({ pathname: '/analyze', params: { items: JSON.stringify(items), recordId: recordId ?? '' } });
-                }}
-              />
+              <PrimaryButton label="건강기능식품 추가하기" icon="leaf" disabled={!canContinue} onPress={goSupplement} />
+              <PrimaryButton label="알약만으로 전체 검토" icon="list" variant="secondary" disabled={!canContinue} onPress={goReview} />
             </>
           ) : (
-            <PrimaryButton
-              label="상호작용 분석하기"
-              icon="analytics"
-              disabled={!canAnalyze}
-              onPress={() => {
-                if (recordId) updateSessionItems(recordId, items).catch((e) => console.warn('기록 갱신 실패:', e));
-                router.push({
-                  pathname: '/analyze',
-                  params: { items: JSON.stringify(items), recordId: recordId ?? '' },
-                });
-              }}
-            />
+            <PrimaryButton label="전체 인식 결과 확인" icon="list" disabled={!canContinue} onPress={goReview} />
           )}
         </View>
       }>
       <TopBar
-        title="인식 결과 확인"
-        subtitle="잘못 인식된 이름이나 함량은 분석 전에 수정할 수 있어요."
+        title={`${meta.label} 결과 확인`}
+        subtitle={`이번 단계에서 인식한 ${meta.label}만 확인합니다.`}
         backLabel="이전"
         onBack={() => router.back()}
       />
@@ -174,30 +177,30 @@ export default function ResultScreen() {
 
       <View style={styles.summaryCard}>
         <View>
-          <Text style={styles.summaryLabel}>현재 목록</Text>
+          <Text style={styles.summaryLabel}>이번 인식 결과</Text>
           <Text style={styles.summaryTitle}>
-            알약 {pillCount}개 · 건강기능식품 {supplementCount}개
+            {meta.label} {items.length}개
           </Text>
         </View>
         <Pressable
           style={styles.addMiniButton}
           onPress={() => setEditTarget(null)}
           accessibilityRole="button"
-          accessibilityLabel="항목 직접 추가">
+          accessibilityLabel={`${meta.label} 직접 추가`}>
           <Ionicons name="add" size={18} color={Palette.primary} />
           <Text style={styles.addMiniText}>직접 추가</Text>
         </Pressable>
       </View>
 
       {loading ? (
-        <StateView icon="scan" title="사진을 분석하고 있어요" body="잠시만 기다려 주세요." loading />
+        <StateView icon="scan" title={`${meta.label}을 분석하고 있어요`} body="잠시만 기다려 주세요." loading />
       ) : error ? (
         <StateView icon="alert-circle" title="인식에 실패했어요" body="다시 촬영하거나 직접 추가해 분석을 계속할 수 있어요.">
-          <PrimaryButton label="다시 시도" icon="refresh" onPress={runAnalysis} />
+          <PrimaryButton label="다시 시도" icon="refresh" onPress={runRecognition} />
         </StateView>
       ) : (
         <>
-          <SectionHeader title="인식된 항목" />
+          <SectionHeader title={`인식된 ${meta.label}`} />
           <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
             {items.map((item) => (
               <ItemCard key={item.id} item={item} onPress={() => setEditTarget(item)} />
@@ -206,9 +209,9 @@ export default function ResultScreen() {
               style={({ pressed }) => [styles.addCard, pressed && styles.pressed]}
               onPress={() => setEditTarget(null)}
               accessibilityRole="button"
-              accessibilityLabel="목록에 없는 항목 직접 추가">
+              accessibilityLabel={`${meta.label} 직접 추가`}>
               <IconBadge icon="add" tone="dark" size="sm" />
-              <Text style={styles.addCardText}>목록에 없는 항목 직접 추가</Text>
+              <Text style={styles.addCardText}>목록에 없는 {meta.label} 직접 추가</Text>
             </Pressable>
           </ScrollView>
         </>
@@ -299,7 +302,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   addMiniButton: {
-    minHeight: 40,
+    minHeight: 42,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,

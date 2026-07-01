@@ -1,29 +1,40 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { ActionCard, IconBadge, PrimaryButton, Screen, SectionHeader } from '@/components/app-ui';
+import { PrimaryButton, Screen } from '@/components/app-ui';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
-import { getAllSessions } from '@/services/history-storage';
-import type { AnalysisSession } from '@/types/medication';
+import { getDisplayName, getInitial, getProfile, type UserProfile } from '@/services/account-storage';
 
 export default function MainScreen() {
   const router = useRouter();
-  const [latest, setLatest] = useState<AnalysisSession | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [checking, setChecking] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      getAllSessions().then((records) => {
-        if (active) setLatest(records[0] ?? null);
+      getProfile().then((data) => {
+        if (!active) return;
+        if (!data) {
+          router.replace('/login');
+          return;
+        }
+        setProfile(data);
+        setChecking(false);
       });
       return () => {
         active = false;
       };
-    }, []),
+    }, [router]),
   );
+
+  if (checking) {
+    return <Screen><StatusBar style="dark" /></Screen>;
+  }
 
   return (
     <Screen>
@@ -31,16 +42,36 @@ export default function MainScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
           <View style={styles.brandRow}>
-            <View style={styles.logoMark}>
-              <Ionicons name="medical" size={20} color="#FFFFFF" />
+            <View style={styles.brandLeft}>
+              <View style={styles.logoMark}>
+                <Image source={require('@/assets/images/click.png')} style={styles.logoImage} contentFit="contain" />
+              </View>
+              <Text style={styles.logoText}>CLICK</Text>
             </View>
-            <Text style={styles.logoText}>CLICK</Text>
+
+            <Pressable
+              style={({ pressed }) => [styles.profileButton, pressed && styles.pressed]}
+              onPress={() => router.push('/profile')}
+              accessibilityRole="button"
+              accessibilityLabel={`${getDisplayName(profile)} 프로필 열기`}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{getInitial(profile)}</Text>
+              </View>
+              <Text style={styles.profileName} numberOfLines={1}>
+                {getDisplayName(profile)}
+              </Text>
+            </Pressable>
           </View>
 
-          <Text style={styles.heroTitle}>약과 영양제 조합을 먼저 확인하세요</Text>
-          <Text style={styles.heroSubtitle}>
-            사진으로 인식하고, 복용 전 상담이 필요한 조합을 쉽게 정리합니다.
-          </Text>
+          <Text style={styles.heroTitle}>같이 먹어도 괜찮은지, 사진으로 먼저 확인하세요</Text>
+
+          <View style={styles.flowStrip}>
+            <FlowPill icon="medical" label="알약 인식" />
+            <Ionicons name="chevron-forward" size={16} color={Palette.textSubtle} />
+            <FlowPill icon="leaf" label="건강기능식품 인식" tone="green" />
+            <Ionicons name="chevron-forward" size={16} color={Palette.textSubtle} />
+            <FlowPill icon="shield-checkmark" label="상호작용 분석" tone="dark" />
+          </View>
 
           <View style={styles.heroActions}>
             <PrimaryButton
@@ -49,65 +80,36 @@ export default function MainScreen() {
               onPress={() => router.push({ pathname: '/reuse', params: { category: '알약', mode: 'start' } })}
               accessibilityHint="기존 알약 기록을 선택하거나 새 촬영을 시작합니다."
             />
-            <Pressable style={styles.historyLink} onPress={() => router.push('/history')}>
-              <Ionicons name="time-outline" size={18} color={Palette.primary} />
+            <Pressable style={styles.historyLink} onPress={() => router.push('/history')} accessibilityRole="button" accessibilityLabel="기록 보기">
+              <Ionicons name="time-outline" size={19} color={Palette.primary} />
               <Text style={styles.historyLinkText}>분석 기록 보기</Text>
             </Pressable>
           </View>
         </View>
-
-        <SectionHeader title="진행 방식" />
-        <View style={styles.flow}>
-          <FlowStep icon="scan" title="알약 인식" body="처방약이나 일반 의약품을 먼저 촬영합니다." />
-          <FlowStep icon="leaf" title="건강기능식품 인식" body="영양제 라벨을 이어서 촬영합니다." />
-          <FlowStep icon="shield-checkmark" title="상호작용 분석" body="수정한 목록으로 주의 조합을 확인합니다." />
-        </View>
-
-        <SectionHeader title="최근 기록" />
-        {latest ? (
-          <ActionCard
-            icon="document-text"
-            tone="dark"
-            title={formatLatestTitle(latest)}
-            subtitle={`${latest.status === 'analyzed' ? '분석 완료' : '분석 전'} · ${latest.items.length}개 항목`}
-            onPress={() => router.push({ pathname: '/record', params: { id: latest.id } })}
-          />
-        ) : (
-          <View style={styles.emptyRecord}>
-            <IconBadge icon="folder-open" tone="dark" />
-            <View style={styles.emptyTextWrap}>
-              <Text style={styles.emptyTitle}>아직 기록이 없어요</Text>
-              <Text style={styles.emptySubtitle}>첫 분석을 완료하면 여기에 누적됩니다.</Text>
-            </View>
-          </View>
-        )}
       </ScrollView>
     </Screen>
   );
 }
 
-function FlowStep({ icon, title, body }: { icon: 'scan' | 'leaf' | 'shield-checkmark'; title: string; body: string }) {
+function FlowPill({ icon, label, tone = 'blue' }: { icon: 'medical' | 'leaf' | 'shield-checkmark'; label: string; tone?: 'blue' | 'green' | 'dark' }) {
+  const color = tone === 'green' ? Palette.mint : tone === 'dark' ? Palette.blueGrey : Palette.primary;
+  const backgroundColor = tone === 'green' ? Palette.mintSoft : tone === 'dark' ? Palette.surfaceMuted : Palette.primarySoft;
   return (
-    <View style={styles.flowStep}>
-      <IconBadge icon={icon} tone={icon === 'leaf' ? 'green' : 'blue'} size="sm" />
-      <View style={styles.flowText}>
-        <Text style={styles.flowTitle}>{title}</Text>
-        <Text style={styles.flowBody}>{body}</Text>
+    <View style={styles.flowPill}>
+      <View style={[styles.flowIcon, { backgroundColor }]}>
+        <Ionicons name={icon} size={16} color={color} />
       </View>
+      <Text style={styles.flowPillText}>{label}</Text>
     </View>
   );
 }
 
-function formatLatestTitle(record: AnalysisSession) {
-  const d = new Date(record.createdAt);
-  return `${d.getMonth() + 1}월 ${d.getDate()}일 분석 기록`;
-}
-
 const styles = StyleSheet.create({
   content: {
+    flexGrow: 1,
     padding: Spacing.screen,
     paddingBottom: 40,
-    gap: 18,
+    justifyContent: 'center',
   },
   hero: {
     backgroundColor: Palette.surface,
@@ -120,19 +122,61 @@ const styles = StyleSheet.create({
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 28,
+  },
+  brandLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
-    marginBottom: 24,
   },
   logoMark: {
+    width: 42,
+    height: 42,
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Palette.surface,
+    borderWidth: 1,
+    borderColor: Palette.border,
+  },
+  logoImage: {
+    width: 32,
+    height: 32,
+  },
+  logoText: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  profileButton: {
+    maxWidth: 150,
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 22,
+    backgroundColor: Palette.surfaceMuted,
+    paddingLeft: 5,
+    paddingRight: 12,
+  },
+  avatar: {
     width: 34,
     height: 34,
-    borderRadius: Radius.md,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Palette.primary,
   },
-  logoText: {
-    fontSize: 19,
+  avatarText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  profileName: {
+    flexShrink: 1,
+    fontSize: 15,
     fontWeight: '900',
     color: Palette.text,
   },
@@ -140,77 +184,55 @@ const styles = StyleSheet.create({
     ...Typography.hero,
     color: Palette.text,
   },
-  heroSubtitle: {
-    ...Typography.body,
-    color: Palette.textMuted,
-    marginTop: 12,
+  flowStrip: {
+    marginTop: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 5,
+    padding: 12,
+    borderRadius: Radius.lg,
+    backgroundColor: Palette.background,
+  },
+  flowPill: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 6,
+  },
+  flowIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: Radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flowPillText: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '900',
+    color: Palette.text,
+    textAlign: 'center',
   },
   heroActions: {
     marginTop: 24,
     gap: 12,
   },
   historyLink: {
-    minHeight: 48,
+    minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 7,
+    borderRadius: Radius.lg,
+    backgroundColor: Palette.primarySoft,
   },
   historyLinkText: {
     color: Palette.primary,
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  flow: {
-    backgroundColor: Palette.surface,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    paddingHorizontal: 16,
-  },
-  flowStep: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Palette.border,
-  },
-  flowText: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  flowTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: Palette.text,
-  },
-  flowBody: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: Palette.textMuted,
-    marginTop: 3,
-  },
-  emptyRecord: {
-    minHeight: 84,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Palette.surface,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    padding: 16,
-  },
-  emptyTextWrap: {
-    marginLeft: 14,
-  },
-  emptyTitle: {
     fontSize: 17,
-    fontWeight: '800',
-    color: Palette.text,
+    fontWeight: '900',
   },
-  emptySubtitle: {
-    fontSize: 14,
-    color: Palette.textMuted,
-    marginTop: 4,
+  pressed: {
+    opacity: 0.78,
+    transform: [{ scale: 0.99 }],
   },
 });

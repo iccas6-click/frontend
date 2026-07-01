@@ -89,7 +89,7 @@ export default function ReuseScreen() {
     <Screen>
       <StatusBar style="dark" />
       <TopBar
-        title={isSupplement ? '건강기능식품 추가' : '알약으로 시작'}
+        title={isSupplement ? '건강기능식품 추가' : '알약 추가'}
         subtitle={isSupplement ? '기존 라벨 기록을 쓰거나 새로 촬영해 알약 목록에 더합니다.' : '반복 복용 중인 약은 기존 기록으로 바로 시작할 수 있어요.'}
         backLabel="뒤로"
         onBack={() => router.back()}

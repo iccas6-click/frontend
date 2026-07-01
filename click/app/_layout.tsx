@@ -43,6 +43,8 @@ export default function RootLayout() {
     <ThemeProvider value={AppleCustomTheme}>
       <Stack>
         <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="login" options={{ headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen name="profile" options={{ headerShown: false }} />
         <Stack.Screen name="select" options={{ headerShown: false }} />
         <Stack.Screen name="history" options={{ headerShown: false }} />
         <Stack.Screen name="record" options={{ headerShown: false }} />
@@ -52,6 +54,7 @@ export default function RootLayout() {
           options={{ headerShown: false, presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
         />
         <Stack.Screen name="result" options={{ headerShown: false }} />
+        <Stack.Screen name="review" options={{ headerShown: false }} />
         <Stack.Screen
           name="analyze"
           options={{ headerShown: false, gestureEnabled: false }}
