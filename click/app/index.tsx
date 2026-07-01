@@ -37,10 +37,11 @@ export default function MainScreen() {
   );
 
   const stats = useMemo(() => {
-    const analyzed = sessions.filter((session) => session.status === 'analyzed').length;
-    const ready = sessions.length - analyzed;
+    const attention = sessions.filter((session) => session.analysis?.overall === 'danger' || session.analysis?.overall === 'caution').length;
+    const reusable = sessions.filter((session) => session.items.length > 0).length;
+    const readySession = sessions.find((session) => session.status !== 'analyzed') ?? null;
     const latest = sessions[0] ?? null;
-    return { analyzed, ready, total: sessions.length, latest };
+    return { attention, reusable, readySession, total: sessions.length, latest };
   }, [sessions]);
 
   if (checking) {
@@ -79,7 +80,7 @@ export default function MainScreen() {
 
         <View style={styles.heroBlock}>
           <Text style={styles.greeting}>{getDisplayName(profile)}님,</Text>
-          <Text style={styles.heroTitle}>같이 먹어도 괜찮은지 사진으로 먼저 확인하세요</Text>
+          <Text style={styles.heroTitle}>같이 먹어도 괜찮은지{'\n'}사진으로 먼저 확인하세요!</Text>
         </View>
 
         <View style={styles.flowStrip}>
@@ -104,34 +105,30 @@ export default function MainScreen() {
         </View>
 
         <View style={styles.statsGrid}>
-          <StatCard label="분석 완료" value={`${stats.analyzed}건`} icon="checkmark-circle" tone="green" />
-          <StatCard label="검토 대기" value={`${stats.ready}건`} icon="document-text" tone="amber" />
+          <StatCard
+            label="상담 확인 필요"
+            value={`${stats.attention}건`}
+            icon={stats.attention > 0 ? 'warning' : 'checkmark-circle'}
+            tone={stats.attention > 0 ? 'amber' : 'green'}
+          />
+          <StatCard label="재사용 가능 기록" value={`${stats.reusable}건`} icon="archive" tone="blue" />
         </View>
 
-        <SectionTitle title="오늘의 체크" />
-        <View style={styles.todayCard}>
-          <IconBadge icon={stats.latest ? 'pulse' : 'sparkles'} tone={stats.latest ? 'blue' : 'dark'} />
-          <View style={styles.todayText}>
-            <Text style={styles.todayTitle}>{stats.latest ? '최근 기록을 이어서 확인할 수 있어요' : '첫 조합 확인을 시작해 보세요'}</Text>
-            <Text style={styles.todayBody}>
-              {stats.latest
-                ? `총 ${stats.total}건의 기록이 저장되어 있습니다. 필요하면 기록 화면에서 다시 열어볼 수 있어요.`
-                : '알약과 건강기능식품을 순서대로 추가하면 분석 전 전체 목록을 한 번 더 확인합니다.'}
-            </Text>
-          </View>
-        </View>
-
-        <SectionTitle title="빠른 작업" />
-        <View style={styles.quickGrid}>
-          <QuickAction icon="add-circle" title="새 조합" body="알약부터 다시 확인" onPress={() => router.push({ pathname: '/reuse', params: { category: '알약', mode: 'start' } })} />
-          <QuickAction icon="person-circle" title="프로필" body="계정 정보 관리" onPress={() => router.push('/profile')} />
-        </View>
+        <SectionTitle title="다음에 할 일" />
+        <NextActionCard
+          attention={stats.attention}
+          readySession={stats.readySession}
+          latest={stats.latest}
+          onStart={() => router.push({ pathname: '/reuse', params: { category: '알약', mode: 'start' } })}
+          onHistory={() => router.push('/history')}
+          onRecord={(id) => router.push({ pathname: '/record', params: { id } })}
+        />
 
         <SectionTitle title="안전 체크 포인트" />
         <View style={styles.tipList}>
-          <TipRow icon="create" title="인식 결과는 수정 가능" body="사진 인식이 틀리면 분석 전에 이름과 용량을 고쳐요." />
+          <TipRow icon="repeat" title="반복 복용 약은 재사용" body="매번 다시 찍지 않고 기존 인식 기록에서 바로 가져올 수 있어요." />
+          <TipRow icon="list" title="분석 전 전체 검토" body="알약과 건강기능식품 목록을 한 번에 확인한 뒤 분석합니다." />
           <TipRow icon="medkit" title="복용 변경은 상담 후" body="결과는 상담 전 확인용이며 처방을 대신하지 않습니다." />
-          <TipRow icon="people" title="보호자 공유 준비 중" body="계정 기반 기록 관리와 공유 기능을 붙일 수 있게 열어뒀어요." />
         </View>
       </ScrollView>
     </Screen>
@@ -171,8 +168,8 @@ function StatCard({
 }: {
   label: string;
   value: string;
-  icon: 'checkmark-circle' | 'document-text';
-  tone: 'green' | 'amber';
+  icon: 'checkmark-circle' | 'warning' | 'archive';
+  tone: 'green' | 'amber' | 'blue';
 }) {
   return (
     <View style={styles.statCard}>
@@ -183,22 +180,98 @@ function StatCard({
   );
 }
 
-function QuickAction({
+function NextActionCard({
+  attention,
+  readySession,
+  latest,
+  onStart,
+  onHistory,
+  onRecord,
+}: {
+  attention: number;
+  readySession: AnalysisSession | null;
+  latest: AnalysisSession | null;
+  onStart: () => void;
+  onHistory: () => void;
+  onRecord: (id: string) => void;
+}) {
+  if (readySession) {
+    return (
+      <ActionNotice
+        icon="document-text"
+        tone="amber"
+        title="분석 전 기록이 있어요"
+        body="인식 목록을 확인하고 상호작용 분석까지 이어가세요."
+        action="기록 열기"
+        onPress={() => onRecord(readySession.id)}
+      />
+    );
+  }
+
+  if (attention > 0) {
+    return (
+      <ActionNotice
+        icon="warning"
+        tone="amber"
+        title="상담 확인이 필요한 기록이 있어요"
+        body="주의 또는 위험으로 표시된 조합을 다시 확인해 보세요."
+        action="기록 보기"
+        onPress={onHistory}
+      />
+    );
+  }
+
+  if (latest) {
+    return (
+      <ActionNotice
+        icon="checkmark-circle"
+        tone="green"
+        title="최근 분석까지 정리되어 있어요"
+        body="새 약이나 건강기능식품이 생기면 새 조합으로 확인하세요."
+        action="새 조합 시작"
+        onPress={onStart}
+      />
+    );
+  }
+
+  return (
+    <ActionNotice
+      icon="sparkles"
+      tone="blue"
+      title="첫 조합 확인을 시작해 보세요"
+      body="알약과 건강기능식품을 순서대로 추가하면 분석 전 전체 목록을 한 번 더 확인합니다."
+      action="시작하기"
+      onPress={onStart}
+    />
+  );
+}
+
+function ActionNotice({
   icon,
+  tone,
   title,
   body,
+  action,
   onPress,
 }: {
-  icon: 'add-circle' | 'person-circle';
+  icon: 'document-text' | 'warning' | 'checkmark-circle' | 'sparkles';
+  tone: 'amber' | 'green' | 'blue';
   title: string;
   body: string;
+  action: string;
   onPress: () => void;
 }) {
   return (
-    <Pressable style={({ pressed }) => [styles.quickCard, pressed && styles.pressed]} onPress={onPress} accessibilityRole="button" accessibilityLabel={`${title}, ${body}`}>
-      <IconBadge icon={icon} tone="blue" size="sm" />
-      <Text style={styles.quickTitle}>{title}</Text>
-      <Text style={styles.quickBody}>{body}</Text>
+    <Pressable style={({ pressed }) => [styles.actionNotice, pressed && styles.pressed]} onPress={onPress} accessibilityRole="button" accessibilityLabel={`${title}, ${body}`}>
+      <IconBadge icon={icon} tone={tone} />
+      <View style={styles.actionNoticeText}>
+        <Text style={styles.actionNoticeTitle}>{title}</Text>
+        <Text style={styles.actionNoticeBody}>{body}</Text>
+      </View>
+      <View style={styles.actionChip}>
+        <Text style={styles.actionChipText}>{action}</Text>
+        <Ionicons name="chevron-forward" size={15} color={Palette.primary} />
+      </View>
     </Pressable>
   );
 }
@@ -208,7 +281,7 @@ function TipRow({
   title,
   body,
 }: {
-  icon: 'create' | 'medkit' | 'people';
+  icon: 'repeat' | 'list' | 'medkit';
   title: string;
   body: string;
 }) {
@@ -256,7 +329,8 @@ const styles = StyleSheet.create({
     height: 32,
   },
   logoText: {
-    fontSize: 20,
+    fontSize: 25,
+    lineHeight: 31,
     fontWeight: '900',
     color: Palette.text,
   },
@@ -387,8 +461,8 @@ const styles = StyleSheet.create({
     color: Palette.text,
     marginTop: 6,
   },
-  todayCard: {
-    minHeight: 98,
+  actionNotice: {
+    minHeight: 112,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Palette.surface,
@@ -398,48 +472,37 @@ const styles = StyleSheet.create({
     padding: 16,
     ...Shadow.subtle,
   },
-  todayText: {
+  actionNoticeText: {
     flex: 1,
     marginLeft: 14,
+    marginRight: 10,
   },
-  todayTitle: {
+  actionNoticeTitle: {
     fontSize: 18,
     lineHeight: 24,
     fontWeight: '900',
     color: Palette.text,
   },
-  todayBody: {
+  actionNoticeBody: {
     fontSize: 15,
     lineHeight: 21,
     color: Palette.textMuted,
     marginTop: 4,
   },
-  quickGrid: {
+  actionChip: {
+    minHeight: 36,
     flexDirection: 'row',
-    gap: 10,
+    alignItems: 'center',
+    gap: 2,
+    paddingLeft: 10,
+    paddingRight: 8,
+    borderRadius: Radius.sm,
+    backgroundColor: Palette.primarySoft,
   },
-  quickCard: {
-    flex: 1,
-    minHeight: 126,
-    backgroundColor: Palette.surface,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    padding: 14,
-    ...Shadow.subtle,
-  },
-  quickTitle: {
-    fontSize: 17,
-    lineHeight: 23,
-    fontWeight: '900',
-    color: Palette.text,
-    marginTop: 12,
-  },
-  quickBody: {
+  actionChipText: {
     fontSize: 14,
-    lineHeight: 20,
-    color: Palette.textMuted,
-    marginTop: 3,
+    fontWeight: '900',
+    color: Palette.primary,
   },
   tipList: {
     backgroundColor: Palette.surface,
