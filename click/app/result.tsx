@@ -155,18 +155,33 @@ export default function ResultScreen() {
     });
   };
 
+  const retake = () => {
+    router.push({
+      pathname: '/camera',
+      params: {
+        category: selectedCategory,
+        prevItems,
+        recordId: recordId ?? recordIdParam ?? '',
+      },
+    });
+  };
+
   return (
     <Screen
       bottom={
         <View style={styles.footer}>
-          {!isSupplement ? (
-            <>
-              <PrimaryButton label="건강기능식품 추가하기" icon="leaf" disabled={!canContinue} onPress={goSupplement} />
-              <PrimaryButton label="알약만으로 전체 검토" icon="list" variant="secondary" disabled={!canContinue} onPress={goReview} />
-            </>
-          ) : (
-            <PrimaryButton label="전체 인식 결과 확인" icon="list" disabled={!canContinue} onPress={goReview} />
-          )}
+          <View style={styles.footerRow}>
+            <View style={styles.footerButton}>
+              <PrimaryButton label="다시 촬영" icon="camera-reverse" variant="secondary" disabled={loading} onPress={retake} />
+            </View>
+            <View style={styles.footerButton}>
+              {!isSupplement ? (
+                <PrimaryButton label="건기식 추가" icon="leaf" disabled={!canContinue} onPress={goSupplement} />
+              ) : (
+                <PrimaryButton label="전체 확인" icon="list" disabled={!canContinue} onPress={goReview} />
+              )}
+            </View>
+          </View>
         </View>
       }>
       <TopBar title={`${meta.label} 결과`} backLabel="이전" onBack={() => router.back()} />
@@ -310,7 +325,13 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   footer: {
-    gap: 10,
     paddingBottom: 8,
+  },
+  footerRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  footerButton: {
+    flex: 1,
   },
 });

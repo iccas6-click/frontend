@@ -2,17 +2,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 
 import { IconBadge, PrimaryButton, Screen, TopBar } from '@/components/app-ui';
 import { Palette, Radius, Shadow, Spacing } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
-import { deleteSessions, formatRecordDateTime, formatRecordMonth, getAllSessions } from '@/services/history-storage';
+import { deleteSessions, formatRecordDateTime, formatRecordMonth, formatRecordTime, getAllSessions } from '@/services/history-storage';
 import type { AnalysisSession, RiskLevel } from '@/types/medication';
 
-type ViewMode = 'list' | 'calendar';
+type HistorySection = {
+  title: string;
+  data: AnalysisSession[];
+};
 
-const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+function hasAnalysis(record: AnalysisSession) {
+  return Boolean(record.analysis) || record.status === 'analyzed';
+}
 
 function countByCategory(record: AnalysisSession) {
   return {
@@ -24,14 +29,6 @@ function countByCategory(record: AnalysisSession) {
 function itemNames(record: AnalysisSession) {
   const names = record.items.map((item) => item.name).filter(Boolean);
   return names.length ? names.slice(0, 4).join(', ') + (names.length > 4 ? ` 외 ${names.length - 4}개` : '') : '인식 항목 없음';
-}
-
-function dayKey(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-function recordDayKey(record: AnalysisSession) {
-  return dayKey(new Date(record.createdAt));
 }
 
 function riskLabel(level?: RiskLevel) {
@@ -48,19 +45,23 @@ function riskColors(level?: RiskLevel) {
   return { color: Palette.blueGrey, bg: Palette.surfaceMuted };
 }
 
-function monthStart(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-
-function monthKey(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+function buildSections(records: AnalysisSession[]) {
+  const sections: HistorySection[] = [];
+  records.forEach((record) => {
+    const title = formatRecordMonth(record.createdAt);
+    const section = sections.find((item) => item.title === title);
+    if (section) {
+      section.data.push(record);
+    } else {
+      sections.push({ title, data: [record] });
+    }
+  });
+  return sections;
 }
 
 export default function HistoryScreen() {
   const router = useRouter();
   const [records, setRecords] = useState<AnalysisSession[]>([]);
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [calendarMonth, setCalendarMonth] = useState(monthStart(new Date()));
   const [selecting, setSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const { lowVision } = useUserMode();
@@ -69,9 +70,7 @@ export default function HistoryScreen() {
     useCallback(() => {
       let active = true;
       getAllSessions().then((data) => {
-        if (!active) return;
-        setRecords(data);
-        if (data[0]) setCalendarMonth(monthStart(new Date(data[0].createdAt)));
+        if (active) setRecords(data.filter(hasAnalysis));
       });
       return () => {
         active = false;
@@ -79,28 +78,9 @@ export default function HistoryScreen() {
     }, []),
   );
 
-  const groupedRecords = useMemo(() => {
-    const groups: { title: string; records: AnalysisSession[] }[] = [];
-    records.forEach((record) => {
-      const title = formatRecordMonth(record.createdAt);
-      const existing = groups.find((group) => group.title === title);
-      if (existing) {
-        existing.records.push(record);
-      } else {
-        groups.push({ title, records: [record] });
-      }
-    });
-    return groups;
-  }, [records]);
-
-  const monthRecords = useMemo(
-    () => records.filter((record) => monthKey(new Date(record.createdAt)) === monthKey(calendarMonth)),
-    [calendarMonth, records],
-  );
-
+  const sections = useMemo(() => buildSections(records), [records]);
   const selectedCount = selectedIds.length;
-  const visibleRecords = viewMode === 'calendar' ? monthRecords : records;
-  const allSelected = visibleRecords.length > 0 && visibleRecords.every((record) => selectedIds.includes(record.id));
+  const allSelected = records.length > 0 && records.every((record) => selectedIds.includes(record.id));
 
   const openRecord = (record: AnalysisSession) => {
     if (selecting) {
@@ -120,12 +100,12 @@ export default function HistoryScreen() {
   };
 
   const toggleAll = () => {
-    setSelectedIds(allSelected ? [] : visibleRecords.map((record) => record.id));
+    setSelectedIds(allSelected ? [] : records.map((record) => record.id));
   };
 
   const confirmDelete = () => {
     if (selectedCount === 0) return;
-    Alert.alert('기록 삭제', `${selectedCount}개의 기록을 삭제할까요?`, [
+    Alert.alert('기록 삭제', `${selectedCount}개의 분석 기록을 삭제할까요?`, [
       { text: '취소', style: 'cancel' },
       {
         text: '삭제',
@@ -133,7 +113,7 @@ export default function HistoryScreen() {
         onPress: async () => {
           await deleteSessions(selectedIds);
           const next = await getAllSessions();
-          setRecords(next);
+          setRecords(next.filter(hasAnalysis));
           setSelectedIds([]);
           setSelecting(false);
         },
@@ -153,7 +133,7 @@ export default function HistoryScreen() {
       }>
       <StatusBar style="dark" />
       <TopBar
-        title="기록"
+        title="분석 기록"
         backLabel="홈"
         onBack={() => router.back()}
         right={
@@ -168,158 +148,46 @@ export default function HistoryScreen() {
       {records.length === 0 ? (
         <View style={styles.empty}>
           <IconBadge icon="folder-open" tone="dark" size="lg" />
-          <Text style={[styles.emptyTitle, lowVision && styles.emptyTitleLowVision]}>아직 기록이 없어요</Text>
+          <Text style={[styles.emptyTitle, lowVision && styles.emptyTitleLowVision]}>아직 분석 기록이 없어요</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={[styles.content, selecting && styles.contentWithDeleteBar]} showsVerticalScrollIndicator={false}>
-          <View style={styles.viewSwitch}>
-            <SwitchButton label="리스트" active={viewMode === 'list'} onPress={() => setViewMode('list')} />
-            <SwitchButton label="달력" active={viewMode === 'calendar'} onPress={() => setViewMode('calendar')} />
-          </View>
-
-          {selecting ? (
-            <View style={styles.selectionRow}>
-              <Text style={[styles.selectionText, lowVision && styles.selectionTextLowVision]}>삭제할 기록 선택</Text>
-              <Pressable style={styles.selectAllButton} onPress={toggleAll} accessibilityRole="button">
-                <Text style={styles.selectAllText}>{allSelected ? '해제' : '전체'}</Text>
-              </Pressable>
-            </View>
-          ) : null}
-
-          {viewMode === 'calendar' ? (
-            <CalendarView
-              month={calendarMonth}
-              records={monthRecords}
-              allRecords={records}
-              lowVision={lowVision}
-              onMonthChange={setCalendarMonth}
-              onRecordPress={openRecord}
-              selecting={selecting}
-              selectedIds={selectedIds}
-            />
-          ) : (
-            groupedRecords.map((group) => (
-              <View key={group.title} style={styles.monthGroup}>
-                <Text style={[styles.monthTitle, lowVision && styles.monthTitleLowVision]}>{group.title}</Text>
-                <View style={styles.groupList}>
-                  {group.records.map((record, index) => (
-                    <RecordCard
-                      key={record.id}
-                      record={record}
-                      first={index === 0}
-                      selecting={selecting}
-                      selected={selectedIds.includes(record.id)}
-                      lowVision={lowVision}
-                      onPress={() => openRecord(record)}
-                    />
-                  ))}
-                </View>
+        <SectionList
+          sections={sections}
+          keyExtractor={(item) => item.id}
+          stickySectionHeadersEnabled
+          contentContainerStyle={[styles.content, selecting && styles.contentWithDeleteBar]}
+          showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            selecting ? (
+              <View style={styles.selectionRow}>
+                <Text style={[styles.selectionText, lowVision && styles.selectionTextLowVision]}>삭제할 기록 선택</Text>
+                <Pressable style={styles.selectAllButton} onPress={toggleAll} accessibilityRole="button">
+                  <Text style={styles.selectAllText}>{allSelected ? '해제' : '전체'}</Text>
+                </Pressable>
               </View>
-            ))
+            ) : null
+          }
+          renderSectionHeader={({ section }) => <MonthHeader title={section.title} lowVision={lowVision} />}
+          renderItem={({ item, index }) => (
+            <RecordCard
+              record={item}
+              first={index === 0}
+              selecting={selecting}
+              selected={selectedIds.includes(item.id)}
+              lowVision={lowVision}
+              onPress={() => openRecord(item)}
+            />
           )}
-        </ScrollView>
+        />
       )}
     </Screen>
   );
 }
 
-function SwitchButton({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+function MonthHeader({ title, lowVision }: { title: string; lowVision: boolean }) {
   return (
-    <Pressable style={[styles.switchButton, active && styles.switchButtonActive]} onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: active }}>
-      <Text style={[styles.switchText, active && styles.switchTextActive]}>{label}</Text>
-    </Pressable>
-  );
-}
-
-function CalendarView({
-  month,
-  records,
-  allRecords,
-  lowVision,
-  onMonthChange,
-  onRecordPress,
-  selecting,
-  selectedIds,
-}: {
-  month: Date;
-  records: AnalysisSession[];
-  allRecords: AnalysisSession[];
-  lowVision: boolean;
-  onMonthChange: (date: Date) => void;
-  onRecordPress: (record: AnalysisSession) => void;
-  selecting: boolean;
-  selectedIds: string[];
-}) {
-  const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
-  const lastDay = new Date(month.getFullYear(), month.getMonth() + 1, 0);
-  const cells: (Date | null)[] = Array.from({ length: firstDay.getDay() }, () => null);
-  for (let day = 1; day <= lastDay.getDate(); day += 1) {
-    cells.push(new Date(month.getFullYear(), month.getMonth(), day));
-  }
-  while (cells.length % 7 !== 0) cells.push(null);
-
-  const recordsByDay = records.reduce<Record<string, AnalysisSession[]>>((acc, record) => {
-    const key = recordDayKey(record);
-    acc[key] = acc[key] ? [...acc[key], record] : [record];
-    return acc;
-  }, {});
-
-  const changeMonth = (offset: number) => {
-    onMonthChange(new Date(month.getFullYear(), month.getMonth() + offset, 1));
-  };
-
-  return (
-    <View style={styles.calendarWrap}>
-      <View style={styles.calendarHeader}>
-        <Pressable style={styles.monthButton} onPress={() => changeMonth(-1)} accessibilityRole="button" accessibilityLabel="이전 달">
-          <Ionicons name="chevron-back" size={20} color={Palette.text} />
-        </Pressable>
-        <Text style={[styles.calendarTitle, lowVision && styles.calendarTitleLowVision]}>{formatRecordMonth(month.toISOString())}</Text>
-        <Pressable style={styles.monthButton} onPress={() => changeMonth(1)} accessibilityRole="button" accessibilityLabel="다음 달">
-          <Ionicons name="chevron-forward" size={20} color={Palette.text} />
-        </Pressable>
-      </View>
-
-      <View style={styles.weekRow}>
-        {WEEKDAYS.map((day) => (
-          <Text key={day} style={styles.weekText}>{day}</Text>
-        ))}
-      </View>
-      <View style={styles.calendarGrid}>
-        {cells.map((date, index) => {
-          const dayRecords = date ? recordsByDay[dayKey(date)] ?? [] : [];
-          return (
-            <View key={date ? dayKey(date) : `blank-${index}`} style={[styles.dayCell, !date && styles.dayCellBlank]}>
-              {date ? (
-                <>
-                  <Text style={[styles.dayNumber, dayRecords.length > 0 && styles.dayNumberActive]}>{date.getDate()}</Text>
-                  {dayRecords.length > 0 ? <Text style={styles.dayCount}>{dayRecords.length}</Text> : null}
-                </>
-              ) : null}
-            </View>
-          );
-        })}
-      </View>
-
-      <View style={styles.groupList}>
-        {records.length === 0 ? (
-          <View style={styles.monthEmpty}>
-            <Text style={styles.monthEmptyText}>이 달 기록 없음</Text>
-          </View>
-        ) : (
-          records.map((record, index) => (
-            <RecordCard
-              key={record.id}
-              record={record}
-              first={index === 0 && allRecords[0]?.id === record.id}
-              selecting={selecting}
-              selected={selectedIds.includes(record.id)}
-              lowVision={lowVision}
-              onPress={() => onRecordPress(record)}
-            />
-          ))
-        )}
-      </View>
+    <View style={styles.monthHeader}>
+      <Text style={[styles.monthTitle, lowVision && styles.monthTitleLowVision]}>{title}</Text>
     </View>
   );
 }
@@ -360,7 +228,7 @@ function RecordCard({
       </View>
       <View style={styles.cardText}>
         <View style={styles.cardTop}>
-          <Text style={[styles.cardTitle, lowVision && styles.cardTitleLowVision]}>{formatRecordDateTime(record.createdAt)}</Text>
+          <Text style={[styles.cardTitle, lowVision && styles.cardTitleLowVision]}>{formatRecordTime(record.createdAt)}</Text>
           <RiskChip level={record.analysis?.overall} />
         </View>
         <View style={styles.countRow}>
@@ -398,35 +266,10 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: Spacing.screen,
     paddingBottom: 36,
-    gap: 14,
+    gap: 10,
   },
   contentWithDeleteBar: {
     paddingBottom: 120,
-  },
-  viewSwitch: {
-    flexDirection: 'row',
-    backgroundColor: Palette.surfaceMuted,
-    borderRadius: Radius.md,
-    padding: 3,
-  },
-  switchButton: {
-    flex: 1,
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radius.sm,
-  },
-  switchButtonActive: {
-    backgroundColor: Palette.surface,
-    ...Shadow.subtle,
-  },
-  switchText: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: Palette.textMuted,
-  },
-  switchTextActive: {
-    color: Palette.text,
   },
   selectionRow: {
     minHeight: 42,
@@ -457,8 +300,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '900',
   },
-  monthGroup: {
-    gap: 10,
+  monthHeader: {
+    backgroundColor: Palette.background,
+    paddingTop: 4,
+    paddingBottom: 10,
   },
   monthTitle: {
     fontSize: 22,
@@ -470,9 +315,6 @@ const styles = StyleSheet.create({
     fontSize: 25,
     lineHeight: 32,
   },
-  groupList: {
-    gap: 10,
-  },
   card: {
     minHeight: 124,
     flexDirection: 'row',
@@ -482,6 +324,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Palette.border,
     padding: 16,
+    marginBottom: 10,
     ...Shadow.subtle,
   },
   cardFirst: {
@@ -587,99 +430,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 22,
   },
-  calendarWrap: {
-    gap: 14,
-  },
-  calendarHeader: {
-    minHeight: 52,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Palette.surface,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    paddingHorizontal: 10,
-    ...Shadow.subtle,
-  },
-  monthButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  calendarTitle: {
-    fontSize: 20,
-    lineHeight: 26,
-    fontWeight: '900',
-    color: Palette.text,
-  },
-  calendarTitleLowVision: {
-    fontSize: 24,
-    lineHeight: 31,
-  },
-  weekRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 4,
-  },
-  weekText: {
+  empty: {
     flex: 1,
-    textAlign: 'center',
-    fontSize: 12,
-    fontWeight: '900',
-    color: Palette.textMuted,
-  },
-  calendarGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  dayCell: {
-    width: '14.285%',
-    aspectRatio: 1,
-    borderRadius: Radius.sm,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    backgroundColor: Palette.surface,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 32,
+    gap: 12,
   },
-  dayCellBlank: {
-    opacity: 0,
-  },
-  dayNumber: {
-    fontSize: 15,
+  emptyTitle: {
+    fontSize: 18,
     fontWeight: '900',
     color: Palette.textMuted,
   },
-  dayNumberActive: {
-    color: Palette.text,
-  },
-  dayCount: {
-    marginTop: 2,
-    minWidth: 18,
-    textAlign: 'center',
-    borderRadius: 9,
-    overflow: 'hidden',
-    backgroundColor: Palette.primarySoft,
-    color: Palette.primary,
-    fontSize: 11,
-    fontWeight: '900',
-  },
-  monthEmpty: {
-    minHeight: 86,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: Palette.borderStrong,
-    backgroundColor: Palette.surface,
-  },
-  monthEmptyText: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: Palette.textMuted,
+  emptyTitleLowVision: {
+    fontSize: 22,
   },
   selectButton: {
     minHeight: 36,
@@ -687,46 +451,30 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Palette.primarySoft,
+    backgroundColor: Palette.surface,
+    borderWidth: 1,
+    borderColor: Palette.border,
   },
   selectButtonLowVision: {
     minHeight: 42,
     paddingHorizontal: 14,
   },
   selectButtonText: {
-    color: Palette.primary,
     fontSize: 15,
     fontWeight: '900',
+    color: Palette.primary,
   },
   selectButtonTextLowVision: {
-    fontSize: 17,
-  },
-  empty: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 34,
-    paddingBottom: 80,
-  },
-  emptyTitle: {
-    fontSize: 19,
-    lineHeight: 25,
-    fontWeight: '900',
-    color: Palette.text,
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  emptyTitleLowVision: {
-    fontSize: 23,
-    lineHeight: 30,
+    fontSize: 18,
   },
   deleteBar: {
     gap: 10,
+    paddingBottom: 8,
   },
   deleteSummary: {
-    color: Palette.textMuted,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '900',
+    color: Palette.textMuted,
     textAlign: 'center',
   },
   pressed: {

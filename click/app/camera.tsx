@@ -100,7 +100,7 @@ export default function CameraScreen() {
             accessibilityState={{ disabled: taking }}>
             {taking ? <ActivityIndicator color={Palette.primary} /> : <View style={[styles.shutterInner, lowVision && styles.shutterInnerLowVision]} />}
           </Pressable>
-          <Text style={[styles.shutterHint, lowVision && styles.shutterHintLowVision]}>흔들리지 않게 정면에서 촬영해 주세요</Text>
+          {compact ? null : <Text style={[styles.shutterHint, lowVision && styles.shutterHintLowVision]}>흔들리지 않게 정면에서 촬영해 주세요</Text>}
         </View>
       }>
       <StatusBar style="dark" />
@@ -114,7 +114,7 @@ export default function CameraScreen() {
 
       <View style={[styles.cameraSection, compact && styles.cameraSectionCompact]}>
         <View style={styles.cameraShell}>
-          <CameraView ref={cameraRef} style={styles.camera} facing="back" />
+          <CameraView ref={cameraRef} style={styles.camera} facing="back" selectedLens="builtInWideAngleCamera" zoom={0} />
           <View style={styles.frameGuide}>
             <View style={styles.cornerTopLeft} />
             <View style={styles.cornerTopRight} />
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.screen,
   },
   cameraSectionCompact: {
-    paddingHorizontal: 42,
+    paddingHorizontal: 58,
   },
   cameraShell: {
     width: '100%',
@@ -251,10 +251,10 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   tipCardCompact: {
-    marginTop: 8,
-    marginBottom: 4,
-    minHeight: 66,
-    paddingVertical: 10,
+    marginTop: 7,
+    marginBottom: 2,
+    minHeight: 56,
+    paddingVertical: 8,
   },
   tipCardLowVision: {
     minHeight: 84,

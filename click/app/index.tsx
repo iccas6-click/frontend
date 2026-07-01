@@ -7,7 +7,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { IconBadge, PrimaryButton, Screen } from '@/components/app-ui';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
-import { formatRecordDateTime, getAllSessions } from '@/services/history-storage';
+import { formatRecordMonth, formatRecordTime, getAllSessions } from '@/services/history-storage';
 import { getSettings, type AppSettings } from '@/services/settings-storage';
 import type { AnalysisSession, RiskLevel } from '@/types/medication';
 
@@ -32,6 +32,24 @@ function riskTone(level?: RiskLevel): 'red' | 'amber' | 'green' | 'dark' {
   return 'dark';
 }
 
+function hasAnalysis(record: AnalysisSession) {
+  return Boolean(record.analysis) || record.status === 'analyzed';
+}
+
+function buildRecentGroups(records: AnalysisSession[]) {
+  const groups: { title: string; records: AnalysisSession[] }[] = [];
+  records.forEach((record) => {
+    const title = formatRecordMonth(record.createdAt);
+    const group = groups.find((item) => item.title === title);
+    if (group) {
+      group.records.push(record);
+    } else {
+      groups.push({ title, records: [record] });
+    }
+  });
+  return groups;
+}
+
 export default function MainScreen() {
   const router = useRouter();
   const [settings, setSettings] = useState<AppSettings>({ mode: 'standard' });
@@ -52,7 +70,35 @@ export default function MainScreen() {
   );
 
   const lowVision = settings.mode === 'lowVision';
-  const recentRecords = useMemo(() => sessions.slice(0, 5), [sessions]);
+  const analyzedRecords = useMemo(() => sessions.filter(hasAnalysis), [sessions]);
+  const [visibleRecentCount, setVisibleRecentCount] = useState(5);
+  const recentRecords = useMemo(() => analyzedRecords.slice(0, visibleRecentCount), [analyzedRecords, visibleRecentCount]);
+  const recentGroups = useMemo(() => buildRecentGroups(recentRecords), [recentRecords]);
+  const inProgressRecord = useMemo(() => sessions.find((session) => !hasAnalysis(session) && session.items.length > 0) ?? null, [sessions]);
+
+  const continueProgress = (record: AnalysisSession) => {
+    const pills = record.items.filter((item) => item.category === '알약');
+    const supplements = record.items.filter((item) => item.category === '건강기능식품 라벨');
+
+    if (pills.length > 0 && supplements.length > 0) {
+      router.push({ pathname: '/review', params: { items: JSON.stringify(record.items), recordId: record.id } });
+      return;
+    }
+
+    if (pills.length > 0) {
+      router.push({
+        pathname: '/reuse',
+        params: {
+          category: '건강기능식품 라벨',
+          prevItems: JSON.stringify(record.items),
+          recordId: record.id,
+        },
+      });
+      return;
+    }
+
+    router.push({ pathname: '/reuse', params: { category: '알약', recordId: record.id } });
+  };
 
   return (
     <Screen>
@@ -85,7 +131,7 @@ export default function MainScreen() {
 
       <ScrollView contentContainerStyle={[styles.content, lowVision && styles.contentLowVision]} showsVerticalScrollIndicator={false}>
         <View style={styles.heroBlock}>
-          <Text style={[styles.heroTitle, lowVision && styles.heroTitleLowVision]}>같이 먹어도 괜찮은지{'\n'}사진으로 먼저 확인하세요!</Text>
+          <Text style={[styles.heroTitle, lowVision && styles.heroTitleLowVision]}>같이 먹어도 괜찮은지{'\n'}사진으로 먼저 확인하세요.</Text>
         </View>
 
         <View style={styles.flowStrip}>
@@ -105,6 +151,8 @@ export default function MainScreen() {
           />
         </View>
 
+        {inProgressRecord ? <ResumeCard record={inProgressRecord} lowVision={lowVision} onPress={() => continueProgress(inProgressRecord)} /> : null}
+
         <View style={styles.sectionRow}>
           <Text style={[styles.sectionTitle, lowVision && styles.sectionTitleLowVision]}>최근 기록</Text>
           <Pressable onPress={() => router.push('/history')} hitSlop={10} accessibilityRole="button" accessibilityLabel="전체 기록 보기">
@@ -112,22 +160,35 @@ export default function MainScreen() {
           </Pressable>
         </View>
 
-        {recentRecords.length === 0 ? (
+        {analyzedRecords.length === 0 ? (
           <View style={[styles.emptyTimeline, lowVision && styles.emptyTimelineLowVision]}>
             <IconBadge icon="folder-open" tone="dark" />
             <Text style={[styles.emptyTitle, lowVision && styles.emptyTitleLowVision]}>아직 기록이 없어요</Text>
           </View>
         ) : (
           <View style={styles.timeline}>
-            {recentRecords.map((record, index) => (
-              <TimelineCard
-                key={record.id}
-                record={record}
-                first={index === 0}
-                lowVision={lowVision}
-                onPress={() => router.push({ pathname: '/record', params: { id: record.id } })}
-              />
+            {recentGroups.map((group) => (
+              <View key={group.title} style={styles.recentGroup}>
+                <Text style={[styles.recentMonthTitle, lowVision && styles.recentMonthTitleLowVision]}>{group.title}</Text>
+                {group.records.map((record, index) => (
+                  <TimelineCard
+                    key={record.id}
+                    record={record}
+                    first={index === 0}
+                    lowVision={lowVision}
+                    onPress={() => router.push({ pathname: '/record', params: { id: record.id } })}
+                  />
+                ))}
+              </View>
             ))}
+            {analyzedRecords.length > visibleRecentCount ? (
+              <Pressable
+                style={({ pressed }) => [styles.moreButton, lowVision && styles.moreButtonLowVision, pressed && styles.pressed]}
+                onPress={() => setVisibleRecentCount((count) => count + 5)}
+                accessibilityRole="button">
+                <Text style={[styles.moreButtonText, lowVision && styles.moreButtonTextLowVision]}>5개 더보기</Text>
+              </Pressable>
+            ) : null}
           </View>
         )}
       </ScrollView>
@@ -176,7 +237,7 @@ function TimelineCard({
       style={({ pressed }) => [styles.timelineCard, lowVision && styles.timelineCardLowVision, first && styles.timelineCardFirst, pressed && styles.pressed]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${formatRecordDateTime(record.createdAt)}, ${riskLabel(level)}`}>
+      accessibilityLabel={`${formatRecordMonth(record.createdAt)} ${formatRecordTime(record.createdAt)}, ${riskLabel(level)}`}>
       <View style={styles.timelineLeft}>
         <View style={[styles.timelineDot, { backgroundColor: Palette[riskTone(level) === 'red' ? 'rose' : riskTone(level) === 'amber' ? 'amber' : riskTone(level) === 'green' ? 'mint' : 'blueGrey'] }]} />
         <View style={styles.timelineLine} />
@@ -184,7 +245,7 @@ function TimelineCard({
       <View style={styles.timelineBody}>
         <View style={styles.timelineTop}>
           <Text style={[styles.timelineTitle, lowVision && styles.timelineTitleLowVision]}>
-            {formatRecordDateTime(record.createdAt)}
+            {formatRecordTime(record.createdAt)}
           </Text>
           <RiskChip level={level} />
         </View>
@@ -192,6 +253,34 @@ function TimelineCard({
           <CountChip icon="medical" label={`알약 ${counts.pill}`} />
           <CountChip icon="leaf" label={`건강기능식품 ${counts.supplement}`} />
         </View>
+      </View>
+      <Ionicons name="chevron-forward" size={lowVision ? 22 : 19} color={Palette.textSubtle} />
+    </Pressable>
+  );
+}
+
+function ResumeCard({
+  record,
+  lowVision,
+  onPress,
+}: {
+  record: AnalysisSession;
+  lowVision: boolean;
+  onPress: () => void;
+}) {
+  const counts = countByCategory(record);
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.resumeCard, lowVision && styles.resumeCardLowVision, pressed && styles.pressed]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel="하던 인식 이어하기">
+      <IconBadge icon="time" tone="amber" />
+      <View style={styles.resumeText}>
+        <Text style={[styles.resumeTitle, lowVision && styles.resumeTitleLowVision]}>하던 인식이 있어요</Text>
+        <Text style={[styles.resumeMeta, lowVision && styles.resumeMetaLowVision]}>
+          알약 {counts.pill}개 · 건강기능식품 {counts.supplement}개
+        </Text>
       </View>
       <Ionicons name="chevron-forward" size={lowVision ? 22 : 19} color={Palette.textSubtle} />
     </Pressable>
@@ -383,6 +472,46 @@ const styles = StyleSheet.create({
     fontSize: 25,
     lineHeight: 32,
   },
+  resumeCard: {
+    minHeight: 88,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 13,
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.amberSoft,
+    padding: 15,
+    ...Shadow.subtle,
+  },
+  resumeCardLowVision: {
+    minHeight: 106,
+    padding: 17,
+  },
+  resumeText: {
+    flex: 1,
+    gap: 4,
+  },
+  resumeTitle: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  resumeTitleLowVision: {
+    fontSize: 22,
+    lineHeight: 29,
+  },
+  resumeMeta: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '800',
+    color: Palette.textMuted,
+  },
+  resumeMetaLowVision: {
+    fontSize: 17,
+    lineHeight: 24,
+  },
   sectionRow: {
     marginTop: 4,
     flexDirection: 'row',
@@ -431,6 +560,20 @@ const styles = StyleSheet.create({
   },
   timeline: {
     gap: 10,
+  },
+  recentGroup: {
+    gap: 8,
+  },
+  recentMonthTitle: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '900',
+    color: Palette.text,
+    marginTop: 2,
+  },
+  recentMonthTitleLowVision: {
+    fontSize: 22,
+    lineHeight: 29,
   },
   timelineCard: {
     minHeight: 112,
@@ -516,6 +659,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
     color: Palette.textMuted,
+  },
+  moreButton: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.md,
+    backgroundColor: Palette.surface,
+    borderWidth: 1,
+    borderColor: Palette.border,
+  },
+  moreButtonLowVision: {
+    minHeight: 58,
+  },
+  moreButtonText: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: Palette.primary,
+  },
+  moreButtonTextLowVision: {
+    fontSize: 18,
   },
   pressed: {
     opacity: 0.78,

@@ -3,7 +3,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Palette, Radius, Spacing } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
 
-const STEPS = ['알약 선택', '건강기능식품 선택', '분석', '결과'];
+const STEPS = ['알약', '건기식', '분석', '결과'];
+const STEP_ACCESSIBILITY_LABELS = ['알약 추가', '건강기능식품 추가', '분석', '결과'];
 
 export function StepIndicator({ current, background }: { current: number; background?: string }) {
   const { lowVision } = useUserMode();
@@ -12,7 +13,7 @@ export function StepIndicator({ current, background }: { current: number; backgr
       style={[styles.wrap, lowVision && styles.wrapLowVision, background ? { backgroundColor: background } : null]}
       accessible
       accessibilityRole="progressbar"
-      accessibilityLabel={`전체 4단계 중 ${current}단계, ${STEPS[current - 1] ?? '진행 중'}`}>
+      accessibilityLabel={`전체 4단계 중 ${current}단계, ${STEP_ACCESSIBILITY_LABELS[current - 1] ?? '진행 중'}`}>
       <View style={[styles.track, lowVision && styles.trackLowVision]}>
         {STEPS.map((label, index) => {
           const step = index + 1;
@@ -23,7 +24,7 @@ export function StepIndicator({ current, background }: { current: number; backgr
               <View style={[styles.dot, lowVision && styles.dotLowVision, active && styles.dotActive, currentStep && styles.dotCurrent]}>
                 <Text style={[styles.dotText, lowVision && styles.dotTextLowVision, active && styles.dotTextActive, currentStep && styles.dotTextCurrent]}>{step}</Text>
               </View>
-              <Text style={[styles.label, lowVision && styles.labelLowVision, active && styles.labelActive]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.82}>
+              <Text style={[styles.label, lowVision && styles.labelLowVision, active && styles.labelActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>
                 {label}
               </Text>
             </View>
@@ -45,7 +46,7 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   track: {
-    minHeight: 66,
+    minHeight: 64,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -56,7 +57,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
   },
   trackLowVision: {
-    minHeight: 76,
+    minHeight: 72,
     paddingHorizontal: 10,
   },
   item: {
@@ -71,17 +72,17 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   dot: {
-    width: 29,
-    height: 29,
-    borderRadius: 15,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Palette.surfaceMuted,
   },
   dotLowVision: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
   },
   dotActive: {
     backgroundColor: Palette.primarySoft,
@@ -105,16 +106,16 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   label: {
-    fontSize: 13,
-    lineHeight: 17,
+    fontSize: 12,
+    lineHeight: 16,
     fontWeight: '800',
     letterSpacing: 0,
     color: Palette.textSubtle,
     textAlign: 'center',
   },
   labelLowVision: {
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 14,
+    lineHeight: 18,
     fontWeight: '900',
   },
   labelActive: {
