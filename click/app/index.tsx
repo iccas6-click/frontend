@@ -57,7 +57,7 @@ export default function MainScreen() {
   return (
     <Screen>
       <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={[styles.content, lowVision && styles.contentLowVision]} showsVerticalScrollIndicator={false}>
+      <View style={styles.fixedHeader}>
         <View style={styles.header}>
           <View style={styles.brandLeft}>
             <View style={styles.logoMark}>
@@ -79,7 +79,9 @@ export default function MainScreen() {
             </Text>
           </Pressable>
         </View>
+      </View>
 
+      <ScrollView contentContainerStyle={[styles.content, lowVision && styles.contentLowVision]} showsVerticalScrollIndicator={false}>
         <View style={styles.heroBlock}>
           <View style={styles.greetingRow}>
             <Text style={[styles.greeting, lowVision && styles.greetingLowVision]}>{getDisplayName(profile)}님,</Text>
@@ -290,12 +292,22 @@ function TipRow({
 
 const styles = StyleSheet.create({
   content: {
-    padding: Spacing.screen,
+    paddingHorizontal: Spacing.screen,
+    paddingTop: 8,
     paddingBottom: 40,
     gap: 16,
   },
   contentLowVision: {
     gap: 14,
+  },
+  fixedHeader: {
+    backgroundColor: Palette.background,
+    paddingHorizontal: Spacing.screen,
+    paddingTop: Spacing.screen,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Palette.border,
+    zIndex: 10,
   },
   header: {
     flexDirection: 'row',
