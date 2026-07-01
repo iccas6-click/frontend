@@ -4,8 +4,9 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 
 import { IconBadge, PrimaryButton, Screen, SectionHeader, TopBar } from '@/components/app-ui';
 import { ItemEditModal } from '@/components/item-edit-modal';
+import { RecognizedItemRow } from '@/components/recognized-item-row';
 import { StepIndicator } from '@/components/step-indicator';
-import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
+import { Palette, Radius, Spacing, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
 import { createSession, updateSessionItems } from '@/services/history-storage';
 import { analyzeImage } from '@/services/ocr';
@@ -132,7 +133,7 @@ export default function ResultScreen() {
   const goSupplement = () => {
     const allItems = buildAllItems(items);
     if (recordId) updateSessionItems(recordId, allItems).catch((e) => console.warn('기록 갱신 실패:', e));
-    router.replace({
+    router.push({
       pathname: '/reuse',
       params: {
         category: '건강기능식품 라벨',
@@ -182,7 +183,7 @@ export default function ResultScreen() {
           <SectionHeader title={`인식된 ${meta.label}`} action={<CountBadge count={items.length} lowVision={lowVision} />} />
           <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
             {items.map((item) => (
-              <ItemCard key={item.id} item={item} lowVision={lowVision} onPress={() => setEditTarget(item)} />
+              <RecognizedItemRow key={item.id} item={item} editable onPress={() => setEditTarget(item)} />
             ))}
             <Pressable
               style={({ pressed }) => [styles.addCard, lowVision && styles.addCardLowVision, pressed && styles.pressed]}
@@ -205,31 +206,6 @@ export default function ResultScreen() {
         onDelete={handleDelete}
       />
     </Screen>
-  );
-}
-
-function ItemCard({ item, lowVision, onPress }: { item: RecognizedItem; lowVision: boolean; onPress: () => void }) {
-  const meta = CATEGORY_META[item.category] ?? CATEGORY_META['알약'];
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.itemCard, lowVision && styles.itemCardLowVision, pressed && styles.pressed]}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${item.name}, ${meta.label}${item.dosage ? `, ${item.dosage}` : ''}, 수정`}>
-      <IconBadge icon={meta.icon} tone={meta.tone} />
-      <View style={styles.itemText}>
-        <Text style={[styles.itemName, lowVision && styles.itemNameLowVision]} numberOfLines={lowVision ? 2 : 1}>
-          {item.name}
-        </Text>
-        <Text style={[styles.itemMeta, lowVision && styles.itemMetaLowVision]}>
-          {meta.label}
-          {item.dosage ? ` · ${item.dosage}` : ''}
-        </Text>
-      </View>
-      <View style={[styles.editPill, lowVision && styles.editPillLowVision]}>
-        <Text style={[styles.editPillText, lowVision && styles.editPillTextLowVision]}>수정</Text>
-      </View>
-    </Pressable>
   );
 }
 
@@ -288,66 +264,9 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     gap: 10,
   },
-  itemCard: {
-    minHeight: 82,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Palette.surface,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    padding: 16,
-    ...Shadow.subtle,
-  },
-  itemCardLowVision: {
-    minHeight: 100,
-    padding: 17,
-  },
   pressed: {
     opacity: 0.78,
     transform: [{ scale: 0.99 }],
-  },
-  itemText: {
-    flex: 1,
-    marginLeft: 14,
-    marginRight: 10,
-  },
-  itemName: {
-    fontSize: 17,
-    fontWeight: '900',
-    color: Palette.text,
-  },
-  itemNameLowVision: {
-    fontSize: 21,
-    lineHeight: 28,
-  },
-  itemMeta: {
-    fontSize: 14,
-    color: Palette.textMuted,
-    marginTop: 4,
-  },
-  itemMetaLowVision: {
-    fontSize: 17,
-    lineHeight: 23,
-  },
-  editPill: {
-    paddingHorizontal: 11,
-    paddingVertical: 6,
-    borderRadius: Radius.sm,
-    backgroundColor: Palette.surfaceMuted,
-  },
-  editPillLowVision: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-  },
-  editPillText: {
-    ...Typography.caption,
-    color: Palette.textMuted,
-  },
-  editPillTextLowVision: {
-    fontSize: 17,
-    lineHeight: 23,
-    fontWeight: '900',
   },
   addCard: {
     minHeight: 64,

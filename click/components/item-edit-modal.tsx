@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
+  Animated,
+  Easing,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -35,6 +37,7 @@ type Props = {
 export function ItemEditModal({ visible, initial, initialCategory = '알약', onClose, onSave, onDelete }: Props) {
   const { lowVision } = useUserMode();
   const isNew = initial === null;
+  const slide = useRef(new Animated.Value(1)).current;
   const [name, setName] = useState('');
   const [dosage, setDosage] = useState('');
   const [category, setCategory] = useState<ItemCategory>('알약');
@@ -42,11 +45,18 @@ export function ItemEditModal({ visible, initial, initialCategory = '알약', on
   // 모달이 열릴 때마다 대상 항목 값으로 초기화
   useEffect(() => {
     if (visible) {
+      slide.setValue(1);
+      Animated.timing(slide, {
+        toValue: 0,
+        duration: 240,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
       setName(initial?.name ?? '');
       setDosage(initial?.dosage ?? '');
       setCategory(initial?.category ?? initialCategory);
     }
-  }, [visible, initial, initialCategory]);
+  }, [visible, initial, initialCategory, slide]);
 
   const canSave = name.trim().length > 0;
 
@@ -61,12 +71,17 @@ export function ItemEditModal({ visible, initial, initialCategory = '알약', on
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.sheetWrap}>
-        <View style={[styles.sheet, lowVision && styles.sheetLowVision]}>
+        <Animated.View
+          style={[
+            styles.sheet,
+            lowVision && styles.sheetLowVision,
+            { transform: [{ translateY: slide.interpolate({ inputRange: [0, 1], outputRange: [0, 420] }) }] },
+          ]}>
           <View style={styles.handle} />
           <Text style={[styles.sheetTitle, lowVision && styles.sheetTitleLowVision]}>{isNew ? '항목 추가' : '항목 수정'}</Text>
 
@@ -136,7 +151,7 @@ export function ItemEditModal({ visible, initial, initialCategory = '알약', on
               <Text style={[styles.deleteText, lowVision && styles.deleteTextLowVision]}>이 항목 삭제</Text>
             </Pressable>
           )}
-        </View>
+        </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
   );

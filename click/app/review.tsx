@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { IconBadge, PrimaryButton, Screen, TopBar } from '@/components/app-ui';
 import { ItemEditModal } from '@/components/item-edit-modal';
+import { RecognizedItemRow } from '@/components/recognized-item-row';
 import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
@@ -151,7 +152,7 @@ function ItemSection({
 
       <View style={styles.itemList}>
         {items.map((item) => (
-          <ItemRow key={item.id} item={item} lowVision={lowVision} onPress={() => onPress(item)} />
+          <RecognizedItemRow key={item.id} item={item} editable onPress={() => onPress(item)} />
         ))}
         <Pressable
           style={({ pressed }) => [styles.addRow, lowVision && styles.addRowLowVision, pressed && styles.pressed]}
@@ -163,30 +164,6 @@ function ItemSection({
         </Pressable>
       </View>
     </View>
-  );
-}
-
-function ItemRow({ item, lowVision, onPress }: { item: RecognizedItem; lowVision: boolean; onPress: () => void }) {
-  const meta = CATEGORY_META[item.category] ?? CATEGORY_META['알약'];
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.itemRow, lowVision && styles.itemRowLowVision, pressed && styles.pressed]}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${item.name}, 수정`}>
-      <View style={[styles.rowIcon, { backgroundColor: meta.tone === 'green' ? Palette.mintSoft : Palette.primarySoft }]}>
-        <Ionicons name={meta.icon} size={lowVision ? 22 : 18} color={meta.tone === 'green' ? Palette.mint : Palette.primary} />
-      </View>
-      <View style={styles.rowText}>
-        <Text style={[styles.rowName, lowVision && styles.rowNameLowVision]} numberOfLines={1}>
-          {item.name}
-        </Text>
-        <Text style={[styles.rowDose, lowVision && styles.rowDoseLowVision]} numberOfLines={1}>
-          {item.dosage || '용량 미입력'}
-        </Text>
-      </View>
-      <Ionicons name="create-outline" size={lowVision ? 22 : 18} color={Palette.textSubtle} />
-    </Pressable>
   );
 }
 
@@ -245,55 +222,6 @@ const styles = StyleSheet.create({
   },
   itemList: {
     gap: 9,
-  },
-  itemRow: {
-    minHeight: 72,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    backgroundColor: Palette.background,
-    paddingHorizontal: 13,
-    paddingVertical: 10,
-  },
-  itemRowLowVision: {
-    minHeight: 88,
-    paddingHorizontal: 14,
-  },
-  rowIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: Radius.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowText: {
-    flex: 1,
-    minWidth: 0,
-    marginLeft: 12,
-    marginRight: 8,
-  },
-  rowName: {
-    fontSize: 17,
-    lineHeight: 23,
-    fontWeight: '900',
-    color: Palette.text,
-  },
-  rowNameLowVision: {
-    fontSize: 21,
-    lineHeight: 28,
-  },
-  rowDose: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
-    color: Palette.textMuted,
-    marginTop: 2,
-  },
-  rowDoseLowVision: {
-    fontSize: 17,
-    lineHeight: 23,
   },
   addRow: {
     minHeight: 58,

@@ -12,6 +12,18 @@ export function formatRecordTitle(iso: string): string {
   return `${d.getMonth() + 1}월 ${d.getDate()}일 기록`;
 }
 
+/** ISO → 'M월 D일 오전/오후 H:MM' */
+export function formatRecordDateTime(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${formatRecordTime(iso)}`;
+}
+
+/** ISO → 'YYYY년 M월' */
+export function formatRecordMonth(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}년 ${d.getMonth() + 1}월`;
+}
+
 /** ISO → '오전/오후 H:MM' */
 export function formatRecordTime(iso: string): string {
   const d = new Date(iso);

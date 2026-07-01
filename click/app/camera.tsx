@@ -106,7 +106,7 @@ export default function CameraScreen() {
       <StatusBar style="dark" />
       <TopBar
         title={isSupplement ? '건강기능식품 촬영' : '알약 촬영'}
-        subtitle={isSupplement ? '제품명과 성분표가 보이도록 라벨을 담아주세요.' : '알약 앞면과 포장 정보를 또렷하게 담아주세요.'}
+        subtitle={isSupplement ? '밝은 곳에서 제품명과 성분표가 보이게 정면으로 촬영하세요.' : '밝은 곳에서 흰 배경 위에 올리고 정면으로 촬영하세요.'}
         backLabel="뒤로"
         onBack={handleBack}
       />

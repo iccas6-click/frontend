@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   track: {
-    minHeight: 58,
+    minHeight: 66,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -53,11 +53,11 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Palette.border,
-    paddingHorizontal: 10,
+    paddingHorizontal: 11,
   },
   trackLowVision: {
-    minHeight: 66,
-    paddingHorizontal: 9,
+    minHeight: 76,
+    paddingHorizontal: 10,
   },
   item: {
     flex: 1,
@@ -71,17 +71,17 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   dot: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 29,
+    height: 29,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Palette.surfaceMuted,
   },
   dotLowVision: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   dotActive: {
     backgroundColor: Palette.primarySoft,
@@ -90,12 +90,12 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.primary,
   },
   dotText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '800',
     color: Palette.textSubtle,
   },
   dotTextLowVision: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '900',
   },
   dotTextActive: {
@@ -105,16 +105,16 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   label: {
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 13,
+    lineHeight: 17,
     fontWeight: '800',
     letterSpacing: 0,
     color: Palette.textSubtle,
     textAlign: 'center',
   },
   labelLowVision: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 15,
+    lineHeight: 20,
     fontWeight: '900',
   },
   labelActive: {

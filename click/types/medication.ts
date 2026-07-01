@@ -8,6 +8,10 @@ export interface RecognizedItem {
   /** 용량 표기 (예: "100mg", "2000IU") */
   dosage: string;
   category: ItemCategory;
+  /** 추후 백엔드 인식 결과에서 내려올 항목 이미지 */
+  imageUri?: string;
+  /** 추후 백엔드 인식 결과에서 내려올 주요 성분 */
+  ingredients?: string[];
 }
 
 /** 위험도 단계 */

@@ -5,9 +5,10 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { PairCard, RiskSummaryCard } from '@/components/analysis-ui';
 import { IconBadge, Screen, TopBar } from '@/components/app-ui';
+import { RecognizedItemRow } from '@/components/recognized-item-row';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
-import { formatRecordTime, formatRecordTitle, getSession } from '@/services/history-storage';
+import { formatRecordDateTime, getSession } from '@/services/history-storage';
 import type { AnalysisSession, InteractionPair, ItemCategory, RecognizedItem } from '@/types/medication';
 
 const TABS: { value: ItemCategory; label: string }[] = [
@@ -51,8 +52,7 @@ export default function RecordDetailScreen() {
   return (
     <Screen>
       <TopBar
-        title={record ? formatRecordTitle(record.createdAt) : '기록'}
-        subtitle={record ? formatRecordTime(record.createdAt) : undefined}
+        title={record ? formatRecordDateTime(record.createdAt) : '기록'}
         backLabel="기록"
         onBack={() => router.back()}
       />
@@ -64,12 +64,6 @@ export default function RecordDetailScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={[styles.content, lowVision && styles.contentLowVision]} showsVerticalScrollIndicator={false}>
-          <View style={[styles.summary, lowVision && styles.summaryLowVision]}>
-            <CountBlock icon="medical" label="알약" value={pillCount} />
-            <View style={styles.summaryDivider} />
-            <CountBlock icon="leaf" label="건강기능식품" value={supplementCount} />
-          </View>
-
           {record.analysis ? (
             <View style={styles.analysisBox}>
               <RiskSummaryCard result={record.analysis} compact />
@@ -97,6 +91,12 @@ export default function RecordDetailScreen() {
             </View>
           )}
 
+          <View style={[styles.summary, lowVision && styles.summaryLowVision]}>
+            <CountBlock icon="medical" label="알약" value={pillCount} />
+            <View style={styles.summaryDivider} />
+            <CountBlock icon="leaf" label="건기식" value={supplementCount} />
+          </View>
+
           <View style={styles.segment}>
             {TABS.map((t) => {
               const active = tab === t.value;
@@ -119,7 +119,7 @@ export default function RecordDetailScreen() {
                 <Text style={styles.emptyItemsText}>인식 기록 없음</Text>
               </View>
             ) : (
-              items.map((item) => <ItemCard key={item.id} item={item} lowVision={lowVision} />)
+              items.map((item) => <RecognizedItemRow key={item.id} item={item} />)
             )}
           </View>
         </ScrollView>
@@ -132,8 +132,8 @@ function CountBlock({ icon, label, value }: { icon: 'medical' | 'leaf'; label: s
   return (
     <View style={styles.countBlock}>
       <IconBadge icon={icon} tone={icon === 'leaf' ? 'green' : 'blue'} size="sm" />
-      <Text style={styles.countValue}>{value}</Text>
       <Text style={styles.countLabel}>{label}</Text>
+      <Text style={styles.countValue}>{value}</Text>
     </View>
   );
 }
@@ -178,21 +178,6 @@ function PairAccordion({
   );
 }
 
-function ItemCard({ item, lowVision }: { item: RecognizedItem; lowVision: boolean }) {
-  const isSupplement = item.category === '건강기능식품 라벨';
-  return (
-    <View style={[styles.card, lowVision && styles.cardLowVision]} accessible accessibilityLabel={`${item.name}`}>
-      <IconBadge icon={isSupplement ? 'leaf' : 'medical'} tone={isSupplement ? 'green' : 'blue'} />
-      <View style={styles.cardInfo}>
-        <Text style={[styles.cardName, lowVision && styles.cardNameLowVision]} numberOfLines={lowVision ? 2 : 1}>
-          {item.name}
-        </Text>
-        {item.dosage ? <Text style={[styles.cardDose, lowVision && styles.cardDoseLowVision]}>{item.dosage}</Text> : null}
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   content: {
     paddingHorizontal: Spacing.screen,
@@ -203,7 +188,7 @@ const styles = StyleSheet.create({
     gap: 15,
   },
   summary: {
-    minHeight: 112,
+    minHeight: 74,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Palette.surface,
@@ -213,7 +198,7 @@ const styles = StyleSheet.create({
     ...Shadow.subtle,
   },
   summaryLowVision: {
-    minHeight: 128,
+    minHeight: 90,
   },
   summaryDivider: {
     width: StyleSheet.hairlineWidth,
@@ -222,21 +207,22 @@ const styles = StyleSheet.create({
   },
   countBlock: {
     flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 8,
   },
   countValue: {
-    fontSize: 27,
-    lineHeight: 33,
+    fontSize: 22,
+    lineHeight: 28,
     fontWeight: '900',
     color: Palette.text,
   },
   countLabel: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 16,
+    lineHeight: 22,
     fontWeight: '900',
-    color: Palette.textMuted,
+    color: Palette.text,
   },
   analysisBox: {
     gap: 10,
@@ -347,44 +333,6 @@ const styles = StyleSheet.create({
   },
   itemList: {
     gap: 10,
-  },
-  card: {
-    minHeight: 84,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Palette.surface,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    padding: 16,
-    ...Shadow.subtle,
-  },
-  cardLowVision: {
-    minHeight: 102,
-    padding: 17,
-  },
-  cardInfo: {
-    flex: 1,
-    marginLeft: 14,
-  },
-  cardName: {
-    fontSize: 18,
-    lineHeight: 24,
-    fontWeight: '900',
-    color: Palette.text,
-  },
-  cardNameLowVision: {
-    fontSize: 21,
-    lineHeight: 28,
-  },
-  cardDose: {
-    fontSize: 15,
-    color: Palette.textMuted,
-    marginTop: 4,
-  },
-  cardDoseLowVision: {
-    fontSize: 18,
-    lineHeight: 24,
   },
   emptyItems: {
     minHeight: 74,

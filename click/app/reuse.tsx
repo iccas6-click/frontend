@@ -8,7 +8,7 @@ import { IconBadge, Screen, TopBar } from '@/components/app-ui';
 import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
-import { formatRecordTime, formatRecordTitle, getReusableSessions } from '@/services/history-storage';
+import { formatRecordDateTime, getReusableSessions } from '@/services/history-storage';
 import type { AnalysisSession, ItemCategory, RecognizedItem } from '@/types/medication';
 
 const CATEGORY_LABEL: Record<ItemCategory, string> = {
@@ -60,10 +60,6 @@ export default function ReuseScreen() {
       },
     } as const;
 
-    if (params.recordId) {
-      router.replace(next);
-      return;
-    }
     router.push(next);
   };
 
@@ -80,10 +76,6 @@ export default function ReuseScreen() {
       },
     } as const;
 
-    if (params.recordId) {
-      router.replace(next);
-      return;
-    }
     router.push(next);
   };
 
@@ -184,13 +176,11 @@ function ReuseCard({
       style={({ pressed }) => [styles.recordCard, lowVision && styles.recordCardLowVision, pressed && styles.pressed]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${formatRecordTitle(record.createdAt)}, ${formatRecordTime(record.createdAt)}, ${CATEGORY_LABEL[category]} ${items.length}개 사용`}>
+      accessibilityLabel={`${formatRecordDateTime(record.createdAt)}, ${CATEGORY_LABEL[category]} ${items.length}개 사용`}>
       <IconBadge icon={isSupplement ? 'leaf' : 'medical'} tone={isSupplement ? 'green' : 'blue'} />
       <View style={styles.recordText}>
-        <Text style={[styles.recordTitle, lowVision && styles.recordTitleLowVision]}>{formatRecordTitle(record.createdAt)}</Text>
-        <Text style={[styles.recordMeta, lowVision && styles.recordMetaLowVision]}>
-          {formatRecordTime(record.createdAt)} · {CATEGORY_LABEL[category]} {items.length}개
-        </Text>
+        <Text style={[styles.recordTitle, lowVision && styles.recordTitleLowVision]}>{formatRecordDateTime(record.createdAt)}</Text>
+        <Text style={[styles.recordMeta, lowVision && styles.recordMetaLowVision]}>{CATEGORY_LABEL[category]} {items.length}개</Text>
         <Text style={[styles.recordNames, lowVision && styles.recordNamesLowVision]} numberOfLines={lowVision ? 2 : 1}>
           {names || '이름 없는 항목'}
           {items.length > 3 ? ` 외 ${items.length - 3}개` : ''}
