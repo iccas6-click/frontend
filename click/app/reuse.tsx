@@ -7,6 +7,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { IconBadge, Screen, TopBar } from '@/components/app-ui';
 import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
+import { useUserMode } from '@/hooks/use-user-mode';
 import { formatRecordTime, formatRecordTitle, getReusableSessions } from '@/services/history-storage';
 import type { AnalysisSession, ItemCategory, RecognizedItem } from '@/types/medication';
 
@@ -21,6 +22,7 @@ export default function ReuseScreen() {
   const category: ItemCategory = params.category === '건강기능식품 라벨' ? '건강기능식품 라벨' : '알약';
   const [records, setRecords] = useState<AnalysisSession[]>([]);
   const [recordsOpen, setRecordsOpen] = useState(false);
+  const { lowVision } = useUserMode();
 
   const prevItems = useMemo<RecognizedItem[]>(() => {
     if (!params.prevItems) return [];
@@ -96,31 +98,31 @@ export default function ReuseScreen() {
       />
       <StepIndicator current={isSupplement ? 2 : 1} />
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.content, lowVision && styles.contentLowVision]} showsVerticalScrollIndicator={false}>
         {isSupplement && prevItems.length > 0 ? (
-          <View style={styles.contextCard}>
+          <View style={[styles.contextCard, lowVision && styles.contextCardLowVision]}>
             <IconBadge icon="medical" tone="blue" />
             <View style={styles.contextText}>
-              <Text style={styles.contextTitle}>알약 {prevItems.filter((item) => item.category === '알약').length}개 선택됨</Text>
-              <Text style={styles.contextBody}>이어서 건강기능식품을 선택하면 한 기록으로 분석됩니다.</Text>
+              <Text style={[styles.contextTitle, lowVision && styles.contextTitleLowVision]}>알약 {prevItems.filter((item) => item.category === '알약').length}개 선택됨</Text>
+              <Text style={[styles.contextBody, lowVision && styles.contextBodyLowVision]}>이어서 건강기능식품을 선택하면 한 기록으로 분석됩니다.</Text>
             </View>
           </View>
         ) : null}
 
         <View style={styles.choiceHeader}>
-          <Text style={styles.choiceTitle}>{label}을 어떻게 추가할까요?</Text>
-          <Text style={styles.choiceBody}>기록을 쓰면 확인 화면에서 다시 수정할 수 있습니다.</Text>
+          <Text style={[styles.choiceTitle, lowVision && styles.choiceTitleLowVision]}>{label}을 어떻게 추가할까요?</Text>
+          <Text style={[styles.choiceBody, lowVision && styles.choiceBodyLowVision]}>기록을 쓰면 확인 화면에서 다시 수정할 수 있습니다.</Text>
         </View>
 
         <Pressable
-          style={({ pressed }) => [styles.captureCard, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.captureCard, lowVision && styles.choiceCardLowVision, pressed && styles.pressed]}
           onPress={startCamera}
           accessibilityRole="button"
           accessibilityLabel={`새 ${label} 촬영하기`}>
           <IconBadge icon="camera" tone={isSupplement ? 'green' : 'blue'} />
           <View style={styles.captureText}>
-            <Text style={styles.captureTitle}>새 {label} 촬영하기</Text>
-            <Text style={styles.captureBody}>
+            <Text style={[styles.captureTitle, lowVision && styles.choiceTitleTextLowVision]}>새 {label} 촬영하기</Text>
+            <Text style={[styles.captureBody, lowVision && styles.choiceBodyTextLowVision]}>
               {isSupplement ? '라벨과 성분표를 다시 촬영합니다.' : '알약과 포장 정보를 다시 촬영합니다.'}
             </Text>
           </View>
@@ -128,34 +130,34 @@ export default function ReuseScreen() {
         </Pressable>
 
         <Pressable
-          style={({ pressed }) => [styles.recordChoiceCard, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.recordChoiceCard, lowVision && styles.choiceCardLowVision, pressed && styles.pressed]}
           onPress={() => setRecordsOpen(true)}
           accessibilityRole="button"
           accessibilityLabel={`기존 ${label} 기록에서 선택하기`}>
           <IconBadge icon="folder-open" tone="dark" />
           <View style={styles.recordChoiceText}>
-            <Text style={styles.recordChoiceTitle}>기존 기록에서 선택하기</Text>
-            <Text style={styles.recordChoiceBody}>
+            <Text style={[styles.recordChoiceTitle, lowVision && styles.choiceTitleTextLowVision]}>기존 기록에서 선택하기</Text>
+            <Text style={[styles.recordChoiceBody, lowVision && styles.choiceBodyTextLowVision]}>
               {usableRecords.length > 0 ? `최근 ${usableRecords.length}개 기록에서 고릅니다.` : `저장된 ${label} 기록이 있는지 확인합니다.`}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={Palette.textSubtle} />
         </Pressable>
 
-        <View style={styles.noteCard}>
-          <Ionicons name="shield-checkmark" size={19} color={Palette.mint} />
-          <Text style={styles.noteText}>기존 기록을 골라도 다음 화면에서 이름과 용량을 다시 확인할 수 있습니다.</Text>
+        <View style={[styles.noteCard, lowVision && styles.noteCardLowVision]}>
+          <Ionicons name="shield-checkmark" size={lowVision ? 23 : 19} color={Palette.mint} />
+          <Text style={[styles.noteText, lowVision && styles.noteTextLowVision]}>기존 기록을 골라도 다음 화면에서 이름과 용량을 다시 확인할 수 있습니다.</Text>
         </View>
       </ScrollView>
 
       <Modal visible={recordsOpen} transparent animationType="slide" onRequestClose={() => setRecordsOpen(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setRecordsOpen(false)} />
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, lowVision && styles.sheetLowVision]}>
           <View style={styles.sheetHandle} />
           <View style={styles.sheetHeader}>
             <View>
-              <Text style={styles.sheetTitle}>기존 {label} 기록</Text>
-              <Text style={styles.sheetSubtitle}>최근 인식 기록을 최신순으로 정렬했어요.</Text>
+              <Text style={[styles.sheetTitle, lowVision && styles.sheetTitleLowVision]}>기존 {label} 기록</Text>
+              <Text style={[styles.sheetSubtitle, lowVision && styles.sheetSubtitleLowVision]}>최근 인식 기록을 최신순으로 정렬했어요.</Text>
             </View>
             <Pressable
               style={styles.closeButton}
@@ -175,7 +177,7 @@ export default function ReuseScreen() {
           ) : (
             <ScrollView contentContainerStyle={styles.recordList} showsVerticalScrollIndicator={false}>
               {usableRecords.map((record) => (
-                <ReuseCard key={record.id} record={record} category={category} onPress={() => selectRecord(record)} />
+                <ReuseCard key={record.id} record={record} category={category} lowVision={lowVision} onPress={() => selectRecord(record)} />
               ))}
             </ScrollView>
           )}
@@ -189,10 +191,12 @@ function ReuseCard({
   record,
   category,
   onPress,
+  lowVision,
 }: {
   record: AnalysisSession;
   category: ItemCategory;
   onPress: () => void;
+  lowVision: boolean;
 }) {
   const items = record.items.filter((item) => item.category === category);
   const names = items.map((item) => item.name).slice(0, 3).join(', ');
@@ -200,23 +204,23 @@ function ReuseCard({
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.recordCard, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.recordCard, lowVision && styles.recordCardLowVision, pressed && styles.pressed]}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${formatRecordTitle(record.createdAt)}, ${formatRecordTime(record.createdAt)}, ${CATEGORY_LABEL[category]} ${items.length}개 사용`}>
       <IconBadge icon={isSupplement ? 'leaf' : 'medical'} tone={isSupplement ? 'green' : 'blue'} />
       <View style={styles.recordText}>
-        <Text style={styles.recordTitle}>{formatRecordTitle(record.createdAt)}</Text>
-        <Text style={styles.recordMeta}>
+        <Text style={[styles.recordTitle, lowVision && styles.recordTitleLowVision]}>{formatRecordTitle(record.createdAt)}</Text>
+        <Text style={[styles.recordMeta, lowVision && styles.recordMetaLowVision]}>
           {formatRecordTime(record.createdAt)} · {CATEGORY_LABEL[category]} {items.length}개
         </Text>
-        <Text style={styles.recordNames} numberOfLines={1}>
+        <Text style={[styles.recordNames, lowVision && styles.recordNamesLowVision]} numberOfLines={lowVision ? 2 : 1}>
           {names || '이름 없는 항목'}
           {items.length > 3 ? ` 외 ${items.length - 3}개` : ''}
         </Text>
       </View>
-      <View style={styles.usePill}>
-        <Text style={styles.usePillText}>사용</Text>
+      <View style={[styles.usePill, lowVision && styles.usePillLowVision]}>
+        <Text style={[styles.usePillText, lowVision && styles.usePillTextLowVision]}>사용</Text>
         <Ionicons name="chevron-forward" size={16} color={Palette.primary} />
       </View>
     </Pressable>
@@ -229,6 +233,9 @@ const styles = StyleSheet.create({
     paddingBottom: 42,
     gap: 14,
   },
+  contentLowVision: {
+    gap: 12,
+  },
   choiceHeader: {
     gap: 4,
   },
@@ -238,9 +245,17 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: Palette.text,
   },
+  choiceTitleLowVision: {
+    fontSize: 24,
+    lineHeight: 31,
+  },
   choiceBody: {
     ...Typography.body,
     color: Palette.textMuted,
+  },
+  choiceBodyLowVision: {
+    fontSize: 17,
+    lineHeight: 24,
   },
   captureCard: {
     minHeight: 92,
@@ -253,6 +268,10 @@ const styles = StyleSheet.create({
     padding: 16,
     ...Shadow.subtle,
   },
+  choiceCardLowVision: {
+    minHeight: 118,
+    padding: 18,
+  },
   captureText: {
     flex: 1,
     marginLeft: 14,
@@ -264,11 +283,19 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#FFFFFF',
   },
+  choiceTitleTextLowVision: {
+    fontSize: 22,
+    lineHeight: 29,
+  },
   captureBody: {
     fontSize: 15,
     lineHeight: 21,
     color: 'rgba(255,255,255,0.78)',
     marginTop: 3,
+  },
+  choiceBodyTextLowVision: {
+    fontSize: 17,
+    lineHeight: 24,
   },
   contextCard: {
     minHeight: 88,
@@ -281,6 +308,10 @@ const styles = StyleSheet.create({
     padding: 16,
     ...Shadow.subtle,
   },
+  contextCardLowVision: {
+    minHeight: 100,
+    padding: 17,
+  },
   contextText: {
     flex: 1,
     marginLeft: 14,
@@ -291,10 +322,18 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: Palette.text,
   },
+  contextTitleLowVision: {
+    fontSize: 21,
+    lineHeight: 28,
+  },
   contextBody: {
     ...Typography.body,
     color: Palette.textMuted,
     marginTop: 3,
+  },
+  contextBodyLowVision: {
+    fontSize: 17,
+    lineHeight: 24,
   },
   recordList: {
     paddingBottom: 22,
@@ -338,12 +377,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 11,
   },
+  noteCardLowVision: {
+    minHeight: 62,
+    paddingVertical: 13,
+  },
   noteText: {
     flex: 1,
     fontSize: 14,
     lineHeight: 20,
     fontWeight: '700',
     color: Palette.textMuted,
+  },
+  noteTextLowVision: {
+    fontSize: 16,
+    lineHeight: 23,
   },
   recordCard: {
     minHeight: 104,
@@ -355,6 +402,10 @@ const styles = StyleSheet.create({
     borderColor: Palette.border,
     padding: 16,
     ...Shadow.subtle,
+  },
+  recordCardLowVision: {
+    minHeight: 116,
+    padding: 17,
   },
   pressed: {
     opacity: 0.78,
@@ -371,17 +422,29 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: Palette.text,
   },
+  recordTitleLowVision: {
+    fontSize: 21,
+    lineHeight: 28,
+  },
   recordMeta: {
     fontSize: 15,
     lineHeight: 21,
     color: Palette.textMuted,
     marginTop: 3,
   },
+  recordMetaLowVision: {
+    fontSize: 17,
+    lineHeight: 24,
+  },
   recordNames: {
     fontSize: 14,
     lineHeight: 20,
     color: Palette.textSubtle,
     marginTop: 6,
+  },
+  recordNamesLowVision: {
+    fontSize: 16,
+    lineHeight: 22,
   },
   usePill: {
     minHeight: 36,
@@ -393,10 +456,18 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
     backgroundColor: Palette.primarySoft,
   },
+  usePillLowVision: {
+    minHeight: 44,
+    paddingLeft: 13,
+    paddingRight: 10,
+  },
   usePillText: {
     fontSize: 14,
     fontWeight: '900',
     color: Palette.primary,
+  },
+  usePillTextLowVision: {
+    fontSize: 17,
   },
   empty: {
     minHeight: 220,
@@ -435,6 +506,9 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 24,
   },
+  sheetLowVision: {
+    maxHeight: '78%',
+  },
   sheetHandle: {
     alignSelf: 'center',
     width: 42,
@@ -456,11 +530,19 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: Palette.text,
   },
+  sheetTitleLowVision: {
+    fontSize: 25,
+    lineHeight: 32,
+  },
   sheetSubtitle: {
     fontSize: 15,
     lineHeight: 21,
     color: Palette.textMuted,
     marginTop: 3,
+  },
+  sheetSubtitleLowVision: {
+    fontSize: 17,
+    lineHeight: 24,
   },
   closeButton: {
     width: 42,

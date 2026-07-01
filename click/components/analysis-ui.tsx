@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
+import { useUserMode } from '@/hooks/use-user-mode';
 import type { AnalysisResult, InteractionPair, RiskLevel } from '@/types/medication';
 
 export const RISK_META: Record<
@@ -38,30 +39,32 @@ export const RISK_META: Record<
 };
 
 export function RiskSummaryCard({ result, compact = false }: { result: AnalysisResult; compact?: boolean }) {
+  const { lowVision } = useUserMode();
   const meta = RISK_META[result.overall];
   return (
-    <View style={[styles.summaryCard, compact && styles.summaryCardCompact]}>
-      <View style={[styles.summaryIcon, compact && styles.summaryIconCompact, { backgroundColor: meta.bg }]}>
-        <Ionicons name={meta.icon} size={compact ? 28 : 34} color={meta.color} />
+    <View style={[styles.summaryCard, compact && styles.summaryCardCompact, lowVision && styles.summaryCardLowVision]}>
+      <View style={[styles.summaryIcon, compact && styles.summaryIconCompact, lowVision && styles.summaryIconLowVision, { backgroundColor: meta.bg }]}>
+        <Ionicons name={meta.icon} size={lowVision ? 36 : compact ? 28 : 34} color={meta.color} />
       </View>
       <View style={compact ? styles.compactText : null}>
-        <Text style={[styles.summaryTitle, compact && styles.summaryTitleCompact, { color: meta.color }]}>{meta.title}</Text>
-        <Text style={[styles.summaryText, compact && styles.summaryTextCompact]}>{result.summary}</Text>
+        <Text style={[styles.summaryTitle, compact && styles.summaryTitleCompact, lowVision && styles.summaryTitleLowVision, { color: meta.color }]}>{meta.title}</Text>
+        <Text style={[styles.summaryText, compact && styles.summaryTextCompact, lowVision && styles.summaryTextLowVision]}>{result.summary}</Text>
       </View>
     </View>
   );
 }
 
 export function PairCard({ pair, compact = false }: { pair: InteractionPair; compact?: boolean }) {
+  const { lowVision } = useUserMode();
   const meta = RISK_META[pair.level];
   return (
-    <View style={[styles.pairCard, compact && styles.pairCardCompact]}>
-      <View style={[styles.levelBadge, { backgroundColor: meta.bg }]}>
-        <Ionicons name={meta.icon} size={14} color={meta.color} />
-        <Text style={[styles.levelText, { color: meta.color }]}>{meta.label}</Text>
+    <View style={[styles.pairCard, compact && styles.pairCardCompact, lowVision && styles.pairCardLowVision]}>
+      <View style={[styles.levelBadge, lowVision && styles.levelBadgeLowVision, { backgroundColor: meta.bg }]}>
+        <Ionicons name={meta.icon} size={lowVision ? 18 : 14} color={meta.color} />
+        <Text style={[styles.levelText, lowVision && styles.levelTextLowVision, { color: meta.color }]}>{meta.label}</Text>
       </View>
-      <Text style={[styles.pairTitle, compact && styles.pairTitleCompact]}>{pair.items.join(' + ')}</Text>
-      <Text style={[styles.pairDesc, compact && styles.pairDescCompact]}>{pair.description}</Text>
+      <Text style={[styles.pairTitle, compact && styles.pairTitleCompact, lowVision && styles.pairTitleLowVision]}>{pair.items.join(' + ')}</Text>
+      <Text style={[styles.pairDesc, compact && styles.pairDescCompact, lowVision && styles.pairDescLowVision]}>{pair.description}</Text>
     </View>
   );
 }
@@ -78,10 +81,11 @@ export function PairList({ pairs, limit }: { pairs: InteractionPair[]; limit?: n
 }
 
 export function ConsultationNotice() {
+  const { lowVision } = useUserMode();
   return (
-    <View style={styles.disclaimer}>
-      <Ionicons name="information-circle" size={17} color={Palette.textMuted} />
-      <Text style={styles.disclaimerText}>복용 변경 전에는 의사 또는 약사와 상담하세요.</Text>
+    <View style={[styles.disclaimer, lowVision && styles.disclaimerLowVision]}>
+      <Ionicons name="information-circle" size={lowVision ? 22 : 17} color={Palette.textMuted} />
+      <Text style={[styles.disclaimerText, lowVision && styles.disclaimerTextLowVision]}>복용 변경 전에는 의사 또는 약사와 상담하세요.</Text>
     </View>
   );
 }
@@ -107,6 +111,9 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     ...Shadow.subtle,
   },
+  summaryCardLowVision: {
+    padding: 20,
+  },
   summaryIcon: {
     width: 70,
     height: 70,
@@ -121,6 +128,11 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     marginBottom: 0,
   },
+  summaryIconLowVision: {
+    width: 74,
+    height: 74,
+    borderRadius: 37,
+  },
   compactText: {
     flex: 1,
     marginLeft: 14,
@@ -134,6 +146,11 @@ const styles = StyleSheet.create({
     lineHeight: 25,
     textAlign: 'left',
   },
+  summaryTitleLowVision: {
+    fontSize: 24,
+    lineHeight: 31,
+    fontWeight: '900',
+  },
   summaryText: {
     ...Typography.body,
     color: Palette.text,
@@ -143,6 +160,10 @@ const styles = StyleSheet.create({
   summaryTextCompact: {
     textAlign: 'left',
     marginTop: 4,
+  },
+  summaryTextLowVision: {
+    fontSize: 18,
+    lineHeight: 27,
   },
   pairList: {
     gap: 10,
@@ -158,6 +179,9 @@ const styles = StyleSheet.create({
   pairCardCompact: {
     padding: 14,
   },
+  pairCardLowVision: {
+    padding: 18,
+  },
   levelBadge: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
@@ -168,9 +192,17 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
     marginBottom: 9,
   },
+  levelBadgeLowVision: {
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    marginBottom: 10,
+  },
   levelText: {
     fontSize: 12,
     fontWeight: '900',
+  },
+  levelTextLowVision: {
+    fontSize: 15,
   },
   pairTitle: {
     fontSize: 17,
@@ -182,6 +214,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 22,
   },
+  pairTitleLowVision: {
+    fontSize: 20,
+    lineHeight: 27,
+  },
   pairDesc: {
     ...Typography.body,
     color: Palette.textMuted,
@@ -191,6 +227,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 21,
     marginTop: 5,
+  },
+  pairDescLowVision: {
+    fontSize: 18,
+    lineHeight: 26,
   },
   disclaimer: {
     flexDirection: 'row',
@@ -203,11 +243,18 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     backgroundColor: Palette.surfaceMuted,
   },
+  disclaimerLowVision: {
+    paddingVertical: 13,
+  },
   disclaimerText: {
     flex: 1,
     fontSize: 14,
     lineHeight: 19,
     fontWeight: '700',
     color: Palette.textMuted,
+  },
+  disclaimerTextLowVision: {
+    fontSize: 17,
+    lineHeight: 24,
   },
 });

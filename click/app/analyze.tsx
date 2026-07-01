@@ -6,6 +6,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Screen, TopBar } from '@/components/app-ui';
 import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
+import { useUserMode } from '@/hooks/use-user-mode';
 import { devLog } from '@/services/debug-log';
 import { updateSessionAnalysis } from '@/services/history-storage';
 import { analyzeInteractions } from '@/services/interactions';
@@ -14,6 +15,7 @@ import type { RecognizedItem } from '@/types/medication';
 export default function AnalyzeScreen() {
   const router = useRouter();
   const { items: itemsParam, recordId } = useLocalSearchParams<{ items?: string; recordId?: string }>();
+  const { lowVision } = useUserMode();
 
   useEffect(() => {
     let cancelled = false;
@@ -60,14 +62,14 @@ export default function AnalyzeScreen() {
       <TopBar title="상호작용 분석 중" subtitle="성분 조합을 대조하고 상담이 필요한 항목을 정리하고 있어요." />
       <StepIndicator current={3} />
       <View style={styles.body}>
-        <View style={styles.analysisCard}>
-          <View style={styles.visualWrap}>
+        <View style={[styles.analysisCard, lowVision && styles.analysisCardLowVision]}>
+          <View style={[styles.visualWrap, lowVision && styles.visualWrapLowVision]}>
             <View style={styles.pulseOuter} />
             <View style={styles.pulseInner} />
-            <Image source={require('@/assets/images/robot.png')} style={styles.robot} contentFit="contain" />
+            <Image source={require('@/assets/images/robot.png')} style={[styles.robot, lowVision && styles.robotLowVision]} contentFit="contain" />
           </View>
-          <Text style={styles.title}>잠시만 기다려 주세요</Text>
-          <Text style={styles.subtitle}>복용 중단을 지시하지 않고, 상담이 필요한 신호만 먼저 찾아봅니다.</Text>
+          <Text style={[styles.title, lowVision && styles.titleLowVision]}>잠시만 기다려 주세요</Text>
+          <Text style={[styles.subtitle, lowVision && styles.subtitleLowVision]}>복용 중단을 지시하지 않고, 상담이 필요한 신호만 먼저 찾아봅니다.</Text>
           <View style={styles.progressTrack}>
             <View style={styles.progressFill} />
           </View>
@@ -94,6 +96,10 @@ const styles = StyleSheet.create({
     paddingVertical: 34,
     ...Shadow.card,
   },
+  analysisCardLowVision: {
+    paddingHorizontal: 22,
+    paddingVertical: 30,
+  },
   visualWrap: {
     width: 190,
     height: 190,
@@ -101,9 +107,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 10,
   },
+  visualWrapLowVision: {
+    width: 174,
+    height: 174,
+    marginBottom: 8,
+  },
   robot: {
     width: 150,
     height: 150,
+  },
+  robotLowVision: {
+    width: 138,
+    height: 138,
   },
   pulseOuter: {
     position: 'absolute',
@@ -124,11 +139,20 @@ const styles = StyleSheet.create({
     color: Palette.text,
     marginTop: 10,
   },
+  titleLowVision: {
+    fontSize: 24,
+    lineHeight: 31,
+    fontWeight: '900',
+  },
   subtitle: {
     ...Typography.body,
     color: Palette.textMuted,
     textAlign: 'center',
     marginTop: 8,
+  },
+  subtitleLowVision: {
+    fontSize: 18,
+    lineHeight: 26,
   },
   progressTrack: {
     width: '100%',

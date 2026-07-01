@@ -6,6 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PairList, RiskSummaryCard } from '@/components/analysis-ui';
 import { IconBadge, PrimaryButton, Screen, SectionHeader, TopBar } from '@/components/app-ui';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
+import { useUserMode } from '@/hooks/use-user-mode';
 import { formatRecordTime, formatRecordTitle, getSession } from '@/services/history-storage';
 import type { AnalysisSession, ItemCategory, RecognizedItem } from '@/types/medication';
 
@@ -21,6 +22,7 @@ export default function RecordDetailScreen() {
   const [record, setRecord] = useState<AnalysisSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<ItemCategory>('알약');
+  const { lowVision } = useUserMode();
 
   useEffect(() => {
     let active = true;
@@ -62,10 +64,10 @@ export default function RecordDetailScreen() {
       />
 
       {record ? (
-        <View style={styles.summary}>
+        <View style={[styles.summary, lowVision && styles.summaryLowVision]}>
           <View>
-            <Text style={styles.summaryLabel}>저장된 항목</Text>
-            <Text style={styles.summaryTitle}>알약 {pillCount}개 · 건강기능식품 {supplementCount}개</Text>
+            <Text style={[styles.summaryLabel, lowVision && styles.summaryLabelLowVision]}>저장된 항목</Text>
+            <Text style={[styles.summaryTitle, lowVision && styles.summaryTitleLowVision]}>알약 {pillCount}개 · 건강기능식품 {supplementCount}개</Text>
           </View>
           <IconBadge icon={record.analysis ? 'checkmark-circle' : 'archive'} tone={record.analysis ? 'green' : 'dark'} />
         </View>
@@ -96,12 +98,12 @@ export default function RecordDetailScreen() {
           return (
             <Pressable
               key={t.value}
-              style={[styles.segmentItem, active && styles.segmentItemActive]}
+              style={[styles.segmentItem, lowVision && styles.segmentItemLowVision, active && styles.segmentItemActive]}
               onPress={() => setTab(t.value)}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
               accessibilityLabel={`${t.label} 항목 보기`}>
-              <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{t.label}</Text>
+              <Text style={[styles.segmentText, lowVision && styles.segmentTextLowVision, active && styles.segmentTextActive]}>{t.label}</Text>
             </Pressable>
           );
         })}
@@ -115,7 +117,7 @@ export default function RecordDetailScreen() {
       ) : (
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
           {items.map((item) => (
-            <ItemCard key={item.id} item={item} />
+            <ItemCard key={item.id} item={item} lowVision={lowVision} />
           ))}
         </ScrollView>
       )}
@@ -123,21 +125,21 @@ export default function RecordDetailScreen() {
   );
 }
 
-function ItemCard({ item }: { item: RecognizedItem }) {
+function ItemCard({ item, lowVision }: { item: RecognizedItem; lowVision: boolean }) {
   const isSupplement = item.category === '건강기능식품 라벨';
   return (
-    <View style={styles.card} accessible accessibilityLabel={`${item.name}, ${isSupplement ? '건강기능식품' : '알약'}${item.dosage ? `, ${item.dosage}` : ''}`}>
+    <View style={[styles.card, lowVision && styles.cardLowVision]} accessible accessibilityLabel={`${item.name}, ${isSupplement ? '건강기능식품' : '알약'}${item.dosage ? `, ${item.dosage}` : ''}`}>
       <IconBadge icon={isSupplement ? 'leaf' : 'medical'} tone={isSupplement ? 'green' : 'blue'} />
       <View style={styles.cardInfo}>
-        <Text style={styles.cardName} numberOfLines={1}>
+        <Text style={[styles.cardName, lowVision && styles.cardNameLowVision]} numberOfLines={lowVision ? 2 : 1}>
           {item.name}
         </Text>
-        <Text style={styles.cardCategory}>
+        <Text style={[styles.cardCategory, lowVision && styles.cardCategoryLowVision]}>
           {isSupplement ? '건강기능식품' : '알약'}
           {item.dosage ? ` · ${item.dosage}` : ''}
         </Text>
       </View>
-      <Ionicons name="checkmark-circle" size={20} color={Palette.mint} />
+      <Ionicons name="checkmark-circle" size={lowVision ? 23 : 20} color={Palette.mint} />
     </View>
   );
 }
@@ -156,9 +158,17 @@ const styles = StyleSheet.create({
     padding: 16,
     ...Shadow.subtle,
   },
+  summaryLowVision: {
+    padding: 18,
+    marginBottom: 12,
+  },
   summaryLabel: {
     ...Typography.caption,
     color: Palette.textMuted,
+  },
+  summaryLabelLowVision: {
+    fontSize: 15,
+    lineHeight: 21,
   },
   summaryTitle: {
     fontSize: 20,
@@ -166,6 +176,10 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: Palette.text,
     marginTop: 3,
+  },
+  summaryTitleLowVision: {
+    fontSize: 23,
+    lineHeight: 30,
   },
   analysisWrap: {
     marginBottom: 16,
@@ -215,6 +229,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  segmentItemLowVision: {
+    minHeight: 52,
+  },
   segmentItemActive: {
     backgroundColor: Palette.surface,
     ...Shadow.subtle,
@@ -223,6 +240,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     color: Palette.textMuted,
+  },
+  segmentTextLowVision: {
+    fontSize: 17,
+    fontWeight: '900',
   },
   segmentTextActive: {
     color: Palette.text,
@@ -243,6 +264,10 @@ const styles = StyleSheet.create({
     padding: 16,
     ...Shadow.subtle,
   },
+  cardLowVision: {
+    minHeight: 102,
+    padding: 17,
+  },
   cardInfo: {
     flex: 1,
     marginLeft: 14,
@@ -254,10 +279,18 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: Palette.text,
   },
+  cardNameLowVision: {
+    fontSize: 21,
+    lineHeight: 28,
+  },
   cardCategory: {
     fontSize: 15,
     color: Palette.textMuted,
     marginTop: 4,
+  },
+  cardCategoryLowVision: {
+    fontSize: 17,
+    lineHeight: 23,
   },
   empty: {
     flex: 1,

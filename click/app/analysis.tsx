@@ -6,12 +6,14 @@ import { ConsultationNotice, PairList, RiskSummaryCard } from '@/components/anal
 import { IconBadge, PrimaryButton, Screen, SectionHeader, TopBar } from '@/components/app-ui';
 import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Spacing, Typography } from '@/constants/theme';
+import { useUserMode } from '@/hooks/use-user-mode';
 import { devLog } from '@/services/debug-log';
 import type { AnalysisResult } from '@/types/medication';
 
 export default function AnalysisScreen() {
   const router = useRouter();
   const { result: resultParam } = useLocalSearchParams<{ result?: string }>();
+  const { lowVision } = useUserMode();
 
   const result = useMemo<AnalysisResult | null>(() => {
     if (!resultParam) return null;
@@ -65,18 +67,18 @@ export default function AnalysisScreen() {
         </View>
 
         <Pressable
-          style={styles.questionCard}
+          style={[styles.questionCard, lowVision && styles.questionCardLowVision]}
           disabled
           accessibilityRole="button"
           accessibilityState={{ disabled: true }}
           accessibilityLabel="결과에 대해 물어보기, 준비 중">
           <IconBadge icon="chatbubble-ellipses" tone="dark" />
           <View style={styles.questionText}>
-            <Text style={styles.questionTitle}>결과에 대해 물어보기</Text>
-            <Text style={styles.questionBody}>후속 질문 기능은 백엔드 연결 후 열릴 예정입니다.</Text>
+            <Text style={[styles.questionTitle, lowVision && styles.questionTitleLowVision]}>결과에 대해 물어보기</Text>
+            <Text style={[styles.questionBody, lowVision && styles.questionBodyLowVision]}>후속 질문 기능은 백엔드 연결 후 열릴 예정입니다.</Text>
           </View>
-          <View style={styles.disabledChip}>
-            <Text style={styles.disabledChipText}>준비 중</Text>
+          <View style={[styles.disabledChip, lowVision && styles.disabledChipLowVision]}>
+            <Text style={[styles.disabledChipText, lowVision && styles.disabledChipTextLowVision]}>준비 중</Text>
           </View>
         </Pressable>
       </ScrollView>
@@ -101,6 +103,9 @@ const styles = StyleSheet.create({
     padding: 16,
     opacity: 0.72,
   },
+  questionCardLowVision: {
+    padding: 18,
+  },
   questionText: {
     flex: 1,
     marginLeft: 12,
@@ -111,11 +116,19 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: Palette.text,
   },
+  questionTitleLowVision: {
+    fontSize: 20,
+    lineHeight: 27,
+  },
   questionBody: {
     fontSize: 14,
     lineHeight: 20,
     color: Palette.textMuted,
     marginTop: 3,
+  },
+  questionBodyLowVision: {
+    fontSize: 17,
+    lineHeight: 24,
   },
   disabledChip: {
     paddingHorizontal: 9,
@@ -123,9 +136,16 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
     backgroundColor: Palette.surface,
   },
+  disabledChipLowVision: {
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+  },
   disabledChipText: {
     ...Typography.caption,
     color: Palette.textMuted,
+  },
+  disabledChipTextLowVision: {
+    fontSize: 15,
   },
   footer: {
     paddingBottom: 8,

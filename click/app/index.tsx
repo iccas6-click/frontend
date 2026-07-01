@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   contentLowVision: {
-    gap: 18,
+    gap: 14,
   },
   header: {
     flexDirection: 'row',
@@ -407,8 +407,8 @@ const styles = StyleSheet.create({
     color: Palette.text,
   },
   heroTitleLowVision: {
-    fontSize: 38,
-    lineHeight: 45,
+    fontSize: 35,
+    lineHeight: 42,
   },
   flowStrip: {
     flexDirection: 'row',
@@ -435,8 +435,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   flowIconLarge: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
   },
   flowPillText: {
     fontSize: 12,
@@ -446,8 +446,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   flowPillTextLarge: {
-    fontSize: 14,
-    lineHeight: 19,
+    fontSize: 13,
+    lineHeight: 18,
   },
   startPanel: {
     gap: 14,
@@ -476,8 +476,8 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   startTitleLowVision: {
-    fontSize: 25,
-    lineHeight: 32,
+    fontSize: 23,
+    lineHeight: 30,
   },
   startBody: {
     fontSize: 16,
@@ -485,8 +485,8 @@ const styles = StyleSheet.create({
     color: Palette.textMuted,
   },
   startBodyLowVision: {
-    fontSize: 19,
-    lineHeight: 28,
+    fontSize: 18,
+    lineHeight: 26,
   },
   secondaryStartButton: {
     minHeight: 54,
@@ -530,7 +530,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   statusRowLarge: {
-    minHeight: 104,
+    minHeight: 96,
   },
   statusText: {
     flex: 1,
@@ -551,8 +551,8 @@ const styles = StyleSheet.create({
     color: Palette.text,
   },
   statusLabelLarge: {
-    fontSize: 18,
-    lineHeight: 25,
+    fontSize: 17,
+    lineHeight: 24,
   },
   statusValue: {
     color: Palette.text,
@@ -560,7 +560,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   statusValueLarge: {
-    fontSize: 18,
+    fontSize: 17,
   },
   statusBody: {
     fontSize: 14,
@@ -569,8 +569,8 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   statusBodyLarge: {
-    fontSize: 16,
-    lineHeight: 23,
+    fontSize: 15,
+    lineHeight: 22,
   },
   statusAction: {
     minWidth: 36,
@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
     color: Palette.primary,
   },
   statusActionLarge: {
-    fontSize: 16,
+    fontSize: 15,
   },
   tipList: {
     backgroundColor: Palette.surface,
@@ -599,7 +599,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   tipRowLarge: {
-    minHeight: 96,
+    minHeight: 90,
   },
   tipText: {
     flex: 1,
@@ -611,7 +611,7 @@ const styles = StyleSheet.create({
     color: Palette.text,
   },
   tipTitleLarge: {
-    fontSize: 18,
+    fontSize: 17,
   },
   tipBody: {
     fontSize: 14,
@@ -620,8 +620,8 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   tipBodyLarge: {
-    fontSize: 16,
-    lineHeight: 23,
+    fontSize: 15,
+    lineHeight: 22,
   },
   pressed: {
     opacity: 0.78,

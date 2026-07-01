@@ -7,6 +7,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, useWindowDimensi
 import { IconBadge, PrimaryButton, Screen, TopBar } from '@/components/app-ui';
 import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
+import { useUserMode } from '@/hooks/use-user-mode';
 import type { ItemCategory } from '@/types/medication';
 
 export default function CameraScreen() {
@@ -16,6 +17,7 @@ export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [taking, setTaking] = useState(false);
   const { height } = useWindowDimensions();
+  const { lowVision } = useUserMode();
 
   const category: ItemCategory = params.category === '건강기능식품 라벨' ? '건강기능식품 라벨' : '알약';
   const isSupplement = category === '건강기능식품 라벨';
@@ -38,8 +40,8 @@ export default function CameraScreen() {
         <TopBar backLabel="홈" onBack={() => router.back()} />
         <View style={styles.permissionBox}>
           <IconBadge icon="camera-outline" tone="blue" size="lg" />
-          <Text style={styles.permissionTitle}>카메라 권한이 필요해요</Text>
-          <Text style={styles.permissionDesc}>
+          <Text style={[styles.permissionTitle, lowVision && styles.permissionTitleLowVision]}>카메라 권한이 필요해요</Text>
+          <Text style={[styles.permissionDesc, lowVision && styles.permissionDescLowVision]}>
             약 봉투와 건강기능식품 라벨을 촬영할 수 있도록 접근을 허용해 주세요.
           </Text>
           <PrimaryButton label="권한 허용하기" icon="lock-open" onPress={requestPermission} />
@@ -73,17 +75,17 @@ export default function CameraScreen() {
   return (
     <Screen
       bottom={
-        <View style={styles.bottomControls}>
+        <View style={[styles.bottomControls, lowVision && styles.bottomControlsLowVision]}>
           <Pressable
-            style={styles.shutterOuter}
+            style={[styles.shutterOuter, lowVision && styles.shutterOuterLowVision]}
             onPress={takePicture}
             disabled={taking}
             accessibilityRole="button"
             accessibilityLabel={`${isSupplement ? '건강기능식품' : '알약'} 촬영하기`}
             accessibilityState={{ disabled: taking }}>
-            {taking ? <ActivityIndicator color={Palette.primary} /> : <View style={styles.shutterInner} />}
+            {taking ? <ActivityIndicator color={Palette.primary} /> : <View style={[styles.shutterInner, lowVision && styles.shutterInnerLowVision]} />}
           </Pressable>
-          <Text style={styles.shutterHint}>흔들리지 않게 정면에서 촬영해 주세요</Text>
+          <Text style={[styles.shutterHint, lowVision && styles.shutterHintLowVision]}>흔들리지 않게 정면에서 촬영해 주세요</Text>
         </View>
       }>
       <StatusBar style="dark" />
@@ -107,12 +109,12 @@ export default function CameraScreen() {
         </View>
       </View>
 
-      <View style={[styles.tipCard, compact && styles.tipCardCompact]}>
+      <View style={[styles.tipCard, compact && styles.tipCardCompact, lowVision && styles.tipCardLowVision]}>
         <IconBadge icon={isSupplement ? 'text' : 'sparkles'} tone={isSupplement ? 'green' : 'blue'} size="sm" />
         <View style={styles.tipTextWrap}>
-          <Text style={styles.tipTitle}>{isSupplement ? '라벨 글자가 중요해요' : '여러 알약도 한 번에 가능해요'}</Text>
+          <Text style={[styles.tipTitle, lowVision && styles.tipTitleLowVision]}>{isSupplement ? '라벨 글자가 중요해요' : '여러 알약도 한 번에 가능해요'}</Text>
           {!compact ? (
-            <Text style={styles.tipBody}>
+            <Text style={[styles.tipBody, lowVision && styles.tipBodyLowVision]}>
               {isSupplement ? '성분명과 함량 부분이 잘리지 않게 촬영하면 확인이 쉬워집니다.' : '인식 결과는 다음 화면에서 직접 수정할 수 있습니다.'}
             </Text>
           ) : null}
@@ -139,11 +141,20 @@ const styles = StyleSheet.create({
     color: Palette.text,
     textAlign: 'center',
   },
+  permissionTitleLowVision: {
+    fontSize: 24,
+    lineHeight: 31,
+    fontWeight: '900',
+  },
   permissionDesc: {
     ...Typography.body,
     color: Palette.textMuted,
     textAlign: 'center',
     marginBottom: 12,
+  },
+  permissionDescLowVision: {
+    fontSize: 18,
+    lineHeight: 26,
   },
   cameraSection: {
     paddingHorizontal: Spacing.screen,
@@ -225,6 +236,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingVertical: 11,
   },
+  tipCardLowVision: {
+    padding: 16,
+  },
   tipTextWrap: {
     flex: 1,
     marginLeft: 12,
@@ -234,16 +248,29 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: Palette.text,
   },
+  tipTitleLowVision: {
+    fontSize: 19,
+    lineHeight: 25,
+    fontWeight: '900',
+  },
   tipBody: {
     fontSize: 14,
     lineHeight: 20,
     color: Palette.textMuted,
     marginTop: 2,
   },
+  tipBodyLowVision: {
+    fontSize: 16,
+    lineHeight: 23,
+  },
   bottomControls: {
     alignItems: 'center',
     gap: 8,
     paddingBottom: 16,
+  },
+  bottomControlsLowVision: {
+    gap: 9,
+    paddingBottom: 14,
   },
   shutterOuter: {
     width: 72,
@@ -255,15 +282,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  shutterOuterLowVision: {
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+  },
   shutterInner: {
     width: 54,
     height: 54,
     borderRadius: 27,
     backgroundColor: Palette.primary,
   },
+  shutterInnerLowVision: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+  },
   shutterHint: {
     fontSize: 13,
     fontWeight: '600',
     color: Palette.textMuted,
+  },
+  shutterHintLowVision: {
+    fontSize: 17,
+    lineHeight: 23,
+    fontWeight: '900',
   },
 });

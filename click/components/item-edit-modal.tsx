@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { Palette, Radius, Typography } from '@/constants/theme';
+import { useUserMode } from '@/hooks/use-user-mode';
 import type { ItemCategory, RecognizedItem } from '@/types/medication';
 
 const CATEGORIES: ItemCategory[] = ['알약', '건강기능식품 라벨'];
@@ -31,6 +32,7 @@ type Props = {
 };
 
 export function ItemEditModal({ visible, initial, onClose, onSave, onDelete }: Props) {
+  const { lowVision } = useUserMode();
   const isNew = initial === null;
   const [name, setName] = useState('');
   const [dosage, setDosage] = useState('');
@@ -63,14 +65,14 @@ export function ItemEditModal({ visible, initial, onClose, onSave, onDelete }: P
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.sheetWrap}>
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, lowVision && styles.sheetLowVision]}>
           <View style={styles.handle} />
-          <Text style={styles.sheetTitle}>{isNew ? '항목 추가' : '항목 수정'}</Text>
+          <Text style={[styles.sheetTitle, lowVision && styles.sheetTitleLowVision]}>{isNew ? '항목 추가' : '항목 수정'}</Text>
 
           {/* 이름 */}
-          <Text style={styles.label}>이름</Text>
+          <Text style={[styles.label, lowVision && styles.labelLowVision]}>이름</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, lowVision && styles.inputLowVision]}
             value={name}
             onChangeText={setName}
             placeholder="예: 아스피린"
@@ -80,9 +82,9 @@ export function ItemEditModal({ visible, initial, onClose, onSave, onDelete }: P
           />
 
           {/* 용량 */}
-          <Text style={styles.label}>용량</Text>
+          <Text style={[styles.label, lowVision && styles.labelLowVision]}>용량</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, lowVision && styles.inputLowVision]}
             value={dosage}
             onChangeText={setDosage}
             placeholder="예: 100mg"
@@ -91,19 +93,19 @@ export function ItemEditModal({ visible, initial, onClose, onSave, onDelete }: P
           />
 
           {/* 분류 */}
-          <Text style={styles.label}>분류</Text>
+          <Text style={[styles.label, lowVision && styles.labelLowVision]}>분류</Text>
           <View style={styles.categoryRow}>
             {CATEGORIES.map((cat) => {
               const active = category === cat;
               return (
                 <Pressable
                   key={cat}
-                  style={[styles.categoryChip, active && styles.categoryChipActive]}
+                  style={[styles.categoryChip, lowVision && styles.categoryChipLowVision, active && styles.categoryChipActive]}
                   onPress={() => setCategory(cat)}
                   accessibilityRole="button"
                   accessibilityState={{ selected: active }}
                   accessibilityLabel={`${CATEGORY_LABEL[cat]} 선택`}>
-                  <Text style={[styles.categoryText, active && styles.categoryTextActive]}>
+                  <Text style={[styles.categoryText, lowVision && styles.categoryTextLowVision, active && styles.categoryTextActive]}>
                     {CATEGORY_LABEL[cat]}
                   </Text>
                 </Pressable>
@@ -113,24 +115,24 @@ export function ItemEditModal({ visible, initial, onClose, onSave, onDelete }: P
 
           {/* 저장 */}
           <Pressable
-            style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
+            style={[styles.saveButton, lowVision && styles.saveButtonLowVision, !canSave && styles.saveButtonDisabled]}
             disabled={!canSave}
             onPress={handleSave}
             accessibilityRole="button"
             accessibilityState={{ disabled: !canSave }}
             accessibilityLabel="항목 저장">
-            <Text style={styles.saveText}>저장</Text>
+            <Text style={[styles.saveText, lowVision && styles.saveTextLowVision]}>저장</Text>
           </Pressable>
 
           {/* 삭제 (수정 모드에서만) */}
           {!isNew && onDelete && (
             <Pressable
-              style={styles.deleteButton}
+              style={[styles.deleteButton, lowVision && styles.deleteButtonLowVision]}
               onPress={() => onDelete(initial!.id)}
               accessibilityRole="button"
               accessibilityLabel="이 항목 삭제">
-              <Ionicons name="trash-outline" size={18} color="#E5484D" />
-              <Text style={styles.deleteText}>이 항목 삭제</Text>
+              <Ionicons name="trash-outline" size={lowVision ? 22 : 18} color="#E5484D" />
+              <Text style={[styles.deleteText, lowVision && styles.deleteTextLowVision]}>이 항목 삭제</Text>
             </Pressable>
           )}
         </View>
@@ -158,6 +160,10 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 36,
   },
+  sheetLowVision: {
+    paddingHorizontal: 22,
+    paddingBottom: 30,
+  },
   handle: {
     alignSelf: 'center',
     width: 40,
@@ -171,12 +177,23 @@ const styles = StyleSheet.create({
     color: Palette.text,
     marginBottom: 16,
   },
+  sheetTitleLowVision: {
+    fontSize: 24,
+    lineHeight: 31,
+    fontWeight: '900',
+    marginBottom: 14,
+  },
   label: {
     fontSize: 14,
     fontWeight: '700',
     color: Palette.textMuted,
     marginTop: 12,
     marginBottom: 6,
+  },
+  labelLowVision: {
+    fontSize: 17,
+    fontWeight: '900',
+    marginTop: 13,
   },
   input: {
     borderWidth: 1,
@@ -187,6 +204,11 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: Palette.text,
     backgroundColor: Palette.background,
+  },
+  inputLowVision: {
+    minHeight: 58,
+    fontSize: 20,
+    paddingVertical: 15,
   },
   categoryRow: {
     flexDirection: 'row',
@@ -201,6 +223,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Palette.background,
   },
+  categoryChipLowVision: {
+    minHeight: 60,
+    justifyContent: 'center',
+  },
   categoryChipActive: {
     borderColor: Palette.primary,
     backgroundColor: Palette.primarySoft,
@@ -209,6 +235,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: Palette.textMuted,
+  },
+  categoryTextLowVision: {
+    fontSize: 18,
+    fontWeight: '800',
   },
   categoryTextActive: {
     color: Palette.primary,
@@ -221,6 +251,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
   },
+  saveButtonLowVision: {
+    paddingVertical: 18,
+  },
   saveButtonDisabled: {
     opacity: 0.5,
   },
@@ -228,6 +261,10 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '800',
+  },
+  saveTextLowVision: {
+    fontSize: 21,
+    fontWeight: '900',
   },
   deleteButton: {
     marginTop: 12,
@@ -237,9 +274,16 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 12,
   },
+  deleteButtonLowVision: {
+    minHeight: 56,
+  },
   deleteText: {
     color: Palette.rose,
     fontSize: 15,
     fontWeight: '700',
+  },
+  deleteTextLowVision: {
+    fontSize: 18,
+    fontWeight: '900',
   },
 });

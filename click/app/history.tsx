@@ -6,6 +6,7 @@ import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native
 
 import { IconBadge, PrimaryButton, Screen, TopBar } from '@/components/app-ui';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
+import { useUserMode } from '@/hooks/use-user-mode';
 import { deleteSessions, formatRecordTime, formatRecordTitle, getAllSessions } from '@/services/history-storage';
 import type { AnalysisSession, RecognizedItem, SessionStatus } from '@/types/medication';
 
@@ -36,6 +37,7 @@ export default function HistoryScreen() {
   const [filter, setFilter] = useState<HistoryFilter>('all');
   const [selecting, setSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const { lowVision } = useUserMode();
 
   useFocusEffect(
     useCallback(() => {
@@ -111,8 +113,8 @@ export default function HistoryScreen() {
         onBack={() => router.back()}
         right={
           records.length > 0 ? (
-            <Pressable style={styles.selectButton} onPress={toggleSelecting} accessibilityRole="button" accessibilityLabel={selecting ? '기록 선택 취소' : '기록 선택 삭제'}>
-              <Text style={styles.selectButtonText}>{selecting ? '취소' : '선택'}</Text>
+            <Pressable style={[styles.selectButton, lowVision && styles.selectButtonLowVision]} onPress={toggleSelecting} accessibilityRole="button" accessibilityLabel={selecting ? '기록 선택 취소' : '기록 선택 삭제'}>
+              <Text style={[styles.selectButtonText, lowVision && styles.selectButtonTextLowVision]}>{selecting ? '취소' : '선택'}</Text>
             </Pressable>
           ) : null
         }
@@ -146,8 +148,8 @@ export default function HistoryScreen() {
           {selecting ? (
             <View style={styles.selectionRow}>
               <Text style={styles.selectionText}>삭제할 기록을 선택하세요</Text>
-              <Pressable style={styles.selectAllButton} onPress={toggleAllFiltered} accessibilityRole="button" accessibilityLabel={allFilteredSelected ? '현재 목록 선택 해제' : '현재 목록 전체 선택'}>
-                <Text style={styles.selectAllText}>{allFilteredSelected ? '선택 해제' : '전체 선택'}</Text>
+              <Pressable style={[styles.selectAllButton, lowVision && styles.selectAllButtonLowVision]} onPress={toggleAllFiltered} accessibilityRole="button" accessibilityLabel={allFilteredSelected ? '현재 목록 선택 해제' : '현재 목록 전체 선택'}>
+                <Text style={[styles.selectAllText, lowVision && styles.selectAllTextLowVision]}>{allFilteredSelected ? '선택 해제' : '전체 선택'}</Text>
               </Pressable>
             </View>
           ) : null}
@@ -166,6 +168,7 @@ export default function HistoryScreen() {
                   record={item}
                   selecting={selecting}
                   selected={selectedIds.includes(item.id)}
+                  lowVision={lowVision}
                   onPress={() => {
                     if (selecting) {
                       toggleRecord(item.id);
@@ -189,11 +192,13 @@ function RecordCard({
   record,
   selecting,
   selected,
+  lowVision,
   onPress,
 }: {
   record: AnalysisSession;
   selecting: boolean;
   selected: boolean;
+  lowVision: boolean;
   onPress: () => void;
 }) {
   const pill = record.items.some((item) => item.category === '알약');
@@ -202,7 +207,7 @@ function RecordCard({
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.card, selected && styles.cardSelected, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.card, lowVision && styles.cardLowVision, selected && styles.cardSelected, pressed && styles.pressed]}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={selecting ? { selected } : undefined}
@@ -215,10 +220,10 @@ function RecordCard({
       <IconBadge icon={pill && supp ? 'layers' : pill ? 'medical' : 'leaf'} tone={analyzed ? 'green' : pill ? 'blue' : 'green'} />
       <View style={styles.cardText}>
         <View style={styles.cardTitleRow}>
-          <Text style={styles.cardTitle}>{formatRecordTitle(record.createdAt)}</Text>
+          <Text style={[styles.cardTitle, lowVision && styles.cardTitleLowVision]}>{formatRecordTitle(record.createdAt)}</Text>
           <StatusChip label={getStatusLabel(record.status)} active={analyzed} />
         </View>
-        <Text style={styles.cardMeta}>
+        <Text style={[styles.cardMeta, lowVision && styles.cardMetaLowVision]}>
           {formatRecordTime(record.createdAt)} · {summarize(record.items)}
         </Text>
         <View style={styles.chipRow}>
@@ -226,7 +231,7 @@ function RecordCard({
           {supp ? <Chip label="건강기능식품" /> : null}
         </View>
       </View>
-      {selecting ? null : <Ionicons name="chevron-forward" size={19} color={Palette.textSubtle} />}
+      {selecting ? null : <Ionicons name="chevron-forward" size={lowVision ? 22 : 19} color={Palette.textSubtle} />}
     </Pressable>
   );
 }
@@ -283,10 +288,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: Palette.primarySoft,
   },
+  selectButtonLowVision: {
+    minHeight: 42,
+    paddingHorizontal: 14,
+  },
   selectButtonText: {
     color: Palette.primary,
     fontSize: 15,
     fontWeight: '900',
+  },
+  selectButtonTextLowVision: {
+    fontSize: 17,
   },
   selectionRow: {
     minHeight: 42,
@@ -311,10 +323,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Palette.border,
   },
+  selectAllButtonLowVision: {
+    minHeight: 42,
+    paddingHorizontal: 14,
+  },
   selectAllText: {
     color: Palette.text,
     fontSize: 14,
     fontWeight: '900',
+  },
+  selectAllTextLowVision: {
+    fontSize: 16,
   },
   list: {
     paddingHorizontal: Spacing.screen,
@@ -334,6 +353,10 @@ const styles = StyleSheet.create({
     borderColor: Palette.border,
     padding: 16,
     ...Shadow.subtle,
+  },
+  cardLowVision: {
+    minHeight: 124,
+    padding: 17,
   },
   cardSelected: {
     borderColor: Palette.rose,
@@ -376,11 +399,19 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: Palette.text,
   },
+  cardTitleLowVision: {
+    fontSize: 20,
+    lineHeight: 27,
+  },
   cardMeta: {
     fontSize: 15,
     lineHeight: 21,
     color: Palette.textMuted,
     marginTop: 4,
+  },
+  cardMetaLowVision: {
+    fontSize: 17,
+    lineHeight: 24,
   },
   chipRow: {
     flexDirection: 'row',
