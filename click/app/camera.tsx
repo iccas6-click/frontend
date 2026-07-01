@@ -23,6 +23,21 @@ export default function CameraScreen() {
   const isSupplement = category === '건강기능식품 라벨';
   const compact = height < 760;
 
+  const handleBack = () => {
+    if (isSupplement && params.recordId) {
+      router.replace({
+        pathname: '/reuse',
+        params: {
+          category,
+          prevItems: params.prevItems,
+          recordId: params.recordId,
+        },
+      });
+      return;
+    }
+    router.back();
+  };
+
   if (!permission) {
     return (
       <Screen>
@@ -37,7 +52,7 @@ export default function CameraScreen() {
     return (
       <Screen>
         <StatusBar style="dark" />
-        <TopBar backLabel="홈" onBack={() => router.back()} />
+        <TopBar backLabel="홈" onBack={handleBack} />
         <View style={styles.permissionBox}>
           <IconBadge icon="camera-outline" tone="blue" size="lg" />
           <Text style={[styles.permissionTitle, lowVision && styles.permissionTitleLowVision]}>카메라 권한이 필요해요</Text>
@@ -93,11 +108,11 @@ export default function CameraScreen() {
         title={isSupplement ? '건강기능식품 촬영' : '알약 촬영'}
         subtitle={isSupplement ? '제품명과 성분표가 보이도록 라벨을 담아주세요.' : '알약 앞면과 포장 정보를 또렷하게 담아주세요.'}
         backLabel="뒤로"
-        onBack={() => router.back()}
+        onBack={handleBack}
       />
       <StepIndicator current={isSupplement ? 2 : 1} />
 
-      <View style={styles.cameraSection}>
+      <View style={[styles.cameraSection, compact && styles.cameraSectionCompact]}>
         <View style={styles.cameraShell}>
           <CameraView ref={cameraRef} style={styles.camera} facing="back" />
           <View style={styles.frameGuide}>
@@ -158,6 +173,9 @@ const styles = StyleSheet.create({
   },
   cameraSection: {
     paddingHorizontal: Spacing.screen,
+  },
+  cameraSectionCompact: {
+    paddingHorizontal: 42,
   },
   cameraShell: {
     width: '100%',
@@ -221,8 +239,9 @@ const styles = StyleSheet.create({
   },
   tipCard: {
     marginHorizontal: Spacing.screen,
-    marginTop: 14,
-    marginBottom: 12,
+    marginTop: 12,
+    marginBottom: 10,
+    minHeight: 76,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Palette.surface,
@@ -232,12 +251,14 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   tipCardCompact: {
-    marginTop: 10,
-    marginBottom: 8,
-    paddingVertical: 11,
+    marginTop: 8,
+    marginBottom: 4,
+    minHeight: 66,
+    paddingVertical: 10,
   },
   tipCardLowVision: {
-    padding: 16,
+    minHeight: 84,
+    padding: 15,
   },
   tipTextWrap: {
     flex: 1,

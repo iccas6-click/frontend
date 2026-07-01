@@ -66,24 +66,26 @@ export default function MainScreen() {
             <Text style={[styles.logoText, lowVision && styles.logoTextLowVision]}>CLICK</Text>
           </View>
 
-          <Pressable
-            style={({ pressed }) => [styles.settingsButton, lowVision && styles.settingsButtonLowVision, pressed && styles.pressed]}
-            onPress={() => router.push('/settings')}
-            accessibilityRole="button"
-            accessibilityLabel="설정 열기">
-            <Ionicons name="settings-outline" size={lowVision ? 25 : 22} color={Palette.text} />
-          </Pressable>
+          <View style={styles.headerRight}>
+            <View style={[styles.modeBadge, lowVision && styles.modeBadgeLowVision]}>
+              <Text style={[styles.modeBadgeText, lowVision && styles.modeBadgeTextLowVision]}>
+                {lowVision ? '저시력자' : '일반'}
+              </Text>
+            </View>
+            <Pressable
+              style={({ pressed }) => [styles.settingsButton, lowVision && styles.settingsButtonLowVision, pressed && styles.pressed]}
+              onPress={() => router.push('/settings')}
+              accessibilityRole="button"
+              accessibilityLabel="설정 열기">
+              <Ionicons name="settings-outline" size={lowVision ? 25 : 22} color={Palette.text} />
+            </Pressable>
+          </View>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={[styles.content, lowVision && styles.contentLowVision]} showsVerticalScrollIndicator={false}>
         <View style={styles.heroBlock}>
           <Text style={[styles.heroTitle, lowVision && styles.heroTitleLowVision]}>같이 먹어도 괜찮은지{'\n'}사진으로 먼저 확인하세요!</Text>
-          <View style={[styles.modeBadge, lowVision && styles.modeBadgeLowVision]}>
-            <Text style={[styles.modeBadgeText, lowVision && styles.modeBadgeTextLowVision]}>
-              {lowVision ? '저시력자 모드' : '일반 모드'}
-            </Text>
-          </View>
         </View>
 
         <View style={styles.flowStrip}>
@@ -181,10 +183,11 @@ function TimelineCard({
       </View>
       <View style={styles.timelineBody}>
         <View style={styles.timelineTop}>
-          <Text style={[styles.timelineTitle, lowVision && styles.timelineTitleLowVision]}>{formatRecordTitle(record.createdAt)}</Text>
+          <Text style={[styles.timelineTitle, lowVision && styles.timelineTitleLowVision]}>
+            {formatRecordTitle(record.createdAt)} {formatRecordTime(record.createdAt)}
+          </Text>
           <RiskChip level={level} />
         </View>
-        <Text style={[styles.timelineTime, lowVision && styles.timelineTimeLowVision]}>{formatRecordTime(record.createdAt)}</Text>
         <View style={styles.countRow}>
           <CountChip icon="medical" label={`알약 ${counts.pill}`} />
           <CountChip icon="leaf" label={`건강기능식품 ${counts.supplement}`} />
@@ -234,6 +237,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   logoMark: {
     width: 42,
@@ -285,7 +293,7 @@ const styles = StyleSheet.create({
     gap: 15,
   },
   heroBlock: {
-    gap: 12,
+    gap: 0,
   },
   heroTitle: {
     ...Typography.hero,
@@ -296,7 +304,6 @@ const styles = StyleSheet.create({
     lineHeight: 42,
   },
   modeBadge: {
-    alignSelf: 'flex-start',
     minHeight: 30,
     paddingHorizontal: 10,
     borderRadius: Radius.sm,
@@ -305,7 +312,7 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.surfaceMuted,
   },
   modeBadgeLowVision: {
-    minHeight: 36,
+    minHeight: 38,
     backgroundColor: Palette.primarySoft,
   },
   modeBadgeText: {
@@ -315,7 +322,7 @@ const styles = StyleSheet.create({
     color: Palette.blueGrey,
   },
   modeBadgeTextLowVision: {
-    fontSize: 15,
+    fontSize: 16,
     color: Palette.primary,
   },
   flowStrip: {
@@ -480,16 +487,6 @@ const styles = StyleSheet.create({
   timelineTitleLowVision: {
     fontSize: 21,
     lineHeight: 28,
-  },
-  timelineTime: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: Palette.textMuted,
-    marginTop: 3,
-  },
-  timelineTimeLowVision: {
-    fontSize: 17,
-    lineHeight: 24,
   },
   riskChip: {
     paddingHorizontal: 9,

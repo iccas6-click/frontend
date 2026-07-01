@@ -6,7 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { IconBadge, PrimaryButton, Screen, TopBar } from '@/components/app-ui';
 import { ItemEditModal } from '@/components/item-edit-modal';
 import { StepIndicator } from '@/components/step-indicator';
-import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
+import { Palette, Radius, Shadow, Spacing } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
 import { updateSessionItems } from '@/services/history-storage';
 import type { ItemCategory, RecognizedItem } from '@/types/medication';
@@ -68,6 +68,11 @@ export default function ReviewScreen() {
     setEditTarget(undefined);
   };
 
+  const openAdd = (category: ItemCategory) => {
+    setAddCategory(category);
+    setEditTarget(null);
+  };
+
   const analyze = () => {
     persist(items);
     router.push({
@@ -90,30 +95,20 @@ export default function ReviewScreen() {
       <StepIndicator current={3} />
 
       <ScrollView contentContainerStyle={[styles.content, lowVision && styles.contentLowVision]} showsVerticalScrollIndicator={false}>
-        <View style={styles.split}>
-          <ItemColumn
-            title="알약"
-            category="알약"
-            items={pillItems}
-            lowVision={lowVision}
-            onAdd={() => {
-              setAddCategory('알약');
-              setEditTarget(null);
-            }}
-            onPress={setEditTarget}
-          />
-          <ItemColumn
-            title="건강기능식품"
-            category="건강기능식품 라벨"
-            items={supplementItems}
-            lowVision={lowVision}
-            onAdd={() => {
-              setAddCategory('건강기능식품 라벨');
-              setEditTarget(null);
-            }}
-            onPress={setEditTarget}
-          />
-        </View>
+        <ItemSection
+          category="알약"
+          items={pillItems}
+          lowVision={lowVision}
+          onAdd={() => openAdd('알약')}
+          onPress={setEditTarget}
+        />
+        <ItemSection
+          category="건강기능식품 라벨"
+          items={supplementItems}
+          lowVision={lowVision}
+          onAdd={() => openAdd('건강기능식품 라벨')}
+          onPress={setEditTarget}
+        />
       </ScrollView>
 
       <ItemEditModal
@@ -128,15 +123,13 @@ export default function ReviewScreen() {
   );
 }
 
-function ItemColumn({
-  title,
+function ItemSection({
   category,
   items,
   lowVision,
   onAdd,
   onPress,
 }: {
-  title: string;
   category: ItemCategory;
   items: RecognizedItem[];
   lowVision: boolean;
@@ -145,49 +138,54 @@ function ItemColumn({
 }) {
   const meta = CATEGORY_META[category];
   return (
-    <View style={styles.column}>
-      <View style={styles.columnHeader}>
-        <View style={styles.columnTitleRow}>
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionTitleRow}>
           <IconBadge icon={meta.icon} tone={meta.tone} size="sm" />
-          <Text style={[styles.columnTitle, lowVision && styles.columnTitleLowVision]}>{title}</Text>
+          <Text style={[styles.sectionTitle, lowVision && styles.sectionTitleLowVision]} numberOfLines={1}>
+            {meta.label}
+          </Text>
         </View>
-        <Text style={[styles.columnCount, lowVision && styles.columnCountLowVision]}>{items.length}</Text>
+        <Text style={[styles.sectionCount, lowVision && styles.sectionCountLowVision]}>{items.length}</Text>
       </View>
 
-      <View style={styles.tileGrid}>
+      <View style={styles.itemList}>
         {items.map((item) => (
-          <ItemTile key={item.id} item={item} lowVision={lowVision} onPress={() => onPress(item)} />
+          <ItemRow key={item.id} item={item} lowVision={lowVision} onPress={() => onPress(item)} />
         ))}
         <Pressable
-          style={({ pressed }) => [styles.addTile, lowVision && styles.addTileLowVision, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.addRow, lowVision && styles.addRowLowVision, pressed && styles.pressed]}
           onPress={onAdd}
           accessibilityRole="button"
-          accessibilityLabel={`${title} 직접 추가`}>
-          <Ionicons name="add" size={lowVision ? 25 : 21} color={Palette.textMuted} />
-          <Text style={[styles.addTileText, lowVision && styles.addTileTextLowVision]}>추가</Text>
+          accessibilityLabel={`${meta.label} 직접 추가`}>
+          <Ionicons name="add" size={lowVision ? 23 : 19} color={Palette.textMuted} />
+          <Text style={[styles.addRowText, lowVision && styles.addRowTextLowVision]}>직접 추가</Text>
         </Pressable>
       </View>
     </View>
   );
 }
 
-function ItemTile({ item, lowVision, onPress }: { item: RecognizedItem; lowVision: boolean; onPress: () => void }) {
+function ItemRow({ item, lowVision, onPress }: { item: RecognizedItem; lowVision: boolean; onPress: () => void }) {
   const meta = CATEGORY_META[item.category] ?? CATEGORY_META['알약'];
   return (
     <Pressable
-      style={({ pressed }) => [styles.tile, lowVision && styles.tileLowVision, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.itemRow, lowVision && styles.itemRowLowVision, pressed && styles.pressed]}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${item.name}, 수정`}>
-      <Ionicons name={meta.icon} size={lowVision ? 22 : 18} color={meta.tone === 'green' ? Palette.mint : Palette.primary} />
-      <Text style={[styles.tileName, lowVision && styles.tileNameLowVision]} numberOfLines={3}>
-        {item.name}
-      </Text>
-      {item.dosage ? (
-        <Text style={[styles.tileDose, lowVision && styles.tileDoseLowVision]} numberOfLines={1}>
-          {item.dosage}
+      <View style={[styles.rowIcon, { backgroundColor: meta.tone === 'green' ? Palette.mintSoft : Palette.primarySoft }]}>
+        <Ionicons name={meta.icon} size={lowVision ? 22 : 18} color={meta.tone === 'green' ? Palette.mint : Palette.primary} />
+      </View>
+      <View style={styles.rowText}>
+        <Text style={[styles.rowName, lowVision && styles.rowNameLowVision]} numberOfLines={1}>
+          {item.name}
         </Text>
-      ) : null}
+        <Text style={[styles.rowDose, lowVision && styles.rowDoseLowVision]} numberOfLines={1}>
+          {item.dosage || '용량 미입력'}
+        </Text>
+      </View>
+      <Ionicons name="create-outline" size={lowVision ? 22 : 18} color={Palette.textSubtle} />
     </Pressable>
   );
 }
@@ -196,113 +194,129 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: Spacing.screen,
     paddingBottom: 28,
+    gap: 14,
   },
   contentLowVision: {
     paddingBottom: 34,
+    gap: 16,
   },
-  split: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  column: {
-    flex: 1,
-    minHeight: 360,
+  section: {
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Palette.border,
     backgroundColor: Palette.surface,
-    padding: 12,
+    padding: 14,
     ...Shadow.subtle,
   },
-  columnHeader: {
+  sectionHeader: {
     minHeight: 42,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 10,
   },
-  columnTitleRow: {
+  sectionTitleRow: {
     flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  columnTitle: {
-    flex: 1,
-    fontSize: 17,
-    lineHeight: 22,
-    fontWeight: '900',
-    color: Palette.text,
-  },
-  columnTitleLowVision: {
-    fontSize: 19,
-    lineHeight: 25,
-  },
-  columnCount: {
-    minWidth: 30,
-    textAlign: 'right',
-    fontSize: 19,
-    fontWeight: '900',
-    color: Palette.text,
-  },
-  columnCountLowVision: {
-    fontSize: 23,
-  },
-  tileGrid: {
     gap: 9,
   },
-  tile: {
-    aspectRatio: 1,
+  sectionTitle: {
+    flex: 1,
+    fontSize: 19,
+    lineHeight: 25,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  sectionTitleLowVision: {
+    fontSize: 22,
+    lineHeight: 29,
+  },
+  sectionCount: {
+    minWidth: 34,
+    textAlign: 'right',
+    fontSize: 20,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  sectionCountLowVision: {
+    fontSize: 24,
+  },
+  itemList: {
+    gap: 9,
+  },
+  itemRow: {
+    minHeight: 72,
+    flexDirection: 'row',
+    alignItems: 'center',
     borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: Palette.border,
     backgroundColor: Palette.background,
-    padding: 11,
-    justifyContent: 'space-between',
+    paddingHorizontal: 13,
+    paddingVertical: 10,
   },
-  tileLowVision: {
-    minHeight: 152,
-    padding: 12,
+  itemRowLowVision: {
+    minHeight: 88,
+    paddingHorizontal: 14,
   },
-  tileName: {
-    fontSize: 15,
-    lineHeight: 20,
+  rowIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: Radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowText: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: 12,
+    marginRight: 8,
+  },
+  rowName: {
+    fontSize: 17,
+    lineHeight: 23,
     fontWeight: '900',
     color: Palette.text,
   },
-  tileNameLowVision: {
-    fontSize: 18,
-    lineHeight: 24,
+  rowNameLowVision: {
+    fontSize: 21,
+    lineHeight: 28,
   },
-  tileDose: {
-    ...Typography.caption,
-    color: Palette.textMuted,
-  },
-  tileDoseLowVision: {
-    fontSize: 15,
+  rowDose: {
+    fontSize: 14,
     lineHeight: 20,
+    fontWeight: '700',
+    color: Palette.textMuted,
+    marginTop: 2,
   },
-  addTile: {
-    aspectRatio: 1,
+  rowDoseLowVision: {
+    fontSize: 17,
+    lineHeight: 23,
+  },
+  addRow: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
     borderRadius: Radius.md,
     borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: Palette.borderStrong,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
     backgroundColor: Palette.surfaceMuted,
   },
-  addTileLowVision: {
-    minHeight: 152,
+  addRowLowVision: {
+    minHeight: 72,
   },
-  addTileText: {
-    fontSize: 14,
+  addRowText: {
+    fontSize: 15,
     fontWeight: '900',
     color: Palette.textMuted,
   },
-  addTileTextLowVision: {
-    fontSize: 17,
+  addRowTextLowVision: {
+    fontSize: 18,
   },
   pressed: {
     opacity: 0.78,
