@@ -131,17 +131,13 @@ function AnalyzedIngredientSummary({ result, items, lowVision }: { result: Analy
   const supplementNames = result.matchedSupplementNames?.length
     ? result.matchedSupplementNames
     : uniqueNames(supplements.flatMap(analysisNamesFor));
-  const ignoredNames = uniqueNames(result.ignoredDrugNames ?? []);
-  if (pillNames.length === 0 && supplementNames.length === 0 && ignoredNames.length === 0) return null;
+  if (pillNames.length === 0 && supplementNames.length === 0) return null;
 
   return (
     <View style={styles.ingredientSummary}>
       <Text style={[styles.ingredientSummaryTitle, lowVision && styles.ingredientSummaryTitleLowVision]}>실제 분석 성분</Text>
       <IngredientColumn title="알약" names={pillNames} tone="blue" lowVision={lowVision} />
       <IngredientColumn title="건강기능식품" names={supplementNames} tone="green" lowVision={lowVision} />
-      {ignoredNames.length > 0 ? (
-        <IngredientColumn title="제외된 항목" names={ignoredNames} tone="muted" lowVision={lowVision} />
-      ) : null}
     </View>
   );
 }
@@ -154,10 +150,10 @@ function IngredientColumn({
 }: {
   title: string;
   names: string[];
-  tone: 'blue' | 'green' | 'muted';
+  tone: 'blue' | 'green';
   lowVision: boolean;
 }) {
-  const dotColor = tone === 'green' ? Palette.mint : tone === 'blue' ? Palette.primary : Palette.blueGrey;
+  const dotColor = tone === 'green' ? Palette.mint : Palette.primary;
   return (
     <View style={styles.ingredientGroup}>
       <View style={styles.ingredientGroupHeader}>
@@ -169,16 +165,11 @@ function IngredientColumn({
         <Text style={[styles.ingredientEmpty, lowVision && styles.ingredientEmptyLowVision]}>성분 확인 필요</Text>
       ) : (
         <View style={styles.ingredientChips}>
-          {names.slice(0, 8).map((name) => (
+          {names.map((name) => (
             <View key={`${title}-${name}`} style={styles.ingredientChip}>
               <Text style={[styles.ingredientChipText, lowVision && styles.ingredientChipTextLowVision]} numberOfLines={1}>{name}</Text>
             </View>
           ))}
-          {names.length > 8 ? (
-            <View style={styles.ingredientChip}>
-              <Text style={[styles.ingredientChipText, lowVision && styles.ingredientChipTextLowVision]}>외 {names.length - 8}개</Text>
-            </View>
-          ) : null}
         </View>
       )}
     </View>
