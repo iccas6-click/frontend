@@ -141,7 +141,7 @@ export default function ReuseScreen() {
             onPress={startCamera}
             accessibilityRole="button"
             accessibilityLabel={`새 ${label} 촬영하기`}>
-            <IconBadge icon="camera" tone={isSupplement ? 'green' : 'blue'} />
+            <IconBadge icon="camera" tone="blue" />
             <Text style={[styles.sourceTitle, styles.captureTitle, lowVision && styles.choiceTitleTextLowVision]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78}>새 {label} 촬영하기</Text>
           </Pressable>
 
@@ -150,7 +150,7 @@ export default function ReuseScreen() {
             onPress={pickFromGallery}
             accessibilityRole="button"
             accessibilityLabel={`${label} 사진 갤러리에서 가져오기`}>
-            <IconBadge icon="image" tone={isSupplement ? 'green' : 'blue'} />
+            <IconBadge icon="image" tone="blue" />
             <Text style={[styles.sourceTitle, styles.galleryTitle, lowVision && styles.choiceTitleTextLowVision]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78}>갤러리에서 가져오기</Text>
           </Pressable>
         </View>
@@ -285,17 +285,15 @@ const styles = StyleSheet.create({
     ...Shadow.subtle,
   },
   sourceRow: {
-    flexDirection: 'row',
     gap: 10,
   },
   sourceRowLowVision: {
-    flexDirection: 'column',
+    gap: 12,
   },
   sourceCard: {
-    flex: 1,
-    minWidth: 0,
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
     gap: 12,
   },
   sourceTitle: {
@@ -318,10 +316,12 @@ const styles = StyleSheet.create({
   },
   galleryCard: {
     minHeight: 92,
-    backgroundColor: Palette.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Palette.primary,
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: Palette.borderStrong,
+    borderColor: Palette.border,
     padding: 16,
     ...Shadow.subtle,
   },
@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
     fontSize: 19,
     lineHeight: 25,
     fontWeight: '900',
-    color: Palette.text,
+    color: '#FFFFFF',
   },
   choiceTitleTextLowVision: {
     fontSize: 22,
