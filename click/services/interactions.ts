@@ -66,7 +66,7 @@ export async function analyzeInteractions(items: RecognizedItem[]): Promise<Anal
   if (!BACKEND_API_BASE_URL) {
     await new Promise((resolve) => setTimeout(resolve, 4500));
 
-    const pairs: InteractionPair[] = [];
+    const allPairs: InteractionPair[] = [];
     let pid = 0;
     for (let i = 0; i < items.length; i++) {
       for (let j = i + 1; j < items.length; j++) {
@@ -74,7 +74,7 @@ export async function analyzeInteractions(items: RecognizedItem[]): Promise<Anal
         const b = items[j].name;
         const known = KNOWN[pairKey(a, b)];
         pid += 1;
-        pairs.push({
+        allPairs.push({
           id: String(pid),
           items: [a, b],
           level: known?.level ?? 'safe',
@@ -83,6 +83,7 @@ export async function analyzeInteractions(items: RecognizedItem[]): Promise<Anal
       }
     }
 
+    const pairs = allPairs.filter((pair) => pair.level !== 'safe');
     // 위험도 높은 순으로 정렬
     pairs.sort((x, y) => LEVEL_RANK[y.level] - LEVEL_RANK[x.level]);
 
@@ -98,7 +99,14 @@ export async function analyzeInteractions(items: RecognizedItem[]): Promise<Anal
           ? '일부 조합에서 주의가 필요합니다'
           : '모든 조합을 함께 복용할 수 있습니다';
 
-    const result = { overall, summary, pairs };
+    const result = {
+      overall,
+      summary,
+      pairs,
+      checkedCount: allPairs.length,
+      detectedCount: pairs.length,
+      undetectedCount: allPairs.length - pairs.length,
+    };
     devLog('[상호작용] ◀ 서버에서 받음 (목업):', result);
     return result;
   }

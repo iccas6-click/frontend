@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { ConsultationNotice, PairCard, RiskSummaryCard } from '@/components/analysis-ui';
+import { ConsultationNotice, InteractionCoverageCard, PairCard, RiskSummaryCard } from '@/components/analysis-ui';
 import { IconBadge, PrimaryButton, Screen, TopBar } from '@/components/app-ui';
 import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
@@ -16,7 +16,6 @@ export default function AnalysisScreen() {
   const { result: resultParam, items: itemsParam, recordId } = useLocalSearchParams<{ result?: string; items?: string; recordId?: string }>();
   const { lowVision } = useUserMode();
   const [attentionOpen, setAttentionOpen] = useState(true);
-  const [safeOpen, setSafeOpen] = useState(false);
 
   const result = useMemo<AnalysisResult | null>(() => {
     if (!resultParam) return null;
@@ -98,14 +97,7 @@ export default function AnalysisScreen() {
             lowVision={lowVision}
             tone="amber"
           />
-          <PairSection
-            title="미탐지 조합"
-            pairs={result.pairs.filter((pair) => pair.level === 'safe')}
-            open={safeOpen}
-            onToggle={() => setSafeOpen((value) => !value)}
-            lowVision={lowVision}
-            tone="green"
-          />
+          <InteractionCoverageCard result={result} compact />
         </View>
       </ScrollView>
     </Screen>

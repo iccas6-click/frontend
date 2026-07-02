@@ -54,6 +54,34 @@ export function RiskSummaryCard({ result, compact = false }: { result: AnalysisR
   );
 }
 
+export function InteractionCoverageCard({ result, compact = false }: { result: AnalysisResult; compact?: boolean }) {
+  const { lowVision } = useUserMode();
+  const checked = result.checkedCount ?? 0;
+  if (checked <= 0) return null;
+
+  const detected = result.detectedCount ?? result.pairs.filter((pair) => pair.level !== 'safe').length;
+  const undetected = result.undetectedCount ?? Math.max(checked - detected, 0);
+  const message =
+    detected > 0
+      ? `총 ${checked}개 조합 중 ${detected}개에서 주의 정보가 발견됐어요.`
+      : `총 ${checked}개 조합에서 주의 정보가 발견되지 않았어요.`;
+
+  return (
+    <View style={[styles.coverageCard, compact && styles.coverageCardCompact, lowVision && styles.coverageCardLowVision]}>
+      <View style={[styles.coverageIcon, lowVision && styles.coverageIconLowVision]}>
+        <Ionicons name="search" size={lowVision ? 22 : 18} color={Palette.mint} />
+      </View>
+      <View style={styles.coverageTextWrap}>
+        <View style={styles.coverageTitleRow}>
+          <Text style={[styles.coverageTitle, lowVision && styles.coverageTitleLowVision]}>주의 정보 미탐지</Text>
+          <Text style={[styles.coverageCount, lowVision && styles.coverageCountLowVision]}>{undetected}</Text>
+        </View>
+        <Text style={[styles.coverageText, lowVision && styles.coverageTextLowVision]}>{message}</Text>
+      </View>
+    </View>
+  );
+}
+
 export function PairCard({ pair, compact = false }: { pair: InteractionPair; compact?: boolean }) {
   const { lowVision } = useUserMode();
   const meta = RISK_META[pair.level];
@@ -169,6 +197,80 @@ const styles = StyleSheet.create({
   },
   pairList: {
     gap: 10,
+  },
+  coverageCard: {
+    marginHorizontal: Spacing.screen,
+    marginBottom: 14,
+    minHeight: 78,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    padding: 14,
+    ...Shadow.subtle,
+  },
+  coverageCardCompact: {
+    marginHorizontal: 0,
+    marginBottom: 0,
+  },
+  coverageCardLowVision: {
+    minHeight: 92,
+    padding: 16,
+  },
+  coverageIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Palette.mintSoft,
+  },
+  coverageIconLowVision: {
+    width: 48,
+    height: 48,
+  },
+  coverageTextWrap: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  coverageTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  coverageTitle: {
+    flex: 1,
+    fontSize: 17,
+    lineHeight: 23,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  coverageTitleLowVision: {
+    fontSize: 21,
+    lineHeight: 28,
+  },
+  coverageCount: {
+    fontSize: 20,
+    lineHeight: 25,
+    fontWeight: '900',
+    color: Palette.mint,
+  },
+  coverageCountLowVision: {
+    fontSize: 24,
+    lineHeight: 31,
+  },
+  coverageText: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '700',
+    color: Palette.textMuted,
+    marginTop: 3,
+  },
+  coverageTextLowVision: {
+    fontSize: 17,
+    lineHeight: 25,
   },
   pairCard: {
     backgroundColor: Palette.surface,

@@ -36,6 +36,12 @@ export interface AnalysisResult {
   overall: RiskLevel;
   summary: string;
   pairs: InteractionPair[];
+  /** 백엔드가 실제로 확인한 건강기능식품 성분 x 알약 성분 조합 수 */
+  checkedCount?: number;
+  /** 주의 정보가 발견된 조합 수 */
+  detectedCount?: number;
+  /** 현재 DB에서 주의 정보가 발견되지 않은 조합 수 */
+  undetectedCount?: number;
 }
 
 /** 분석 세션 상태 */
