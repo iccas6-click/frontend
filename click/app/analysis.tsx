@@ -9,7 +9,7 @@ import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
 import { devLog } from '@/services/debug-log';
-import type { AnalysisResult, InteractionPair } from '@/types/medication';
+import type { AnalysisResult, InteractionPair, ItemCategory, RecognizedItem } from '@/types/medication';
 
 export default function AnalysisScreen() {
   const router = useRouter();
@@ -26,6 +26,16 @@ export default function AnalysisScreen() {
       return null;
     }
   }, [resultParam]);
+
+  const items = useMemo<RecognizedItem[]>(() => {
+    if (!itemsParam) return [];
+    try {
+      const parsed = JSON.parse(itemsParam);
+      return Array.isArray(parsed) ? (parsed as RecognizedItem[]) : [];
+    } catch {
+      return [];
+    }
+  }, [itemsParam]);
 
   useEffect(() => {
     if (result) devLog('[4단계] ◀ 표시할 분석 결과 수신:', result);
@@ -77,6 +87,7 @@ export default function AnalysisScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <RiskSummaryCard result={result} />
         <ConsultationNotice />
+        <AnalyzedIngredientSummary items={items} lowVision={lowVision} />
 
         <View style={styles.sectionBody}>
           <PairSection
@@ -98,6 +109,75 @@ export default function AnalysisScreen() {
         </View>
       </ScrollView>
     </Screen>
+  );
+}
+
+function uniqueNames(values: (string | null | undefined)[]) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  values
+    .flatMap((value) => String(value ?? '').split(/[|,，/·ㆍ]+/))
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .forEach((value) => {
+      const key = value.replace(/\s+/g, '').toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      result.push(value);
+    });
+  return result;
+}
+
+function analysisNamesFor(item: RecognizedItem) {
+  return uniqueNames([...(item.ingredients ?? []), ...(item.analysisNames ?? []), item.name, item.productName]);
+}
+
+function AnalyzedIngredientSummary({ items, lowVision }: { items: RecognizedItem[]; lowVision: boolean }) {
+  const pills = items.filter((item) => item.category === '알약');
+  const supplements = items.filter((item) => item.category === '건강기능식품 라벨');
+  if (items.length === 0) return null;
+
+  return (
+    <View style={styles.ingredientSummary}>
+      <Text style={[styles.ingredientSummaryTitle, lowVision && styles.ingredientSummaryTitleLowVision]}>분석에 사용한 성분</Text>
+      <IngredientColumn title="알약" category="알약" items={pills} lowVision={lowVision} />
+      <IngredientColumn title="건강기능식품" category="건강기능식품 라벨" items={supplements} lowVision={lowVision} />
+    </View>
+  );
+}
+
+function IngredientColumn({
+  title,
+  category,
+  items,
+  lowVision,
+}: {
+  title: string;
+  category: ItemCategory;
+  items: RecognizedItem[];
+  lowVision: boolean;
+}) {
+  const names = uniqueNames(items.flatMap(analysisNamesFor));
+  const isSupplement = category === '건강기능식품 라벨';
+  return (
+    <View style={styles.ingredientGroup}>
+      <View style={styles.ingredientGroupHeader}>
+        <View style={[styles.ingredientDot, { backgroundColor: isSupplement ? Palette.mint : Palette.primary }]} />
+        <Text style={[styles.ingredientGroupTitle, lowVision && styles.ingredientGroupTitleLowVision]}>{title}</Text>
+        <Text style={[styles.ingredientGroupCount, lowVision && styles.ingredientGroupCountLowVision]}>{names.length}</Text>
+      </View>
+      {names.length === 0 ? (
+        <Text style={[styles.ingredientEmpty, lowVision && styles.ingredientEmptyLowVision]}>성분 확인 필요</Text>
+      ) : (
+        <View style={styles.ingredientChips}>
+          {names.slice(0, 8).map((name) => (
+            <View key={`${category}-${name}`} style={styles.ingredientChip}>
+              <Text style={[styles.ingredientChipText, lowVision && styles.ingredientChipTextLowVision]} numberOfLines={1}>{name}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -150,6 +230,92 @@ function PairSection({
 const styles = StyleSheet.create({
   content: {
     paddingBottom: 28,
+  },
+  ingredientSummary: {
+    marginHorizontal: Spacing.screen,
+    marginBottom: 14,
+    gap: 10,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    backgroundColor: Palette.surface,
+    padding: 14,
+    ...Shadow.subtle,
+  },
+  ingredientSummaryTitle: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  ingredientSummaryTitleLowVision: {
+    fontSize: 22,
+    lineHeight: 29,
+  },
+  ingredientGroup: {
+    gap: 8,
+  },
+  ingredientGroupHeader: {
+    minHeight: 26,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  ingredientDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+  },
+  ingredientGroupTitle: {
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  ingredientGroupTitleLowVision: {
+    fontSize: 18,
+    lineHeight: 25,
+  },
+  ingredientGroupCount: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: Palette.textSubtle,
+  },
+  ingredientGroupCountLowVision: {
+    fontSize: 17,
+  },
+  ingredientChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+  },
+  ingredientChip: {
+    maxWidth: '100%',
+    borderRadius: Radius.sm,
+    backgroundColor: Palette.surfaceMuted,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  ingredientChipText: {
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '800',
+    color: Palette.textMuted,
+  },
+  ingredientChipTextLowVision: {
+    fontSize: 17,
+    lineHeight: 23,
+  },
+  ingredientEmpty: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '800',
+    color: Palette.textSubtle,
+  },
+  ingredientEmptyLowVision: {
+    fontSize: 17,
+    lineHeight: 24,
   },
   sectionBody: {
     paddingHorizontal: Spacing.screen,

@@ -8,7 +8,7 @@ import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
 import { devLog } from '@/services/debug-log';
-import { updateSessionAnalysis } from '@/services/history-storage';
+import { updateSessionAnalysis, updateSessionItems } from '@/services/history-storage';
 import { analyzeInteractions } from '@/services/interactions';
 import type { RecognizedItem } from '@/types/medication';
 
@@ -39,6 +39,7 @@ export default function AnalyzeScreen() {
         }
 
         if (recordId) {
+          await updateSessionItems(recordId, items);
           await updateSessionAnalysis(recordId, result);
         }
 
