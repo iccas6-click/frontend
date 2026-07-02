@@ -42,7 +42,11 @@ function uniqueNames(values: Array<string | null | undefined>) {
 
 function buildAnalyzeItems(items: RecognizedItem[]) {
   return items.flatMap((item) => {
-    const names = uniqueNames([...(item.analysisNames ?? []), ...(item.ingredients ?? []), item.name, item.productName]);
+    const preferredNames =
+      item.category === '건강기능식품 라벨'
+        ? uniqueNames([...(item.analysisNames ?? []), ...(item.ingredients ?? [])])
+        : uniqueNames([...(item.analysisNames ?? []), ...(item.ingredients ?? []), item.name, item.productName]);
+    const names = preferredNames.length > 0 ? preferredNames : uniqueNames([item.name, item.productName]);
     const analysisNames = names.length > 0 ? names : [item.name];
     return analysisNames.map((name) => ({ name, category: item.category }));
   });
