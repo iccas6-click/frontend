@@ -120,7 +120,7 @@ export default function MainScreen() {
             </View>
             <Pressable
               style={({ pressed }) => [styles.settingsButton, lowVision && styles.settingsButtonLowVision, pressed && styles.pressed]}
-              onPress={() => router.push('/settings')}
+              onPress={() => router.push({ pathname: '/settings' })}
               accessibilityRole="button"
               accessibilityLabel="설정 열기">
               <Ionicons name="settings-outline" size={lowVision ? 25 : 22} color={Palette.text} />
