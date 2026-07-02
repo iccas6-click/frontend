@@ -107,6 +107,9 @@ export async function analyzeInteractions(items: RecognizedItem[]): Promise<Anal
       checkedCount: allPairs.length,
       detectedCount: pairs.length,
       undetectedCount: allPairs.length - pairs.length,
+      unmatchedSupplementCount: 0,
+      unmatchedDrugCount: 0,
+      unmatchedCombinationCount: 0,
     };
     devLog('[상호작용] ◀ 서버에서 받음 (목업):', result);
     return result;

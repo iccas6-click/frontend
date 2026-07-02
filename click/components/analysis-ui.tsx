@@ -57,14 +57,17 @@ export function RiskSummaryCard({ result, compact = false }: { result: AnalysisR
 export function InteractionCoverageCard({ result, compact = false }: { result: AnalysisResult; compact?: boolean }) {
   const { lowVision } = useUserMode();
   const checked = result.checkedCount ?? 0;
-  if (checked <= 0) return null;
-
   const detected = result.detectedCount ?? result.pairs.filter((pair) => pair.level !== 'safe').length;
   const undetected = result.undetectedCount ?? Math.max(checked - detected, 0);
+  const unmatchedSupplement = result.unmatchedSupplementCount ?? 0;
+  const unmatchedDrug = result.unmatchedDrugCount ?? 0;
+  const unmatchedItems = unmatchedSupplement + unmatchedDrug;
+  if (checked <= 0 && unmatchedItems <= 0) return null;
+
   const message =
-    detected > 0
-      ? `총 ${checked}개 조합 중 ${detected}개에서 주의 정보가 발견됐어요.`
-      : `총 ${checked}개 조합에서 주의 정보가 발견되지 않았어요.`;
+    checked > 0
+      ? `DB에서 매칭된 ${checked}개 조합을 기준으로 확인했어요.`
+      : 'DB에서 양쪽 성분이 모두 매칭된 조합이 없었어요.';
 
   return (
     <View style={[styles.coverageCard, compact && styles.coverageCardCompact, lowVision && styles.coverageCardLowVision]}>
@@ -73,11 +76,32 @@ export function InteractionCoverageCard({ result, compact = false }: { result: A
       </View>
       <View style={styles.coverageTextWrap}>
         <View style={styles.coverageTitleRow}>
-          <Text style={[styles.coverageTitle, lowVision && styles.coverageTitleLowVision]}>주의 정보 미탐지</Text>
-          <Text style={[styles.coverageCount, lowVision && styles.coverageCountLowVision]}>{undetected}</Text>
+          <Text style={[styles.coverageTitle, lowVision && styles.coverageTitleLowVision]}>DB 확인 결과</Text>
+          <Text style={[styles.coverageCount, lowVision && styles.coverageCountLowVision]}>{checked}</Text>
         </View>
         <Text style={[styles.coverageText, lowVision && styles.coverageTextLowVision]}>{message}</Text>
+        <View style={styles.coverageRows}>
+          <CoverageRow label="주의 발견" value={detected} color={Palette.amber} lowVision={lowVision} />
+          <CoverageRow label="주의 정보 미탐지" value={undetected} color={Palette.mint} lowVision={lowVision} />
+          {unmatchedItems > 0 ? (
+            <CoverageRow
+              label={`성분 매칭 실패 · 알약 ${unmatchedDrug} · 건강기능식품 ${unmatchedSupplement}`}
+              value={unmatchedItems}
+              color={Palette.blueGrey}
+              lowVision={lowVision}
+            />
+          ) : null}
+        </View>
       </View>
+    </View>
+  );
+}
+
+function CoverageRow({ label, value, color, lowVision }: { label: string; value: number; color: string; lowVision: boolean }) {
+  return (
+    <View style={styles.coverageRow}>
+      <Text style={[styles.coverageRowLabel, lowVision && styles.coverageRowLabelLowVision]}>{label}</Text>
+      <Text style={[styles.coverageRowValue, lowVision && styles.coverageRowValueLowVision, { color }]}>{value}</Text>
     </View>
   );
 }
@@ -271,6 +295,36 @@ const styles = StyleSheet.create({
   coverageTextLowVision: {
     fontSize: 17,
     lineHeight: 25,
+  },
+  coverageRows: {
+    gap: 7,
+    marginTop: 11,
+  },
+  coverageRow: {
+    minHeight: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  coverageRowLabel: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '800',
+    color: Palette.textMuted,
+  },
+  coverageRowLabelLowVision: {
+    fontSize: 17,
+    lineHeight: 24,
+  },
+  coverageRowValue: {
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: '900',
+  },
+  coverageRowValueLowVision: {
+    fontSize: 20,
+    lineHeight: 27,
   },
   pairCard: {
     backgroundColor: Palette.surface,

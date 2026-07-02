@@ -42,6 +42,12 @@ export interface AnalysisResult {
   detectedCount?: number;
   /** 현재 DB에서 주의 정보가 발견되지 않은 조합 수 */
   undetectedCount?: number;
+  /** 현재 DB에서 매칭하지 못한 건강기능식품 성분 수 */
+  unmatchedSupplementCount?: number;
+  /** 현재 DB에서 매칭하지 못한 알약 성분/약물 수 */
+  unmatchedDrugCount?: number;
+  /** 매칭 실패 항목이 포함되어 DB 확인까지 가지 못한 조합 수 */
+  unmatchedCombinationCount?: number;
 }
 
 /** 분석 세션 상태 */
