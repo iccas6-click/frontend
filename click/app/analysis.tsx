@@ -9,7 +9,7 @@ import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
 import { devLog } from '@/services/debug-log';
-import type { AnalysisResult, InteractionPair, ItemCategory, RecognizedItem } from '@/types/medication';
+import type { AnalysisResult, InteractionPair, RecognizedItem } from '@/types/medication';
 
 export default function AnalysisScreen() {
   const router = useRouter();
@@ -86,7 +86,7 @@ export default function AnalysisScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <RiskSummaryCard result={result} />
         <ConsultationNotice />
-        <AnalyzedIngredientSummary items={items} lowVision={lowVision} />
+        <AnalyzedIngredientSummary result={result} items={items} lowVision={lowVision} />
 
         <View style={styles.sectionBody}>
           <PairSection
@@ -124,37 +124,44 @@ function analysisNamesFor(item: RecognizedItem) {
   return uniqueNames([...(item.ingredients ?? []), ...(item.analysisNames ?? []), item.name, item.productName]);
 }
 
-function AnalyzedIngredientSummary({ items, lowVision }: { items: RecognizedItem[]; lowVision: boolean }) {
+function AnalyzedIngredientSummary({ result, items, lowVision }: { result: AnalysisResult; items: RecognizedItem[]; lowVision: boolean }) {
   const pills = items.filter((item) => item.category === '알약');
   const supplements = items.filter((item) => item.category === '건강기능식품 라벨');
-  if (items.length === 0) return null;
+  const pillNames = result.matchedDrugNames?.length ? result.matchedDrugNames : uniqueNames(pills.flatMap(analysisNamesFor));
+  const supplementNames = result.matchedSupplementNames?.length
+    ? result.matchedSupplementNames
+    : uniqueNames(supplements.flatMap(analysisNamesFor));
+  const ignoredNames = uniqueNames(result.ignoredDrugNames ?? []);
+  if (pillNames.length === 0 && supplementNames.length === 0 && ignoredNames.length === 0) return null;
 
   return (
     <View style={styles.ingredientSummary}>
-      <Text style={[styles.ingredientSummaryTitle, lowVision && styles.ingredientSummaryTitleLowVision]}>분석에 사용한 성분</Text>
-      <IngredientColumn title="알약" category="알약" items={pills} lowVision={lowVision} />
-      <IngredientColumn title="건강기능식품" category="건강기능식품 라벨" items={supplements} lowVision={lowVision} />
+      <Text style={[styles.ingredientSummaryTitle, lowVision && styles.ingredientSummaryTitleLowVision]}>실제 분석 성분</Text>
+      <IngredientColumn title="알약" names={pillNames} tone="blue" lowVision={lowVision} />
+      <IngredientColumn title="건강기능식품" names={supplementNames} tone="green" lowVision={lowVision} />
+      {ignoredNames.length > 0 ? (
+        <IngredientColumn title="제외된 항목" names={ignoredNames} tone="muted" lowVision={lowVision} />
+      ) : null}
     </View>
   );
 }
 
 function IngredientColumn({
   title,
-  category,
-  items,
+  names,
+  tone,
   lowVision,
 }: {
   title: string;
-  category: ItemCategory;
-  items: RecognizedItem[];
+  names: string[];
+  tone: 'blue' | 'green' | 'muted';
   lowVision: boolean;
 }) {
-  const names = uniqueNames(items.flatMap(analysisNamesFor));
-  const isSupplement = category === '건강기능식품 라벨';
+  const dotColor = tone === 'green' ? Palette.mint : tone === 'blue' ? Palette.primary : Palette.blueGrey;
   return (
     <View style={styles.ingredientGroup}>
       <View style={styles.ingredientGroupHeader}>
-        <View style={[styles.ingredientDot, { backgroundColor: isSupplement ? Palette.mint : Palette.primary }]} />
+        <View style={[styles.ingredientDot, { backgroundColor: dotColor }]} />
         <Text style={[styles.ingredientGroupTitle, lowVision && styles.ingredientGroupTitleLowVision]}>{title}</Text>
         <Text style={[styles.ingredientGroupCount, lowVision && styles.ingredientGroupCountLowVision]}>{names.length}</Text>
       </View>
@@ -163,10 +170,15 @@ function IngredientColumn({
       ) : (
         <View style={styles.ingredientChips}>
           {names.slice(0, 8).map((name) => (
-            <View key={`${category}-${name}`} style={styles.ingredientChip}>
+            <View key={`${title}-${name}`} style={styles.ingredientChip}>
               <Text style={[styles.ingredientChipText, lowVision && styles.ingredientChipTextLowVision]} numberOfLines={1}>{name}</Text>
             </View>
           ))}
+          {names.length > 8 ? (
+            <View style={styles.ingredientChip}>
+              <Text style={[styles.ingredientChipText, lowVision && styles.ingredientChipTextLowVision]}>외 {names.length - 8}개</Text>
+            </View>
+          ) : null}
         </View>
       )}
     </View>

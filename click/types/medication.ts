@@ -36,6 +36,12 @@ export interface AnalysisResult {
   overall: RiskLevel;
   summary: string;
   pairs: InteractionPair[];
+  /** 백엔드가 실제 분석에 사용한 약 성분명 */
+  matchedDrugNames?: string[];
+  /** 백엔드가 실제 분석에 사용한 건강기능식품 성분명 */
+  matchedSupplementNames?: string[];
+  /** 제품/포장/용량 등 분석 성분에서 제외된 알약 OCR 후보 */
+  ignoredDrugNames?: string[];
   /** 백엔드가 실제로 확인한 건강기능식품 성분 x 알약 성분 조합 수 */
   checkedCount?: number;
   /** 주의 정보가 발견된 조합 수 */
