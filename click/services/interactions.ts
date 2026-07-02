@@ -8,7 +8,7 @@ import type {
 } from '@/types/medication';
 
 import { devLog } from './debug-log';
-import { API_BASE_URL } from './ocr';
+import { BACKEND_API_BASE_URL } from './ocr';
 
 /** 위험도 비교용 순위 */
 const LEVEL_RANK: Record<RiskLevel, number> = { danger: 3, caution: 2, safe: 1 };
@@ -31,7 +31,7 @@ function pairKey(a: string, b: string): string {
 export async function analyzeInteractions(items: RecognizedItem[]): Promise<AnalysisResult> {
   devLog(
     '[상호작용] ▶ 서버로 보냄:',
-    API_BASE_URL ? `POST ${API_BASE_URL}/api/interactions` : '(목업 모드)',
+    BACKEND_API_BASE_URL ? `POST ${BACKEND_API_BASE_URL}/api/v1/interactions/analyze` : '(목업 모드)',
   );
   devLog(
     '[상호작용] ▶ 보낼 항목:',
@@ -39,7 +39,7 @@ export async function analyzeInteractions(items: RecognizedItem[]): Promise<Anal
   );
 
   // 백엔드 주소가 없으면 목업으로 동작 (약 5초 분석 흉내)
-  if (!API_BASE_URL) {
+  if (!BACKEND_API_BASE_URL) {
     await new Promise((resolve) => setTimeout(resolve, 4500));
 
     const pairs: InteractionPair[] = [];
@@ -81,8 +81,8 @@ export async function analyzeInteractions(items: RecognizedItem[]): Promise<Anal
 
   // 실제 백엔드 연동
   const { data } = await axios.post<AnalysisResult>(
-    `${API_BASE_URL}/api/interactions`,
-    { items: items.map((it) => ({ name: it.name, dosage: it.dosage, category: it.category })) },
+    `${BACKEND_API_BASE_URL}/api/v1/interactions/analyze`,
+    { items: items.map((it) => ({ name: it.name, category: it.category })), lang: 'ko' },
     { timeout: 30000 },
   );
   devLog('[상호작용] ◀ 서버에서 받음:', data);
