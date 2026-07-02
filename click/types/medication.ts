@@ -4,14 +4,19 @@ export type ItemCategory = '알약' | '건강기능식품 라벨';
 /** OCR이 인식한 약/건강기능식품 한 개 */
 export interface RecognizedItem {
   id: string;
+  /** 화면에서 사용자가 확인할 제품명/상품명 */
   name: string;
   /** 용량 표기 (예: "100mg", "2000IU") */
   dosage: string;
   category: ItemCategory;
+  /** 원본 제품명. name에서 용량을 분리했을 때도 원문을 보존한다. */
+  productName?: string;
   /** 추후 백엔드 인식 결과에서 내려올 항목 이미지 */
   imageUri?: string;
   /** 추후 백엔드 인식 결과에서 내려올 주요 성분 */
   ingredients?: string[];
+  /** 백엔드 상호작용 분석에 보낼 성분/약물 후보명 */
+  analysisNames?: string[];
 }
 
 /** 위험도 단계 */

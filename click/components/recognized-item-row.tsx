@@ -8,12 +8,7 @@ import type { RecognizedItem } from '@/types/medication';
 
 function fallbackIngredients(item: RecognizedItem) {
   if (item.ingredients?.length) return item.ingredients.join(', ');
-  const name = item.name.toLowerCase();
-  if (name.includes('아스피린')) return '아세틸살리실산';
-  if (name.includes('리피토')) return '아토르바스타틴';
-  if (name.includes('오메가')) return 'EPA, DHA';
-  if (name.includes('비타민 d')) return '콜레칼시페롤';
-  return item.category === '알약' ? '성분 확인 예정' : '주요 성분 확인 예정';
+  return '성분 정보 없음';
 }
 
 export function RecognizedItemRow({
@@ -44,7 +39,7 @@ export function RecognizedItemRow({
           {item.name}
         </Text>
         <Text style={[styles.dose, lowVision && styles.doseLowVision]} numberOfLines={1}>
-          {item.dosage || '용량 미입력'}
+          {item.dosage || (isSupplement ? '성분 확인 필요' : '용량 정보 없음')}
         </Text>
         <Text style={[styles.ingredients, lowVision && styles.ingredientsLowVision]} numberOfLines={1}>
           성분: {fallbackIngredients(item)}

@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { IconBadge, Screen, TopBar } from '@/components/app-ui';
 import { StepIndicator } from '@/components/step-indicator';
@@ -78,6 +79,31 @@ export default function ReuseScreen() {
     router.replace(next);
   };
 
+  const pickFromGallery = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('사진 접근 권한이 필요해요', '갤러리 사진으로 인식하려면 사진 접근을 허용해 주세요.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: false,
+      quality: 0.92,
+    });
+    if (result.canceled || !result.assets[0]?.uri) return;
+
+    router.replace({
+      pathname: '/result',
+      params: {
+        photoUri: result.assets[0].uri,
+        category,
+        prevItems: params.prevItems,
+        recordId: params.recordId,
+      },
+    });
+  };
+
   const selectRecord = (record: AnalysisSession) => {
     setRecordsOpen(false);
     const selectedItems = record.items.filter((item) => item.category === category);
@@ -109,17 +135,25 @@ export default function ReuseScreen() {
           <Text style={[styles.choiceTitle, lowVision && styles.choiceTitleLowVision]}>{label}을 어떻게 추가할까요?</Text>
         </View>
 
-        <Pressable
-          style={({ pressed }) => [styles.captureCard, lowVision && styles.choiceCardLowVision, pressed && styles.pressed]}
-          onPress={startCamera}
-          accessibilityRole="button"
-          accessibilityLabel={`새 ${label} 촬영하기`}>
-          <IconBadge icon="camera" tone={isSupplement ? 'green' : 'blue'} />
-          <View style={styles.captureText}>
-            <Text style={[styles.captureTitle, lowVision && styles.choiceTitleTextLowVision]}>새 {label} 촬영하기</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
-        </Pressable>
+        <View style={[styles.sourceRow, lowVision && styles.sourceRowLowVision]}>
+          <Pressable
+            style={({ pressed }) => [styles.captureCard, styles.sourceCard, lowVision && styles.choiceCardLowVision, pressed && styles.pressed]}
+            onPress={startCamera}
+            accessibilityRole="button"
+            accessibilityLabel={`새 ${label} 촬영하기`}>
+            <IconBadge icon="camera" tone={isSupplement ? 'green' : 'blue'} />
+            <Text style={[styles.sourceTitle, styles.captureTitle, lowVision && styles.choiceTitleTextLowVision]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78}>새 {label} 촬영하기</Text>
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [styles.galleryCard, styles.sourceCard, lowVision && styles.choiceCardLowVision, pressed && styles.pressed]}
+            onPress={pickFromGallery}
+            accessibilityRole="button"
+            accessibilityLabel={`${label} 사진 갤러리에서 가져오기`}>
+            <IconBadge icon="image" tone={isSupplement ? 'green' : 'blue'} />
+            <Text style={[styles.sourceTitle, styles.galleryTitle, lowVision && styles.choiceTitleTextLowVision]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78}>갤러리에서 가져오기</Text>
+          </Pressable>
+        </View>
 
         <Pressable
           style={({ pressed }) => [styles.recordChoiceCard, lowVision && styles.choiceCardLowVision, pressed && styles.pressed]}
@@ -250,6 +284,23 @@ const styles = StyleSheet.create({
     padding: 16,
     ...Shadow.subtle,
   },
+  sourceRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  sourceRowLowVision: {
+    flexDirection: 'column',
+  },
+  sourceCard: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  sourceTitle: {
+    flexShrink: 1,
+  },
   choiceCardLowVision: {
     minHeight: 118,
     padding: 18,
@@ -264,6 +315,21 @@ const styles = StyleSheet.create({
     lineHeight: 25,
     fontWeight: '900',
     color: '#FFFFFF',
+  },
+  galleryCard: {
+    minHeight: 92,
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.borderStrong,
+    padding: 16,
+    ...Shadow.subtle,
+  },
+  galleryTitle: {
+    fontSize: 19,
+    lineHeight: 25,
+    fontWeight: '900',
+    color: Palette.text,
   },
   choiceTitleTextLowVision: {
     fontSize: 22,

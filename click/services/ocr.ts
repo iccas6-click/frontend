@@ -18,12 +18,12 @@ export const API_BASE_URL = BACKEND_API_BASE_URL;
 /** 백엔드 연동 전 화면 확인용 목업 결과 (분류별) */
 const MOCK_BY_CATEGORY: Record<ItemCategory, RecognizedItem[]> = {
   알약: [
-    { id: '1', name: '아스피린', dosage: '100mg', category: '알약' },
-    { id: '2', name: '리피토', dosage: '10mg', category: '알약' },
+    { id: '1', name: '아스피린', dosage: '100mg', category: '알약', ingredients: ['아스피린'], analysisNames: ['아스피린'] },
+    { id: '2', name: '리피토', dosage: '10mg', category: '알약', ingredients: ['아토르바스타틴'], analysisNames: ['아토르바스타틴', '리피토'] },
   ],
   '건강기능식품 라벨': [
-    { id: '3', name: '오메가-3', dosage: '1000mg', category: '건강기능식품 라벨' },
-    { id: '4', name: '비타민 D3', dosage: '2000IU', category: '건강기능식품 라벨' },
+    { id: '3', name: '오메가-3', dosage: '성분 1개', category: '건강기능식품 라벨', ingredients: ['EPA 및 DHA 함유 유지'], analysisNames: ['EPA 및 DHA 함유 유지', '오메가-3'] },
+    { id: '4', name: '비타민 D3', dosage: '성분 1개', category: '건강기능식품 라벨', ingredients: ['비타민 D'], analysisNames: ['비타민 D', '비타민 D3'] },
   ],
 };
 
@@ -64,6 +64,35 @@ function imageFormField(uri: string, fieldName: string) {
   return form;
 }
 
+function uniqueClean(values: Array<string | null | undefined>) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  values
+    .flatMap((value) => String(value ?? '').split(/[|,，/·ㆍ]+/))
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .forEach((value) => {
+      const key = value.replace(/\s+/g, '').toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      result.push(value);
+    });
+  return result;
+}
+
+function splitProductAndDosage(productName?: string | null) {
+  const raw = String(productName ?? '').trim();
+  if (!raw) return { displayName: '인식된 알약', dosage: '' };
+
+  const matches = raw.match(/((?:\d+(?:\.\d+)?\s*)?(?:mg|g|mcg|μg|ug|㎎|㎍|IU|정|캡슐|캡|mL|ml)(?:\s*\/\s*[A-Za-z가-힣0-9]+)?)/gi);
+  const dosage = uniqueClean(matches ?? []).join(', ');
+  const displayName = dosage
+    ? raw.replace(/((?:\d+(?:\.\d+)?\s*)?(?:mg|g|mcg|μg|ug|㎎|㎍|IU|정|캡슐|캡|mL|ml)(?:\s*\/\s*[A-Za-z가-힣0-9]+)?)/gi, '').replace(/\s{2,}/g, ' ').trim()
+    : raw;
+
+  return { displayName: displayName || raw, dosage };
+}
+
 type PillRecognitionResponse = {
   detections?: Array<{
     candidates?: Array<{
@@ -97,8 +126,10 @@ async function recognizePill(uri: string, baseUrl: string): Promise<RecognizedIt
   (data.detections ?? []).forEach((detection, index) => {
     const candidate = detection.candidates?.[0];
     if (!candidate) return;
-    const ingredient = candidate.ingredient?.trim();
     const productName = candidate.product_name?.trim();
+    const ingredients = uniqueClean([candidate.ingredient]);
+    const { displayName, dosage } = splitProductAndDosage(productName);
+    const analysisNames = uniqueClean([...ingredients, displayName, productName]);
     const imageUri = candidate.reference_image_url
       ? candidate.reference_image_url.startsWith('http')
         ? candidate.reference_image_url
@@ -106,11 +137,13 @@ async function recognizePill(uri: string, baseUrl: string): Promise<RecognizedIt
       : undefined;
     items.push({
       id: `pill-${index}`,
-      name: ingredient || productName || '인식된 알약',
-      dosage: productName || '',
+      name: displayName,
+      dosage,
       category: '알약',
+      productName: productName || displayName,
       imageUri,
-      ingredients: ingredient ? [ingredient] : [],
+      ingredients,
+      analysisNames,
     });
   });
 
@@ -136,15 +169,17 @@ async function recognizeSupplement(uri: string, baseUrl: string): Promise<Recogn
   );
 
   const product = data.product;
-  const ingredients = product?.ingredients?.filter(Boolean) ?? [];
-  const names = ingredients.length > 0 ? ingredients : product?.product_name ? [product.product_name] : [];
-  const items = names.map((name, index) => ({
-    id: `supplement-${index}`,
-    name,
-    dosage: product?.product_name ?? '',
+  const productName = product?.product_name?.trim();
+  const ingredients = uniqueClean(product?.ingredients ?? []);
+  const items: RecognizedItem[] = productName || ingredients.length > 0 ? [{
+    id: 'supplement-0',
+    name: productName || ingredients[0] || '인식된 건강기능식품',
+    dosage: ingredients.length > 0 ? `성분 ${ingredients.length}개` : '',
     category: '건강기능식품 라벨' as const,
+    productName,
     ingredients,
-  }));
+    analysisNames: uniqueClean([...ingredients, productName]),
+  }] : [];
 
   if (items.length === 0) {
     throw new Error(data.warnings?.[0] ?? '건강기능식품 인식 결과가 없습니다.');

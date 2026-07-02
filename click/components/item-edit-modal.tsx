@@ -40,6 +40,7 @@ export function ItemEditModal({ visible, initial, initialCategory = '알약', on
   const slide = useRef(new Animated.Value(1)).current;
   const [name, setName] = useState('');
   const [dosage, setDosage] = useState('');
+  const [ingredientsText, setIngredientsText] = useState('');
   const [category, setCategory] = useState<ItemCategory>('알약');
 
   // 모달이 열릴 때마다 대상 항목 값으로 초기화
@@ -54,6 +55,7 @@ export function ItemEditModal({ visible, initial, initialCategory = '알약', on
       }).start();
       setName(initial?.name ?? '');
       setDosage(initial?.dosage ?? '');
+      setIngredientsText(initial?.ingredients?.join(', ') ?? '');
       setCategory(initial?.category ?? initialCategory);
     }
   }, [visible, initial, initialCategory, slide]);
@@ -63,10 +65,20 @@ export function ItemEditModal({ visible, initial, initialCategory = '알약', on
   const handleSave = () => {
     if (!canSave) return;
     onSave({
+      ...initial,
       id: initial?.id ?? '',
       name: name.trim(),
       dosage: dosage.trim(),
       category,
+      productName: initial?.productName ?? name.trim(),
+      ingredients: ingredientsText
+        .split(/[|,，/·ㆍ\n]+/)
+        .map((value) => value.trim())
+        .filter(Boolean),
+      analysisNames: ingredientsText
+        .split(/[|,，/·ㆍ\n]+/)
+        .map((value) => value.trim())
+        .filter(Boolean),
     });
   };
 
@@ -106,6 +118,17 @@ export function ItemEditModal({ visible, initial, initialCategory = '알약', on
             placeholder="예: 100mg"
             placeholderTextColor="#B6C0C6"
             accessibilityLabel="용량"
+          />
+
+          <Text style={[styles.label, lowVision && styles.labelLowVision]}>성분</Text>
+          <TextInput
+            style={[styles.input, styles.ingredientsInput, lowVision && styles.inputLowVision]}
+            value={ingredientsText}
+            onChangeText={setIngredientsText}
+            placeholder="예: 아스피린, EPA 및 DHA 함유 유지"
+            placeholderTextColor="#B6C0C6"
+            multiline
+            accessibilityLabel="성분"
           />
 
           {/* 분류 */}
@@ -225,6 +248,10 @@ const styles = StyleSheet.create({
     minHeight: 58,
     fontSize: 20,
     paddingVertical: 15,
+  },
+  ingredientsInput: {
+    minHeight: 76,
+    textAlignVertical: 'top',
   },
   categoryRow: {
     flexDirection: 'row',

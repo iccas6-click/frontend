@@ -24,6 +24,30 @@ function pairKey(a: string, b: string): string {
   return [a, b].sort().join('|');
 }
 
+function uniqueNames(values: Array<string | null | undefined>) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  values
+    .flatMap((value) => String(value ?? '').split(/[|,，/·ㆍ]+/))
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .forEach((value) => {
+      const key = value.replace(/\s+/g, '').toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      result.push(value);
+    });
+  return result;
+}
+
+function buildAnalyzeItems(items: RecognizedItem[]) {
+  return items.flatMap((item) => {
+    const names = uniqueNames([...(item.analysisNames ?? []), ...(item.ingredients ?? []), item.name, item.productName]);
+    const analysisNames = names.length > 0 ? names : [item.name];
+    return analysisNames.map((name) => ({ name, category: item.category }));
+  });
+}
+
 /**
  * 인식·수정된 항목들의 상호작용을 분석한다.
  * API_BASE_URL이 비어 있으면 목업 결과를 반환한다(백엔드 연동 전 테스트용).
@@ -35,7 +59,7 @@ export async function analyzeInteractions(items: RecognizedItem[]): Promise<Anal
   );
   devLog(
     '[상호작용] ▶ 보낼 항목:',
-    items.map((it) => `${it.name} ${it.dosage} (${it.category})`),
+    buildAnalyzeItems(items).map((it) => `${it.name} (${it.category})`),
   );
 
   // 백엔드 주소가 없으면 목업으로 동작 (약 5초 분석 흉내)
@@ -82,7 +106,7 @@ export async function analyzeInteractions(items: RecognizedItem[]): Promise<Anal
   // 실제 백엔드 연동
   const { data } = await axios.post<AnalysisResult>(
     `${BACKEND_API_BASE_URL}/api/v1/interactions/analyze`,
-    { items: items.map((it) => ({ name: it.name, category: it.category })), lang: 'ko' },
+    { items: buildAnalyzeItems(items), lang: 'ko' },
     { timeout: 30000 },
   );
   devLog('[상호작용] ◀ 서버에서 받음:', data);
