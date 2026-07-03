@@ -140,7 +140,7 @@ async function recognizePill(uri: string, baseUrl: string): Promise<RecognizedIt
     const ingredients = uniqueClean([candidate.ingredient]);
     const { displayName, dosage } = splitProductAndDosage(productName);
     const analysisNames = uniqueClean([...ingredients, displayName, productName]);
-    const imageUri = resolveImageUri(candidate.reference_image_url, baseUrl) ?? uri;
+    const imageUri = resolveImageUri(candidate.reference_image_url, baseUrl);
     items.push({
       id: `pill-${index}`,
       name: displayName,
@@ -177,7 +177,7 @@ async function recognizeSupplement(uri: string, baseUrl: string): Promise<Recogn
   const product = data.product;
   const productName = product?.product_name?.trim();
   const ingredients = uniqueClean(product?.ingredients ?? []);
-  const imageUri = resolveImageUri(product?.image_url ?? product?.product_image_url ?? product?.item_image, baseUrl) ?? uri;
+  const imageUri = resolveImageUri(product?.image_url ?? product?.product_image_url ?? product?.item_image, baseUrl);
   const items: RecognizedItem[] = productName || ingredients.length > 0 ? [{
     id: 'supplement-0',
     name: productName || ingredients[0] || '인식된 건강기능식품',
