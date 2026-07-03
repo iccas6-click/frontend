@@ -109,9 +109,19 @@ type SupplementRecognitionResponse = {
     product_name?: string | null;
     ingredients?: string[];
     confidence?: number | null;
+    image_url?: string | null;
+    product_image_url?: string | null;
+    item_image?: string | null;
   } | null;
   warnings?: string[];
 };
+
+function resolveImageUri(value: string | null | undefined, baseUrl: string): string | undefined {
+  const raw = String(value ?? '').trim();
+  if (!raw) return undefined;
+  if (raw.startsWith('http') || raw.startsWith('file:') || raw.startsWith('content:')) return raw;
+  return `${baseUrl}${raw.startsWith('/') ? raw : `/${raw}`}`;
+}
 
 async function recognizePill(uri: string, baseUrl: string): Promise<RecognizedItem[]> {
   const form = imageFormField(uri, 'file');
@@ -130,11 +140,7 @@ async function recognizePill(uri: string, baseUrl: string): Promise<RecognizedIt
     const ingredients = uniqueClean([candidate.ingredient]);
     const { displayName, dosage } = splitProductAndDosage(productName);
     const analysisNames = uniqueClean([...ingredients, displayName, productName]);
-    const imageUri = candidate.reference_image_url
-      ? candidate.reference_image_url.startsWith('http')
-        ? candidate.reference_image_url
-        : `${baseUrl}${candidate.reference_image_url}`
-      : undefined;
+    const imageUri = resolveImageUri(candidate.reference_image_url, baseUrl) ?? uri;
     items.push({
       id: `pill-${index}`,
       name: displayName,
@@ -171,12 +177,14 @@ async function recognizeSupplement(uri: string, baseUrl: string): Promise<Recogn
   const product = data.product;
   const productName = product?.product_name?.trim();
   const ingredients = uniqueClean(product?.ingredients ?? []);
+  const imageUri = resolveImageUri(product?.image_url ?? product?.product_image_url ?? product?.item_image, baseUrl) ?? uri;
   const items: RecognizedItem[] = productName || ingredients.length > 0 ? [{
     id: 'supplement-0',
     name: productName || ingredients[0] || '인식된 건강기능식품',
     dosage: ingredients.length > 0 ? `성분 ${ingredients.length}개` : '',
     category: '건강기능식품 라벨' as const,
     productName,
+    imageUri,
     ingredients,
     analysisNames: uniqueClean([...ingredients, productName]),
   }] : [];
