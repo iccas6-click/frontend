@@ -4,13 +4,14 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 
 import { IconBadge, PrimaryButton, Screen, SectionHeader, TopBar } from '@/components/app-ui';
 import { ItemEditModal } from '@/components/item-edit-modal';
+import { PillCandidatePicker, pillItemFromCandidate } from '@/components/pill-candidate-picker';
 import { RecognizedItemRow } from '@/components/recognized-item-row';
 import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Spacing, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
 import { createSession, updateSessionItems } from '@/services/history-storage';
 import { analyzeImage } from '@/services/ocr';
-import type { ItemCategory, RecognizedItem } from '@/types/medication';
+import type { ItemCategory, RecognizedItem, RecognitionCandidate } from '@/types/medication';
 
 const CATEGORY_META: Record<ItemCategory, { label: string; icon: 'medical' | 'leaf'; tone: 'blue' | 'green' }> = {
   알약: { label: '알약', icon: 'medical', tone: 'blue' },
@@ -94,6 +95,19 @@ export default function ResultScreen() {
         return nextItems;
       });
       setEditTarget(undefined);
+    },
+    [persistCurrent],
+  );
+
+  const handleSelectCandidate = useCallback(
+    (itemId: string, candidate: RecognitionCandidate) => {
+      setItems((prev) => {
+        const nextItems = prev.map((item) => (
+          item.id === itemId ? pillItemFromCandidate(item, candidate) : item
+        ));
+        persistCurrent(nextItems);
+        return nextItems;
+      });
     },
     [persistCurrent],
   );
@@ -221,7 +235,16 @@ export default function ResultScreen() {
           <SectionHeader title={`인식된 ${meta.label}`} action={<CountBadge count={items.length} lowVision={lowVision} />} />
           <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
             {items.map((item) => (
-              <RecognizedItemRow key={item.id} item={item} editable onPress={() => setEditTarget(item)} />
+              !isSupplement && item.candidates?.length ? (
+                <PillCandidatePicker
+                  key={item.id}
+                  item={item}
+                  onSelect={(candidate) => handleSelectCandidate(item.id, candidate)}
+                  onEdit={() => setEditTarget(item)}
+                />
+              ) : (
+                <RecognizedItemRow key={item.id} item={item} editable onPress={() => setEditTarget(item)} />
+              )
             ))}
             <Pressable
               style={({ pressed }) => [styles.addCard, lowVision && styles.addCardLowVision, pressed && styles.pressed]}

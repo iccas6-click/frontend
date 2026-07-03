@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-import type { ItemCategory, RecognizedItem } from '@/types/medication';
+import type { ItemCategory, RecognizedItem, RecognitionCandidate } from '@/types/medication';
 
 import { devLog } from './debug-log';
 
@@ -163,22 +163,40 @@ async function recognizePill(uri: string, baseUrl: string): Promise<RecognizedIt
 
   const items: RecognizedItem[] = [];
   (data.detections ?? []).forEach((detection, index) => {
-    const candidate = detection.candidates?.[0];
-    if (!candidate) return;
-    const productName = candidate.product_name?.trim();
-    const ingredients = uniqueClean([candidate.ingredient]);
-    const { displayName, dosage } = splitProductAndDosage(productName);
-    const analysisNames = uniqueClean([...ingredients, displayName, productName]);
-    const imageUri = resolveImageUri(candidate.reference_image_url, baseUrl);
+    const candidates = (detection.candidates ?? [])
+      .slice(0, 3)
+      .map((candidate, candidateIndex): RecognitionCandidate | null => {
+        const productName = candidate.product_name?.trim();
+        const ingredients = uniqueClean([candidate.ingredient]);
+        const { displayName, dosage } = splitProductAndDosage(productName);
+        const analysisNames = uniqueClean([...ingredients, displayName, productName]);
+        const imageUri = resolveImageUri(candidate.reference_image_url, baseUrl);
+        if (!productName && ingredients.length === 0) return null;
+        return {
+          id: `pill-${index}-candidate-${candidateIndex}`,
+          name: displayName,
+          dosage,
+          productName: productName || displayName,
+          imageUri,
+          ingredients,
+          analysisNames,
+          score: typeof candidate.score === 'number' ? candidate.score : undefined,
+        };
+      })
+      .filter((candidate): candidate is RecognitionCandidate => Boolean(candidate));
+    const selected = candidates[0];
+    if (!selected) return;
     items.push({
       id: `pill-${index}`,
-      name: displayName,
-      dosage,
+      name: selected.name,
+      dosage: selected.dosage,
       category: '알약',
-      productName: productName || displayName,
-      imageUri,
-      ingredients,
-      analysisNames,
+      productName: selected.productName,
+      imageUri: selected.imageUri,
+      ingredients: selected.ingredients,
+      analysisNames: selected.analysisNames,
+      candidates,
+      selectedCandidateId: selected.id,
     });
   });
 

@@ -1,6 +1,18 @@
 /** 인식된 항목의 분류 */
 export type ItemCategory = '알약' | '건강기능식품 라벨';
 
+/** 알약 인식 모델이 반환한 제품 후보 */
+export interface RecognitionCandidate {
+  id: string;
+  name: string;
+  dosage: string;
+  productName?: string;
+  imageUri?: string;
+  ingredients?: string[];
+  analysisNames?: string[];
+  score?: number;
+}
+
 /** OCR이 인식한 약/건강기능식품 한 개 */
 export interface RecognizedItem {
   id: string;
@@ -17,6 +29,9 @@ export interface RecognizedItem {
   ingredients?: string[];
   /** 백엔드 상호작용 분석에 보낼 성분/약물 후보명 */
   analysisNames?: string[];
+  /** 알약 인식 후보 Top-K. 사용자가 최종 후보를 고르면 항목 본문에 반영된다. */
+  candidates?: RecognitionCandidate[];
+  selectedCandidateId?: string;
 }
 
 /** 위험도 단계 */
