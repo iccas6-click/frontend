@@ -80,6 +80,20 @@ function uniqueClean(values: Array<string | null | undefined>) {
   return result;
 }
 
+function uniqueStrings(values: Array<string | null | undefined>) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  values
+    .map((value) => String(value ?? '').trim())
+    .filter(Boolean)
+    .forEach((value) => {
+      if (seen.has(value)) return;
+      seen.add(value);
+      result.push(value);
+    });
+  return result;
+}
+
 function splitProductAndDosage(productName?: string | null) {
   const raw = String(productName ?? '').trim();
   if (!raw) return { displayName: '인식된 알약', dosage: '' };
@@ -124,13 +138,28 @@ function resolveImageUri(value: string | null | undefined, baseUrl: string): str
 }
 
 async function recognizePill(uri: string, baseUrl: string): Promise<RecognizedItem[]> {
-  const form = imageFormField(uri, 'file');
-  devLog('[OCR] ▶ 알약 업로드:', `POST ${baseUrl}/recognize`);
+  const urls = pillRecognitionUrls(baseUrl);
+  let data: PillRecognitionResponse | null = null;
+  let lastError: unknown = null;
 
-  const { data } = await axios.post<PillRecognitionResponse>(`${baseUrl}/recognize`, form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 60000,
-  });
+  for (const url of urls) {
+    try {
+      devLog('[OCR] ▶ 알약 업로드:', `POST ${url}`);
+      const response = await axios.post<PillRecognitionResponse>(url, imageFormField(uri, 'file'), {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 60000,
+      });
+      data = response.data;
+      break;
+    } catch (error) {
+      lastError = error;
+      devLog('[OCR] 알약 업로드 경로 실패, 다음 경로 시도:', url);
+    }
+  }
+
+  if (!data) {
+    throw lastError instanceof Error ? lastError : new Error('알약 인식 서버에 연결하지 못했습니다.');
+  }
 
   const items: RecognizedItem[] = [];
   (data.detections ?? []).forEach((detection, index) => {
@@ -159,6 +188,16 @@ async function recognizePill(uri: string, baseUrl: string): Promise<RecognizedIt
 
   devLog('[OCR] ◀ 알약 서버에서 받음:', items);
   return items;
+}
+
+function pillRecognitionUrls(baseUrl: string) {
+  const base = baseUrl.replace(/\/+$/, '');
+  return uniqueStrings([
+    `${base}/recognize`,
+    base.endsWith('/api/v1') ? `${base}/pill/recognize` : undefined,
+    base.endsWith('/api/v1/pill') ? `${base}/recognize` : undefined,
+    `${base}/api/v1/pill/recognize`,
+  ]);
 }
 
 async function recognizeSupplement(uri: string, baseUrl: string): Promise<RecognizedItem[]> {
