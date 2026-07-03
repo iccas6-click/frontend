@@ -9,6 +9,7 @@ import { IconBadge, Screen, TopBar } from '@/components/app-ui';
 import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
+import { getDemoRecognitionSets, type DemoRecognitionSet } from '@/services/demo-recognition';
 import { formatRecordDateTime, getReusableSessions } from '@/services/history-storage';
 import type { AnalysisSession, ItemCategory, RecognizedItem } from '@/types/medication';
 
@@ -23,6 +24,7 @@ export default function ReuseScreen() {
   const category: ItemCategory = params.category === '건강기능식품 라벨' ? '건강기능식품 라벨' : '알약';
   const [records, setRecords] = useState<AnalysisSession[]>([]);
   const [recordsOpen, setRecordsOpen] = useState(false);
+  const [samplesOpen, setSamplesOpen] = useState(false);
   const { lowVision } = useUserMode();
 
   const prevItems = useMemo<RecognizedItem[]>(() => {
@@ -50,6 +52,7 @@ export default function ReuseScreen() {
   const isSupplement = category === '건강기능식품 라벨';
   const label = CATEGORY_LABEL[category];
   const usableRecords = isSupplement && params.recordId ? records.filter((record) => record.id !== params.recordId) : records;
+  const demoSets = useMemo(() => getDemoRecognitionSets(category), [category]);
 
   const handleBack = () => {
     if (isSupplement && params.prevItems) {
@@ -120,6 +123,19 @@ export default function ReuseScreen() {
     router.replace(next);
   };
 
+  const selectDemo = (demo: DemoRecognitionSet) => {
+    setSamplesOpen(false);
+    router.replace({
+      pathname: '/result',
+      params: {
+        category,
+        prevItems: JSON.stringify(prevItems),
+        items: JSON.stringify(demo.items),
+        recordId: params.recordId ?? '',
+      },
+    });
+  };
+
   return (
     <Screen>
       <StatusBar style="dark" />
@@ -167,6 +183,18 @@ export default function ReuseScreen() {
           <Ionicons name="chevron-forward" size={20} color={Palette.textSubtle} />
         </Pressable>
 
+        <Pressable
+          style={({ pressed }) => [styles.sampleChoiceCard, lowVision && styles.choiceCardLowVision, pressed && styles.pressed]}
+          onPress={() => setSamplesOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={`${label} 예시 인식결과 불러오기`}>
+          <IconBadge icon="sparkles" tone="amber" />
+          <View style={styles.recordChoiceText}>
+            <Text style={[styles.sampleChoiceTitle, lowVision && styles.choiceTitleTextLowVision]}>예시 결과 불러오기</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={Palette.amber} />
+        </Pressable>
+
       </ScrollView>
 
       <Modal visible={recordsOpen} transparent animationType="slide" onRequestClose={() => setRecordsOpen(false)}>
@@ -201,7 +229,65 @@ export default function ReuseScreen() {
           )}
         </View>
       </Modal>
+
+      <Modal visible={samplesOpen} transparent animationType="slide" onRequestClose={() => setSamplesOpen(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setSamplesOpen(false)} />
+        <View style={[styles.sheet, lowVision && styles.sheetLowVision]}>
+          <View style={styles.sheetHandle} />
+          <View style={styles.sheetHeader}>
+            <View>
+              <Text style={[styles.sheetTitle, lowVision && styles.sheetTitleLowVision]}>예시 {label} 결과</Text>
+            </View>
+            <Pressable
+              style={styles.closeButton}
+              onPress={() => setSamplesOpen(false)}
+              accessibilityRole="button"
+              accessibilityLabel="예시 결과 선택 창 닫기">
+              <Ionicons name="close" size={22} color={Palette.textMuted} />
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={styles.recordList} showsVerticalScrollIndicator={false}>
+            {demoSets.map((demo) => (
+              <DemoCard key={demo.id} demo={demo} lowVision={lowVision} onPress={() => selectDemo(demo)} />
+            ))}
+          </ScrollView>
+        </View>
+      </Modal>
     </Screen>
+  );
+}
+
+function DemoCard({
+  demo,
+  onPress,
+  lowVision,
+}: {
+  demo: DemoRecognitionSet;
+  onPress: () => void;
+  lowVision: boolean;
+}) {
+  const isSupplement = demo.category === '건강기능식품 라벨';
+  const names = demo.items.map((item) => item.name).join(', ');
+
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.recordCard, lowVision && styles.recordCardLowVision, pressed && styles.pressed]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${demo.title}, ${demo.items.length}개 예시 사용`}>
+      <IconBadge icon={isSupplement ? 'leaf' : 'medical'} tone={isSupplement ? 'green' : 'blue'} />
+      <View style={styles.recordText}>
+        <Text style={[styles.recordTitle, lowVision && styles.recordTitleLowVision]}>{demo.title}</Text>
+        <Text style={[styles.recordMeta, lowVision && styles.recordMetaLowVision]}>{demo.subtitle} · {demo.items.length}개</Text>
+        <Text style={[styles.recordNames, lowVision && styles.recordNamesLowVision]} numberOfLines={lowVision ? 2 : 1}>
+          {names}
+        </Text>
+      </View>
+      <View style={[styles.usePill, lowVision && styles.usePillLowVision]}>
+        <Text style={[styles.usePillText, lowVision && styles.usePillTextLowVision]}>사용</Text>
+        <Ionicons name="chevron-forward" size={16} color={Palette.primary} />
+      </View>
+    </Pressable>
   );
 }
 
@@ -404,6 +490,23 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   recordChoiceTitle: {
+    fontSize: 19,
+    lineHeight: 25,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  sampleChoiceCard: {
+    minHeight: 92,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.amber,
+    padding: 16,
+    ...Shadow.subtle,
+  },
+  sampleChoiceTitle: {
     fontSize: 19,
     lineHeight: 25,
     fontWeight: '900',
