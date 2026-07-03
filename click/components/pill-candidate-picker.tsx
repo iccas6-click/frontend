@@ -51,10 +51,10 @@ export function PillCandidatePicker({
       <View style={styles.header}>
         <View>
           <Text style={[styles.headerTitle, lowVision && styles.headerTitleLowVision]}>
-            알약 후보 선택
+            후보 Top 3
           </Text>
           <Text style={[styles.headerMeta, lowVision && styles.headerMetaLowVision]}>
-            맞는 제품을 눌러주세요
+            사진과 가장 가까운 제품을 선택
           </Text>
         </View>
         <Pressable

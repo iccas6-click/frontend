@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Image } from 'expo-image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -54,6 +55,7 @@ export default function ResultScreen() {
   const [error, setError] = useState(false);
   const [recordId, setRecordId] = useState<string | null>(recordIdParam ?? null);
   const [editTarget, setEditTarget] = useState<RecognizedItem | null | undefined>(undefined);
+  const [activePillIndex, setActivePillIndex] = useState(0);
   const nextId = useRef(0);
   const { lowVision } = useUserMode();
 
@@ -119,9 +121,14 @@ export default function ResultScreen() {
       const source = parsedCurrentItems.length > 0 ? parsedCurrentItems : await analyzeImage(photoUri ?? '', selectedCategory);
       const current = source
         .filter((item) => item.category === selectedCategory)
-        .map((item, index) => ({ ...item, id: `current-${index}` }));
+        .map((item, index) => ({
+          ...item,
+          id: `current-${index}`,
+          sourceImageUri: item.sourceImageUri ?? photoUri,
+        }));
       const allItems = buildAllItems(current);
       setItems(current);
+      setActivePillIndex(0);
 
       if (recordIdParam) {
         await updateSessionItems(recordIdParam, allItems);
@@ -142,7 +149,12 @@ export default function ResultScreen() {
     runRecognition();
   }, [runRecognition]);
 
+  useEffect(() => {
+    setActivePillIndex((prev) => Math.min(prev, Math.max(items.length - 1, 0)));
+  }, [items.length]);
+
   const canContinue = !loading && !error && items.length > 0;
+  const showPillReview = !isSupplement && items.some((item) => item.candidates?.length);
 
   const goSupplement = () => {
     const allItems = buildAllItems(items);
@@ -232,20 +244,21 @@ export default function ResultScreen() {
         </StateView>
       ) : (
         <>
-          <SectionHeader title={`인식된 ${meta.label}`} action={<CountBadge count={items.length} lowVision={lowVision} />} />
+          <SectionHeader title={showPillReview ? '알약 확인' : `인식된 ${meta.label}`} action={<CountBadge count={items.length} lowVision={lowVision} />} />
           <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
-            {items.map((item) => (
-              !isSupplement && item.candidates?.length ? (
-                <PillCandidatePicker
-                  key={item.id}
-                  item={item}
-                  onSelect={(candidate) => handleSelectCandidate(item.id, candidate)}
-                  onEdit={() => setEditTarget(item)}
-                />
-              ) : (
+            {showPillReview ? (
+              <GuidedPillReview
+                items={items}
+                activeIndex={activePillIndex}
+                onActiveIndexChange={setActivePillIndex}
+                onSelectCandidate={handleSelectCandidate}
+                onEdit={(item) => setEditTarget(item)}
+              />
+            ) : (
+              items.map((item) => (
                 <RecognizedItemRow key={item.id} item={item} editable onPress={() => setEditTarget(item)} />
-              )
-            ))}
+              ))
+            )}
             <Pressable
               style={({ pressed }) => [styles.addCard, lowVision && styles.addCardLowVision, pressed && styles.pressed]}
               onPress={() => setEditTarget(null)}
@@ -298,6 +311,155 @@ function CountBadge({ count, lowVision }: { count: number; lowVision: boolean })
   );
 }
 
+function GuidedPillReview({
+  items,
+  activeIndex,
+  onActiveIndexChange,
+  onSelectCandidate,
+  onEdit,
+}: {
+  items: RecognizedItem[];
+  activeIndex: number;
+  onActiveIndexChange: (index: number) => void;
+  onSelectCandidate: (itemId: string, candidate: RecognitionCandidate) => void;
+  onEdit: (item: RecognizedItem) => void;
+}) {
+  const { lowVision } = useUserMode();
+  const activeItem = items[activeIndex] ?? items[0];
+  const sourceItem = items.find((item) => item.sourceImageUri && item.sourceImageWidth && item.sourceImageHeight);
+  const sourceUri = sourceItem?.sourceImageUri ?? activeItem?.sourceImageUri;
+  const sourceWidth = sourceItem?.sourceImageWidth ?? activeItem?.sourceImageWidth ?? 1;
+  const sourceHeight = sourceItem?.sourceImageHeight ?? activeItem?.sourceImageHeight ?? 1;
+  const hasPrevious = activeIndex > 0;
+  const hasNext = activeIndex < items.length - 1;
+
+  if (!activeItem) return null;
+
+  return (
+    <View style={styles.guidedWrap}>
+      <View style={[styles.photoCard, lowVision && styles.photoCardLowVision]}>
+        {sourceUri ? (
+          <View style={[styles.photoFrame, { aspectRatio: sourceWidth / sourceHeight }]}>
+            <Image source={{ uri: sourceUri }} style={styles.photo} contentFit="contain" />
+            {items.map((item, index) => (
+              <PillBox
+                key={item.id}
+                item={item}
+                index={index}
+                active={index === activeIndex}
+                imageWidth={sourceWidth}
+                imageHeight={sourceHeight}
+                onPress={() => onActiveIndexChange(index)}
+              />
+            ))}
+          </View>
+        ) : (
+          <View style={styles.photoEmpty}>
+            <Text style={styles.photoEmptyText}>원본 사진 없음</Text>
+          </View>
+        )}
+      </View>
+
+      <View style={[styles.questionCard, lowVision && styles.questionCardLowVision]}>
+        <Text style={[styles.questionIndex, lowVision && styles.questionIndexLowVision]}>
+          {activeIndex + 1} / {items.length}
+        </Text>
+        <Text style={[styles.questionTitle, lowVision && styles.questionTitleLowVision]}>
+          표시된 알약이 이 약인가요?
+        </Text>
+      </View>
+
+      <PillCandidatePicker
+        item={activeItem}
+        onSelect={(candidate) => onSelectCandidate(activeItem.id, candidate)}
+        onEdit={() => onEdit(activeItem)}
+      />
+
+      {items.length > 1 ? (
+        <View style={styles.pillNav}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.pillNavButton,
+              lowVision && styles.pillNavButtonLowVision,
+              !hasPrevious && styles.pillNavButtonDisabled,
+              pressed && hasPrevious && styles.pressed,
+            ]}
+            disabled={!hasPrevious}
+            onPress={() => onActiveIndexChange(Math.max(activeIndex - 1, 0))}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !hasPrevious }}
+            accessibilityLabel="이전 알약">
+            <Text style={[styles.pillNavText, lowVision && styles.pillNavTextLowVision, !hasPrevious && styles.pillNavTextDisabled]}>
+              이전
+            </Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.pillNavButton,
+              styles.pillNavButtonPrimary,
+              lowVision && styles.pillNavButtonLowVision,
+              !hasNext && styles.pillNavButtonDisabled,
+              pressed && hasNext && styles.pressed,
+            ]}
+            disabled={!hasNext}
+            onPress={() => onActiveIndexChange(Math.min(activeIndex + 1, items.length - 1))}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !hasNext }}
+            accessibilityLabel="다음 알약">
+            <Text style={[styles.pillNavText, styles.pillNavTextPrimary, lowVision && styles.pillNavTextLowVision, !hasNext && styles.pillNavTextDisabled]}>
+              다음 알약
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function PillBox({
+  item,
+  index,
+  active,
+  imageWidth,
+  imageHeight,
+  onPress,
+}: {
+  item: RecognizedItem;
+  index: number;
+  active: boolean;
+  imageWidth: number;
+  imageHeight: number;
+  onPress: () => void;
+}) {
+  if (!item.bbox) return null;
+  const [x1, y1, x2, y2] = item.bbox;
+  const left = Math.max(0, Math.min(100, (x1 / imageWidth) * 100));
+  const top = Math.max(0, Math.min(100, (y1 / imageHeight) * 100));
+  const width = Math.max(4, Math.min(100 - left, ((x2 - x1) / imageWidth) * 100));
+  const height = Math.max(4, Math.min(100 - top, ((y2 - y1) / imageHeight) * 100));
+
+  return (
+    <Pressable
+      style={[
+        styles.pillBox,
+        active && styles.pillBoxActive,
+        {
+          left: `${left}%`,
+          top: `${top}%`,
+          width: `${width}%`,
+          height: `${height}%`,
+        },
+      ]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${index + 1}번 알약 선택`}>
+      <View style={[styles.pillBoxLabel, active && styles.pillBoxLabelActive]}>
+        <Text style={[styles.pillBoxLabelText, active && styles.pillBoxLabelTextActive]}>{index + 1}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   countBadge: {
     minWidth: 34,
@@ -324,6 +486,151 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.screen,
     paddingBottom: 20,
     gap: 10,
+  },
+  guidedWrap: {
+    gap: 10,
+  },
+  photoCard: {
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    padding: 10,
+    overflow: 'hidden',
+  },
+  photoCardLowVision: {
+    padding: 12,
+  },
+  photoFrame: {
+    width: '100%',
+    maxHeight: 360,
+    borderRadius: Radius.md,
+    backgroundColor: '#101318',
+    overflow: 'hidden',
+  },
+  photo: {
+    width: '100%',
+    height: '100%',
+  },
+  photoEmpty: {
+    minHeight: 220,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.md,
+    backgroundColor: Palette.surfaceMuted,
+  },
+  photoEmptyText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: Palette.textMuted,
+  },
+  pillBox: {
+    position: 'absolute',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.78)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 8,
+  },
+  pillBoxActive: {
+    borderWidth: 3,
+    borderColor: Palette.primary,
+    backgroundColor: 'rgba(22,119,255,0.14)',
+  },
+  pillBoxLabel: {
+    position: 'absolute',
+    left: 4,
+    top: 4,
+    minWidth: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.92)',
+  },
+  pillBoxLabelActive: {
+    backgroundColor: Palette.primary,
+  },
+  pillBoxLabelText: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  pillBoxLabelTextActive: {
+    color: Palette.surface,
+  },
+  questionCard: {
+    backgroundColor: Palette.primarySoft,
+    borderRadius: Radius.lg,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: '#CFE3FF',
+  },
+  questionCardLowVision: {
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+  },
+  questionIndex: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '900',
+    color: Palette.primary,
+  },
+  questionIndexLowVision: {
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  questionTitle: {
+    fontSize: 20,
+    lineHeight: 27,
+    fontWeight: '900',
+    color: Palette.text,
+    marginTop: 2,
+  },
+  questionTitleLowVision: {
+    fontSize: 25,
+    lineHeight: 32,
+  },
+  pillNav: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  pillNavButton: {
+    flex: 1,
+    minHeight: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.lg,
+    backgroundColor: Palette.surface,
+    borderWidth: 1,
+    borderColor: Palette.border,
+  },
+  pillNavButtonPrimary: {
+    backgroundColor: Palette.primary,
+    borderColor: Palette.primary,
+  },
+  pillNavButtonLowVision: {
+    minHeight: 64,
+  },
+  pillNavButtonDisabled: {
+    opacity: 0.42,
+  },
+  pillNavText: {
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '900',
+    color: Palette.textMuted,
+  },
+  pillNavTextPrimary: {
+    color: Palette.surface,
+  },
+  pillNavTextLowVision: {
+    fontSize: 20,
+    lineHeight: 27,
+  },
+  pillNavTextDisabled: {
+    color: Palette.textSubtle,
   },
   pressed: {
     opacity: 0.78,

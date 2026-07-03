@@ -4,6 +4,7 @@ export type ItemCategory = '알약' | '건강기능식품 라벨';
 /** 알약 인식 모델이 반환한 제품 후보 */
 export interface RecognitionCandidate {
   id: string;
+  pillId?: string;
   name: string;
   dosage: string;
   productName?: string;
@@ -32,6 +33,11 @@ export interface RecognizedItem {
   /** 알약 인식 후보 Top-K. 사용자가 최종 후보를 고르면 항목 본문에 반영된다. */
   candidates?: RecognitionCandidate[];
   selectedCandidateId?: string;
+  /** 원본 사진 위에서 이 항목을 표시하기 위한 탐지 정보 */
+  sourceImageUri?: string;
+  sourceImageWidth?: number;
+  sourceImageHeight?: number;
+  bbox?: [number, number, number, number];
 }
 
 /** 위험도 단계 */

@@ -108,8 +108,12 @@ function splitProductAndDosage(productName?: string | null) {
 }
 
 type PillRecognitionResponse = {
+  image_width?: number;
+  image_height?: number;
   detections?: Array<{
+    bbox?: [number, number, number, number];
     candidates?: Array<{
+      pill_id?: string | null;
       product_name?: string | null;
       ingredient?: string | null;
       score?: number | null;
@@ -174,6 +178,7 @@ async function recognizePill(uri: string, baseUrl: string): Promise<RecognizedIt
         if (!productName && ingredients.length === 0) return null;
         return {
           id: `pill-${index}-candidate-${candidateIndex}`,
+          pillId: candidate.pill_id ?? undefined,
           name: displayName,
           dosage,
           productName: productName || displayName,
@@ -197,6 +202,10 @@ async function recognizePill(uri: string, baseUrl: string): Promise<RecognizedIt
       analysisNames: selected.analysisNames,
       candidates,
       selectedCandidateId: selected.id,
+      sourceImageUri: uri,
+      sourceImageWidth: data.image_width,
+      sourceImageHeight: data.image_height,
+      bbox: detection.bbox,
     });
   });
 
