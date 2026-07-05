@@ -120,16 +120,15 @@ function uniqueNames(values: (string | null | undefined)[]) {
   return result;
 }
 
-function analysisNamesFor(item: RecognizedItem) {
-  if (item.ingredients?.length) return uniqueNames(item.ingredients);
-  return uniqueNames(item.analysisNames ?? []);
+function displayNameFor(item: RecognizedItem) {
+  return item.name || item.productName || item.ingredients?.[0] || '이름 없는 항목';
 }
 
 function AnalyzedIngredientSummary({ result, items, lowVision }: { result: AnalysisResult; items: RecognizedItem[]; lowVision: boolean }) {
   const pills = items.filter((item) => item.category === '알약');
   const supplements = items.filter((item) => item.category === '건강기능식품 라벨');
-  const recognizedPillNames = uniqueNames(pills.flatMap(analysisNamesFor));
-  const recognizedSupplementNames = uniqueNames(supplements.flatMap(analysisNamesFor));
+  const recognizedPillNames = uniqueNames(pills.map(displayNameFor));
+  const recognizedSupplementNames = uniqueNames(supplements.map(displayNameFor));
   const pillNames = recognizedPillNames.length ? recognizedPillNames : result.matchedDrugNames ?? [];
   const supplementNames = result.matchedSupplementNames?.length
     ? recognizedSupplementNames.length ? recognizedSupplementNames : result.matchedSupplementNames
@@ -138,7 +137,7 @@ function AnalyzedIngredientSummary({ result, items, lowVision }: { result: Analy
 
   return (
     <View style={styles.ingredientSummary}>
-      <Text style={[styles.ingredientSummaryTitle, lowVision && styles.ingredientSummaryTitleLowVision]}>실제 분석 성분</Text>
+      <Text style={[styles.ingredientSummaryTitle, lowVision && styles.ingredientSummaryTitleLowVision]}>인식한 항목</Text>
       <IngredientColumn title="알약" names={pillNames} tone="blue" lowVision={lowVision} />
       <IngredientColumn title="건강기능식품" names={supplementNames} tone="green" lowVision={lowVision} />
     </View>
