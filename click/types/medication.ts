@@ -8,7 +8,7 @@ export interface RecognitionCandidate {
   name: string;
   dosage: string;
   productName?: string;
-  imageUri?: string;
+  imageUri?: string | number;
   ingredients?: string[];
   analysisNames?: string[];
   score?: number;
@@ -25,7 +25,7 @@ export interface RecognizedItem {
   /** 원본 제품명. name에서 용량을 분리했을 때도 원문을 보존한다. */
   productName?: string;
   /** 추후 백엔드 인식 결과에서 내려올 항목 이미지 */
-  imageUri?: string;
+  imageUri?: string | number;
   /** 추후 백엔드 인식 결과에서 내려올 주요 성분 */
   ingredients?: string[];
   /** 백엔드 상호작용 분석에 보낼 성분/약물 후보명 */

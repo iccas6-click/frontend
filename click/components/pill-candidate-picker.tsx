@@ -6,6 +6,10 @@ import { Palette, Radius, Shadow } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
 import type { RecognizedItem, RecognitionCandidate } from '@/types/medication';
 
+function imageSource(imageUri: RecognitionCandidate['imageUri']) {
+  return typeof imageUri === 'number' ? imageUri : { uri: imageUri };
+}
+
 function candidateSummary(candidate: RecognitionCandidate) {
   const ingredients = candidate.ingredients?.filter(Boolean) ?? [];
   if (ingredients.length > 0) return ingredients.slice(0, 2).join(', ');
@@ -86,7 +90,7 @@ export function PillCandidatePicker({
               accessibilityLabel={`${index + 1}번 후보 ${candidate.name}`}>
               <View style={[styles.thumb, lowVision && styles.thumbLowVision]}>
                 {candidate.imageUri ? (
-                  <Image source={{ uri: candidate.imageUri }} style={styles.image} contentFit="cover" />
+                  <Image source={imageSource(candidate.imageUri)} style={styles.image} contentFit="cover" />
                 ) : (
                   <Ionicons name="medical" size={lowVision ? 28 : 23} color={Palette.primary} />
                 )}

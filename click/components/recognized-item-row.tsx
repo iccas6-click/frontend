@@ -11,6 +11,10 @@ function fallbackIngredients(item: RecognizedItem) {
   return '성분 정보 없음';
 }
 
+function imageSource(imageUri: RecognizedItem['imageUri']) {
+  return typeof imageUri === 'number' ? imageUri : { uri: imageUri };
+}
+
 export function RecognizedItemRow({
   item,
   onPress,
@@ -29,7 +33,7 @@ export function RecognizedItemRow({
     <>
       <View style={[styles.thumb, lowVision && styles.thumbLowVision, { backgroundColor: iconBg }]}>
         {item.imageUri ? (
-          <Image source={{ uri: item.imageUri }} style={styles.image} contentFit="cover" />
+          <Image source={imageSource(item.imageUri)} style={styles.image} contentFit="cover" />
         ) : (
           <Ionicons name={icon} size={lowVision ? 26 : 22} color={iconColor} />
         )}

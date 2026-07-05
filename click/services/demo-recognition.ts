@@ -1,5 +1,3 @@
-import { Image } from 'react-native';
-
 import type { ItemCategory, RecognizedItem } from '@/types/medication';
 
 export type DemoRecognitionSet = {
@@ -10,16 +8,14 @@ export type DemoRecognitionSet = {
   items: RecognizedItem[];
 };
 
-const assetUri = (source: number) => Image.resolveAssetSource(source).uri;
-
 const DEMO_IMAGES = {
-  pillSource: assetUri(require('@/assets/images/demo/demo-pill-source.png')),
-  warfarin: assetUri(require('@/assets/images/demo/demo-pill-warfarin.png')),
-  aspirin: assetUri(require('@/assets/images/demo/demo-pill-aspirin.png')),
-  ibuprofen: assetUri(require('@/assets/images/demo/demo-pill-ibuprofen.png')),
-  omega3: assetUri(require('@/assets/images/demo/demo-supp-omega3.png')),
-  ginkgo: assetUri(require('@/assets/images/demo/demo-supp-ginkgo.png')),
-  garlic: assetUri(require('@/assets/images/demo/demo-supp-garlic.png')),
+  pillSource: require('@/assets/images/demo/demo-pill-source.png'),
+  warfarin: require('@/assets/images/demo/demo-pill-warfarin.png'),
+  aspirin: require('@/assets/images/demo/demo-pill-aspirin.png'),
+  ibuprofen: require('@/assets/images/demo/demo-pill-ibuprofen.png'),
+  omega3: require('@/assets/images/demo/demo-supp-omega3.png'),
+  ginkgo: require('@/assets/images/demo/demo-supp-ginkgo.png'),
+  garlic: require('@/assets/images/demo/demo-supp-garlic.png'),
 };
 
 function pill(
@@ -28,7 +24,7 @@ function pill(
   dosage: string,
   ingredients: string[],
   extraNames: string[] = [],
-  imageUri?: string,
+  imageUri?: RecognizedItem['imageUri'],
   bbox?: [number, number, number, number],
 ): RecognizedItem {
   const productName = `${name} ${dosage}`.trim();
@@ -92,6 +88,7 @@ function supplement(
   dosage = '',
   extraNames: string[] = [],
   analysisNames?: string[],
+  imageUri?: RecognizedItem['imageUri'],
 ): RecognizedItem {
   return {
     id,
@@ -99,9 +96,9 @@ function supplement(
     dosage: dosage || `성분 ${ingredients.length}개`,
     category: '건강기능식품 라벨',
     productName: name,
-    imageUri: extraNames[0]?.startsWith('asset:') ? extraNames[0].replace(/^asset:/, '') : undefined,
+    imageUri,
     ingredients,
-    analysisNames: analysisNames ?? [...ingredients, ...extraNames.filter((value) => !value.startsWith('asset:')), name],
+    analysisNames: analysisNames ?? [...ingredients, ...extraNames, name],
   };
 }
 
@@ -148,9 +145,9 @@ const SUPPLEMENT_DEMOS: DemoRecognitionSet[] = [
     subtitle: '오메가3·은행잎·마늘',
     category: '건강기능식품 라벨',
     items: [
-      supplement('demo-supp-omega3', '오메가-3', ['EPA 및 DHA 함유 유지'], 'EPA/DHA 1,000mg', [`asset:${DEMO_IMAGES.omega3}`], ['오메가-3']),
-      supplement('demo-supp-ginkgo', '은행잎 추출물', ['은행잎'], '플라보놀배당체 28mg', [`asset:${DEMO_IMAGES.ginkgo}`, 'Ginkgo'], ['은행잎']),
-      supplement('demo-supp-garlic', '마늘 추출물', ['마늘'], '마늘분말 500mg', [`asset:${DEMO_IMAGES.garlic}`, 'Garlic'], ['마늘']),
+      supplement('demo-supp-omega3', '오메가-3', ['EPA 및 DHA 함유 유지'], 'EPA/DHA 1,000mg', [], ['오메가-3'], DEMO_IMAGES.omega3),
+      supplement('demo-supp-ginkgo', '은행잎 추출물', ['은행잎'], '플라보놀배당체 28mg', ['Ginkgo'], ['은행잎'], DEMO_IMAGES.ginkgo),
+      supplement('demo-supp-garlic', '마늘 추출물', ['마늘'], '마늘분말 500mg', ['Garlic'], ['마늘'], DEMO_IMAGES.garlic),
     ],
   },
   {
