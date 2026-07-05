@@ -42,13 +42,13 @@ function uniqueNames(values: Array<string | null | undefined>) {
 
 function buildAnalyzeItems(items: RecognizedItem[]) {
   return items.flatMap((item) => {
-    const names = uniqueNames([
-      item.name,
-      item.productName,
-      item.dosage,
-      ...(item.analysisNames ?? []),
-      ...(item.ingredients ?? []),
-    ]);
+    const sourceNames =
+      item.analysisNames?.length
+        ? item.analysisNames
+        : item.ingredients?.length
+          ? item.ingredients
+          : [item.name, item.productName];
+    const names = uniqueNames(sourceNames);
     const analysisNames = names.length > 0 ? names : [item.name];
     return analysisNames.map((name) => ({ name, category: item.category }));
   });

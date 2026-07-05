@@ -121,16 +121,18 @@ function uniqueNames(values: (string | null | undefined)[]) {
 }
 
 function analysisNamesFor(item: RecognizedItem) {
-  return uniqueNames([...(item.ingredients ?? []), ...(item.analysisNames ?? []), item.name, item.productName]);
+  return uniqueNames([...(item.ingredients ?? []), ...(item.analysisNames ?? [])]);
 }
 
 function AnalyzedIngredientSummary({ result, items, lowVision }: { result: AnalysisResult; items: RecognizedItem[]; lowVision: boolean }) {
   const pills = items.filter((item) => item.category === '알약');
   const supplements = items.filter((item) => item.category === '건강기능식품 라벨');
-  const pillNames = result.matchedDrugNames?.length ? result.matchedDrugNames : uniqueNames(pills.flatMap(analysisNamesFor));
+  const recognizedPillNames = uniqueNames(pills.flatMap(analysisNamesFor));
+  const recognizedSupplementNames = uniqueNames(supplements.flatMap(analysisNamesFor));
+  const pillNames = recognizedPillNames.length ? recognizedPillNames : result.matchedDrugNames ?? [];
   const supplementNames = result.matchedSupplementNames?.length
-    ? result.matchedSupplementNames
-    : uniqueNames(supplements.flatMap(analysisNamesFor));
+    ? recognizedSupplementNames.length ? recognizedSupplementNames : result.matchedSupplementNames
+    : recognizedSupplementNames;
   if (pillNames.length === 0 && supplementNames.length === 0) return null;
 
   return (

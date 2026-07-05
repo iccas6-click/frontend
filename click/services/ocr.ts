@@ -94,6 +94,26 @@ function uniqueStrings(values: Array<string | null | undefined>) {
   return result;
 }
 
+function normalizeSupplementAnalysisNames(productName: string | null | undefined, ingredients: string[]) {
+  const rawNames = uniqueClean([productName, ...ingredients]);
+  const normalized = new Set<string>();
+
+  rawNames.forEach((name) => {
+    const compact = name.replace(/\s+/g, '').toLowerCase();
+    if (/(오메가|omega|epa|dha)/i.test(name)) normalized.add('오메가-3');
+    if (/(은행|ginkgo)/i.test(name)) normalized.add('은행잎');
+    if (/(마늘|garlic)/i.test(name)) normalized.add('마늘');
+    if (/(인삼|홍삼|ginseng)/i.test(name)) normalized.add('인삼');
+    if (/(울금|커큐민|curcumin)/i.test(name)) normalized.add('울금');
+    if (/(칼슘|calcium)/i.test(name)) normalized.add('칼슘');
+    if (/(마그네슘|magnesium)/i.test(name)) normalized.add('마그네슘');
+    if (/(철분|철|iron)/i.test(name) && compact.length <= 12) normalized.add('철');
+  });
+
+  if (normalized.size > 0) return Array.from(normalized);
+  return rawNames;
+}
+
 function splitProductAndDosage(productName?: string | null) {
   const raw = String(productName ?? '').trim();
   if (!raw) return { displayName: '인식된 알약', dosage: '' };
@@ -173,7 +193,7 @@ async function recognizePill(uri: string, baseUrl: string): Promise<RecognizedIt
         const productName = candidate.product_name?.trim();
         const ingredients = uniqueClean([candidate.ingredient]);
         const { displayName, dosage } = splitProductAndDosage(productName);
-        const analysisNames = uniqueClean([...ingredients, displayName, productName]);
+        const analysisNames = ingredients.length > 0 ? ingredients : uniqueClean([displayName, productName]);
         const imageUri = resolveImageUri(candidate.reference_image_url, baseUrl);
         if (!productName && ingredients.length === 0) return null;
         return {
@@ -244,6 +264,7 @@ async function recognizeSupplement(uri: string, baseUrl: string): Promise<Recogn
   const productName = product?.product_name?.trim();
   const ingredients = uniqueClean(product?.ingredients ?? []);
   const imageUri = resolveImageUri(product?.image_url ?? product?.product_image_url ?? product?.item_image, baseUrl);
+  const analysisNames = normalizeSupplementAnalysisNames(productName, ingredients);
   const items: RecognizedItem[] = productName || ingredients.length > 0 ? [{
     id: 'supplement-0',
     name: productName || ingredients[0] || '인식된 건강기능식품',
@@ -252,7 +273,7 @@ async function recognizeSupplement(uri: string, baseUrl: string): Promise<Recogn
     productName,
     imageUri,
     ingredients,
-    analysisNames: uniqueClean([...ingredients, productName]),
+    analysisNames,
   }] : [];
 
   if (items.length === 0) {
