@@ -121,7 +121,8 @@ function uniqueNames(values: (string | null | undefined)[]) {
 }
 
 function analysisNamesFor(item: RecognizedItem) {
-  return uniqueNames([...(item.ingredients ?? []), ...(item.analysisNames ?? [])]);
+  if (item.ingredients?.length) return uniqueNames(item.ingredients);
+  return uniqueNames(item.analysisNames ?? []);
 }
 
 function AnalyzedIngredientSummary({ result, items, lowVision }: { result: AnalysisResult; items: RecognizedItem[]; lowVision: boolean }) {

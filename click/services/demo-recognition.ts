@@ -12,10 +12,10 @@ const DEMO_IMAGES = {
   pillSource: require('@/assets/images/demo/demo-pill-source.png'),
   warfarin: require('@/assets/images/demo/demo-pill-warfarin.png'),
   aspirin: require('@/assets/images/demo/demo-pill-aspirin.png'),
-  ibuprofen: require('@/assets/images/demo/demo-pill-ibuprofen.png'),
+  lipitor: require('@/assets/images/demo/demo-pill-lipitor.png'),
   omega3: require('@/assets/images/demo/demo-supp-omega3.png'),
   ginkgo: require('@/assets/images/demo/demo-supp-ginkgo.png'),
-  garlic: require('@/assets/images/demo/demo-supp-garlic.png'),
+  vitaminD: require('@/assets/images/demo/demo-supp-vitamin-d.png'),
 };
 
 function pill(
@@ -106,12 +106,12 @@ const PILL_DEMOS: DemoRecognitionSet[] = [
   {
     id: 'bleeding-pill',
     title: '데모용 알약 세트',
-    subtitle: '항응고제와 진통소염제',
+    subtitle: '항응고제와 심혈관계 약',
     category: '알약',
     items: [
-      pill('demo-pill-warfarin', '와파린정', '5mg', ['와파린'], ['warfarin'], DEMO_IMAGES.warfarin, [190, 340, 480, 525]),
-      pill('demo-pill-aspirin', '아스피린프로텍트정', '100mg', ['아스피린'], ['aspirin'], DEMO_IMAGES.aspirin, [485, 300, 715, 535]),
-      pill('demo-pill-ibuprofen', '이부프로펜정', '200mg', ['이부프로펜'], ['ibuprofen'], DEMO_IMAGES.ibuprofen, [740, 340, 1030, 525]),
+      pill('demo-pill-warfarin', '와파린정', '5mg', ['와파린'], [], DEMO_IMAGES.warfarin, [190, 340, 480, 525]),
+      pill('demo-pill-aspirin', '아스피린프로텍트정', '100mg', ['아스피린'], [], DEMO_IMAGES.aspirin, [485, 300, 715, 535]),
+      pill('demo-pill-lipitor', '리피토정', '10mg', ['아토르바스타틴'], ['리피토'], DEMO_IMAGES.lipitor, [740, 340, 1030, 525]),
     ],
   },
   {
@@ -142,12 +142,12 @@ const SUPPLEMENT_DEMOS: DemoRecognitionSet[] = [
   {
     id: 'bleeding-supplement',
     title: '데모용 건강기능식품 세트',
-    subtitle: '오메가3·은행잎·마늘',
+    subtitle: '오메가3·은행잎·비타민D',
     category: '건강기능식품 라벨',
     items: [
-      supplement('demo-supp-omega3', '오메가-3', ['EPA 및 DHA 함유 유지'], 'EPA/DHA 1,000mg', [], ['오메가-3'], DEMO_IMAGES.omega3),
+      supplement('demo-supp-omega3', '오메가-3', ['오메가-3'], 'EPA/DHA 1,000mg', [], ['오메가-3'], DEMO_IMAGES.omega3),
       supplement('demo-supp-ginkgo', '은행잎 추출물', ['은행잎'], '플라보놀배당체 28mg', ['Ginkgo'], ['은행잎'], DEMO_IMAGES.ginkgo),
-      supplement('demo-supp-garlic', '마늘 추출물', ['마늘'], '마늘분말 500mg', ['Garlic'], ['마늘'], DEMO_IMAGES.garlic),
+      supplement('demo-supp-vitamin-d', '비타민 D', ['비타민 D'], '1,000IU', [], ['비타민 D'], DEMO_IMAGES.vitaminD),
     ],
   },
   {
