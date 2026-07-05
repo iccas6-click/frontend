@@ -7,7 +7,7 @@ import { Alert, Pressable, SectionList, StyleSheet, Text, View } from 'react-nat
 import { IconBadge, PrimaryButton, Screen, TopBar } from '@/components/app-ui';
 import { Palette, Radius, Shadow, Spacing } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
-import { deleteSessions, formatRecordDateTime, formatRecordMonth, formatRecordTime, getAllSessions } from '@/services/history-storage';
+import { deleteSessions, formatRecordDateTime, formatRecordMonth, getAllSessions } from '@/services/history-storage';
 import type { AnalysisSession, RiskLevel } from '@/types/medication';
 
 type HistorySection = {
@@ -228,7 +228,7 @@ function RecordCard({
       </View>
       <View style={styles.cardText}>
         <View style={styles.cardTop}>
-          <Text style={[styles.cardTitle, lowVision && styles.cardTitleLowVision]}>{formatRecordTime(record.createdAt)}</Text>
+          <Text style={[styles.cardTitle, lowVision && styles.cardTitleLowVision]}>{formatRecordDateTime(record.createdAt)}</Text>
           <RiskChip level={record.analysis?.overall} />
         </View>
         <View style={styles.countRow}>

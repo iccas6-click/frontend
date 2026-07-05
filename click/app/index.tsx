@@ -7,7 +7,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { IconBadge, PrimaryButton, Screen } from '@/components/app-ui';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
-import { formatRecordMonth, formatRecordTime, getAllSessions } from '@/services/history-storage';
+import { formatRecordDateTime, formatRecordMonth, getAllSessions } from '@/services/history-storage';
 import { getSettings, type AppSettings } from '@/services/settings-storage';
 import type { AnalysisSession, RiskLevel } from '@/types/medication';
 
@@ -237,7 +237,7 @@ function TimelineCard({
       style={({ pressed }) => [styles.timelineCard, lowVision && styles.timelineCardLowVision, first && styles.timelineCardFirst, pressed && styles.pressed]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${formatRecordMonth(record.createdAt)} ${formatRecordTime(record.createdAt)}, ${riskLabel(level)}`}>
+      accessibilityLabel={`${formatRecordDateTime(record.createdAt)}, ${riskLabel(level)}`}>
       <View style={styles.timelineLeft}>
         <View style={[styles.timelineDot, { backgroundColor: Palette[riskTone(level) === 'red' ? 'rose' : riskTone(level) === 'amber' ? 'amber' : riskTone(level) === 'green' ? 'mint' : 'blueGrey'] }]} />
         <View style={styles.timelineLine} />
@@ -245,7 +245,7 @@ function TimelineCard({
       <View style={styles.timelineBody}>
         <View style={styles.timelineTop}>
           <Text style={[styles.timelineTitle, lowVision && styles.timelineTitleLowVision]}>
-            {formatRecordTime(record.createdAt)}
+            {formatRecordDateTime(record.createdAt)}
           </Text>
           <RiskChip level={level} />
         </View>
