@@ -65,7 +65,11 @@ export default function CameraScreen() {
     if (taking) return;
     setTaking(true);
     try {
-      const photo = await cameraRef.current?.takePictureAsync();
+      const photo = await cameraRef.current?.takePictureAsync({
+        quality: 1,
+        exif: false,
+        skipProcessing: false,
+      });
       if (!photo?.uri) return;
       router.replace({
         pathname: '/result',

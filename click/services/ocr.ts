@@ -1,4 +1,6 @@
 import axios from 'axios';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { Image as RNImage, Platform } from 'react-native';
 
 import type { ItemCategory, RecognizedItem, RecognitionCandidate } from '@/types/medication';
 
@@ -14,6 +16,8 @@ export const PILL_AI_BASE_URL = process.env.EXPO_PUBLIC_PILL_AI_URL ?? '';
 
 /** @deprecated 분석 API 호환용. 새 코드는 BACKEND_API_BASE_URL을 사용한다. */
 export const API_BASE_URL = BACKEND_API_BASE_URL;
+
+const MAX_UPLOAD_IMAGE_SIDE = 2200;
 
 /** 백엔드 연동 전 화면 확인용 목업 결과 (분류별) */
 const MOCK_BY_CATEGORY: Record<ItemCategory, RecognizedItem[]> = {
@@ -36,10 +40,12 @@ export async function analyzeImage(
   uri: string,
   category: ItemCategory,
 ): Promise<RecognizedItem[]> {
+  const uploadImage = await prepareImageForUpload(uri);
   const targetUrl = category === '알약' ? PILL_AI_BASE_URL : SUPPLEMENT_AI_BASE_URL;
   devLog('[OCR] ▶ 서버로 보냄:', targetUrl || '(목업 모드)');
   devLog('[OCR] ▶ 선택한 분류:', category);
-  devLog('[OCR] ▶ 보낼 사진 uri:', uri);
+  devLog('[OCR] ▶ 보낼 사진 uri:', uploadImage.uri);
+  devLog('[OCR] ▶ 사진 정규화:', `${Platform.OS} ${uploadImage.width ?? '?'}x${uploadImage.height ?? '?'}`);
 
   if (!targetUrl) {
     await new Promise((resolve) => setTimeout(resolve, 1200));
@@ -49,9 +55,53 @@ export async function analyzeImage(
   }
 
   if (category === '알약') {
-    return recognizePill(uri, targetUrl);
+    return recognizePill(uploadImage.uri, targetUrl);
   }
-  return recognizeSupplement(uri, targetUrl);
+  return recognizeSupplement(uploadImage.uri, targetUrl);
+}
+
+async function prepareImageForUpload(uri: string) {
+  const sourceUri = String(uri ?? '').trim();
+  if (!sourceUri) throw new Error('업로드할 사진이 없습니다.');
+
+  try {
+    const size = await getImageSize(sourceUri).catch((error) => {
+      devLog('[OCR] 사진 크기 확인 실패, JPEG 변환만 시도:', String(error));
+      return null;
+    });
+    const actions: ImageManipulator.Action[] = [];
+    if (size && Math.max(size.width, size.height) > MAX_UPLOAD_IMAGE_SIDE) {
+      actions.push(
+        size.width >= size.height
+          ? { resize: { width: MAX_UPLOAD_IMAGE_SIDE } }
+          : { resize: { height: MAX_UPLOAD_IMAGE_SIDE } },
+      );
+    }
+
+    const result = await ImageManipulator.manipulateAsync(sourceUri, actions, {
+      compress: 0.94,
+      format: ImageManipulator.SaveFormat.JPEG,
+    });
+
+    return {
+      uri: result.uri,
+      width: result.width,
+      height: result.height,
+    };
+  } catch (error) {
+    devLog('[OCR] 사진 정규화 실패, 원본 업로드로 fallback:', String(error));
+    return { uri: sourceUri, width: undefined, height: undefined };
+  }
+}
+
+function getImageSize(uri: string) {
+  return new Promise<{ width: number; height: number }>((resolve, reject) => {
+    RNImage.getSize(
+      uri,
+      (width, height) => resolve({ width, height }),
+      reject,
+    );
+  });
 }
 
 function imageFormField(uri: string, fieldName: string) {
