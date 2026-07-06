@@ -100,6 +100,7 @@ export default function ReuseScreen() {
       pathname: '/result',
       params: {
         photoUri: result.assets[0].uri,
+        photoSource: 'gallery',
         category,
         prevItems: params.prevItems,
         recordId: params.recordId,

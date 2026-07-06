@@ -39,8 +39,9 @@ const MOCK_BY_CATEGORY: Record<ItemCategory, RecognizedItem[]> = {
 export async function analyzeImage(
   uri: string,
   category: ItemCategory,
+  options: { source?: 'camera' | 'gallery' | 'record' } = {},
 ): Promise<RecognizedItem[]> {
-  const uploadImage = await prepareImageForUpload(uri);
+  const uploadImage = await prepareImageForUpload(uri, options.source);
   const targetUrl = category === '알약' ? PILL_AI_BASE_URL : SUPPLEMENT_AI_BASE_URL;
   devLog('[OCR] ▶ 서버로 보냄:', targetUrl || '(목업 모드)');
   devLog('[OCR] ▶ 선택한 분류:', category);
@@ -60,7 +61,7 @@ export async function analyzeImage(
   return recognizeSupplement(uploadImage.uri, targetUrl);
 }
 
-async function prepareImageForUpload(uri: string) {
+async function prepareImageForUpload(uri: string, source: 'camera' | 'gallery' | 'record' = 'record') {
   const sourceUri = String(uri ?? '').trim();
   if (!sourceUri) throw new Error('업로드할 사진이 없습니다.');
 
@@ -70,9 +71,23 @@ async function prepareImageForUpload(uri: string) {
       return null;
     });
     const actions: ImageManipulator.Action[] = [];
-    if (size && Math.max(size.width, size.height) > MAX_UPLOAD_IMAGE_SIDE) {
+    if (source === 'camera' && size) {
+      const cropSize = Math.min(size.width, size.height);
+      actions.push({
+        crop: {
+          originX: Math.max(0, Math.round((size.width - cropSize) / 2)),
+          originY: Math.max(0, Math.round((size.height - cropSize) / 2)),
+          width: cropSize,
+          height: cropSize,
+        },
+      });
+    }
+
+    const uploadWidth = source === 'camera' && size ? Math.min(size.width, size.height) : size?.width;
+    const uploadHeight = source === 'camera' && size ? Math.min(size.width, size.height) : size?.height;
+    if (uploadWidth && uploadHeight && Math.max(uploadWidth, uploadHeight) > MAX_UPLOAD_IMAGE_SIDE) {
       actions.push(
-        size.width >= size.height
+        uploadWidth >= uploadHeight
           ? { resize: { width: MAX_UPLOAD_IMAGE_SIDE } }
           : { resize: { height: MAX_UPLOAD_IMAGE_SIDE } },
       );

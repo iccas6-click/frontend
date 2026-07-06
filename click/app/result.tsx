@@ -35,8 +35,9 @@ function normalizeItems(items: RecognizedItem[]) {
 
 export default function ResultScreen() {
   const router = useRouter();
-  const { photoUri, category, prevItems, items: itemsParam, recordId: recordIdParam } = useLocalSearchParams<{
+  const { photoUri, photoSource, category, prevItems, items: itemsParam, recordId: recordIdParam } = useLocalSearchParams<{
     photoUri?: string;
+    photoSource?: string;
     category?: string;
     prevItems?: string;
     items?: string;
@@ -118,7 +119,11 @@ export default function ResultScreen() {
     setLoading(true);
     setError(false);
     try {
-      const source = parsedCurrentItems.length > 0 ? parsedCurrentItems : await analyzeImage(photoUri ?? '', selectedCategory);
+      const source = parsedCurrentItems.length > 0
+        ? parsedCurrentItems
+        : await analyzeImage(photoUri ?? '', selectedCategory, {
+          source: photoSource === 'camera' || photoSource === 'gallery' ? photoSource : undefined,
+        });
       const current = source
         .filter((item) => item.category === selectedCategory)
         .map((item, index) => ({
@@ -143,7 +148,7 @@ export default function ResultScreen() {
     } finally {
       setLoading(false);
     }
-  }, [buildAllItems, parsedCurrentItems, photoUri, recordIdParam, selectedCategory]);
+  }, [buildAllItems, parsedCurrentItems, photoSource, photoUri, recordIdParam, selectedCategory]);
 
   useEffect(() => {
     runRecognition();

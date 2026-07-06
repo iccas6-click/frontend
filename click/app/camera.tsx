@@ -75,6 +75,7 @@ export default function CameraScreen() {
         pathname: '/result',
         params: {
           photoUri: photo.uri,
+          photoSource: 'camera',
           category,
           prevItems: params.prevItems,
           recordId: params.recordId,
