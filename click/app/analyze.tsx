@@ -82,7 +82,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: Spacing.screen,
-    paddingBottom: 64,
+    // 하단 여백을 기존 64에서 140으로 늘려 네모 박스를 전체적으로 위로 끌어올렸습니다.
+    paddingBottom: 140,
   },
   analysisCard: {
     alignItems: 'center',
