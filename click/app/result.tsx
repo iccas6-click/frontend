@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
   },
   photoFrame: {
     width: '100%',
-    maxHeight: 360,
+    maxHeight: 300,
     borderRadius: Radius.md,
     backgroundColor: '#101318',
     overflow: 'hidden',

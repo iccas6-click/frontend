@@ -80,6 +80,7 @@ async function prepareImagesForUpload(uri: string, source: 'camera' | 'gallery' 
       return null;
     });
     const variants: UploadImage[] = [];
+    variants.push(await manipulateImage(sourceUri, resizeActions(size), 'full'));
 
     if (source === 'camera' && size) {
       const cropSize = Math.min(size.width, size.height);
@@ -96,8 +97,6 @@ async function prepareImagesForUpload(uri: string, source: 'camera' | 'gallery' 
       ];
       variants.push(await manipulateImage(sourceUri, cropActions, 'center-crop'));
     }
-
-    variants.push(await manipulateImage(sourceUri, resizeActions(size), 'full'));
 
     return variants;
   } catch (error) {
