@@ -97,7 +97,7 @@ export default function CameraScreen() {
             onPress={takePicture}
             disabled={taking}
             accessibilityRole="button"
-            accessibilityLabel={`${isSupplement ? '건강기능식품' : '알약'} 촬영하기`}
+            accessibilityLabel={`${isSupplement ? '건강기능식품' : '약 봉투 및 처방전'} 촬영하기`}
             accessibilityState={{ disabled: taking }}>
             {taking ? <ActivityIndicator color={Palette.primary} /> : <View style={[styles.shutterInner, lowVision && styles.shutterInnerLowVision]} />}
           </Pressable>
@@ -106,8 +106,9 @@ export default function CameraScreen() {
       }>
       <StatusBar style="dark" />
       <TopBar
-        title={isSupplement ? '건강기능식품 촬영' : '알약 촬영'}
-        subtitle={isSupplement ? '밝은 곳에서 제품명과 성분표가 보이게 정면으로 촬영하세요.' : '밝은 곳에서 흰 배경 위에 올리고 정면으로 촬영하세요.'}
+        title={isSupplement ? '건강기능식품 촬영' : '약 봉투 및 처방전 촬영'}
+        
+        subtitle={isSupplement ? '밝은 곳에서 제품명과 성분표가 보이게 정면으로 촬영하세요.' : '밝은 곳에서 글자가 잘 보이게 펴서 촬영하세요.'}
         backLabel="뒤로"
         onBack={handleBack}
       />
@@ -126,12 +127,12 @@ export default function CameraScreen() {
       </View>
 
       <View style={[styles.tipCard, compact && styles.tipCardCompact, lowVision && styles.tipCardLowVision]}>
-        <IconBadge icon={isSupplement ? 'text' : 'sparkles'} tone={isSupplement ? 'green' : 'blue'} size="sm" />
+        <IconBadge icon="text" tone={isSupplement ? 'green' : 'blue'} size="sm" />
         <View style={styles.tipTextWrap}>
-          <Text style={[styles.tipTitle, lowVision && styles.tipTitleLowVision]}>{isSupplement ? '라벨 글자가 중요해요' : '여러 알약도 한 번에 가능해요'}</Text>
+          <Text style={[styles.tipTitle, lowVision && styles.tipTitleLowVision]}>{isSupplement ? '라벨 글자가 중요해요' : '글자가 잘 보이게 촬영해 주세요'}</Text>
           {!compact ? (
             <Text style={[styles.tipBody, lowVision && styles.tipBodyLowVision]}>
-              {isSupplement ? '성분명과 함량 부분이 잘리지 않게 촬영하면 확인이 쉬워집니다.' : '인식 결과는 다음 화면에서 직접 수정할 수 있습니다.'}
+              {isSupplement ? '성분명과 함량이 잘리지 않게 촬영해 주세요.' : '구겨지지 않게 반듯하게 펴서 촬영해 주세요.'}
             </Text>
           ) : null}
         </View>
@@ -242,7 +243,7 @@ const styles = StyleSheet.create({
   tipCard: {
     marginHorizontal: Spacing.screen,
     marginTop: 12,
-    marginBottom: 10,
+    marginBottom: 10, // 여백을 원래대로 복구했습니다.
     minHeight: 76,
     flexDirection: 'row',
     alignItems: 'center',
