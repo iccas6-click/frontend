@@ -8,7 +8,7 @@ import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
 import { devLog } from '@/services/debug-log';
-import { updateSessionAnalysis } from '@/services/history-storage';
+import { updateSessionAnalysis, updateSessionItems } from '@/services/history-storage';
 import { analyzeInteractions } from '@/services/interactions';
 import type { RecognizedItem } from '@/types/medication';
 
@@ -39,6 +39,7 @@ export default function AnalyzeScreen() {
         }
 
         if (recordId) {
+          await updateSessionItems(recordId, items);
           await updateSessionAnalysis(recordId, result);
         }
 
@@ -70,9 +71,6 @@ export default function AnalyzeScreen() {
           </View>
           <Text style={[styles.title, lowVision && styles.titleLowVision]}>잠시만 기다려 주세요</Text>
           <Text style={[styles.subtitle, lowVision && styles.subtitleLowVision]}>복용 중단을 지시하지 않고, 상담이 필요한 신호만 먼저 찾아봅니다.</Text>
-          <View style={styles.progressTrack}>
-            <View style={styles.progressFill} />
-          </View>
         </View>
       </View>
     </Screen>
@@ -153,19 +151,5 @@ const styles = StyleSheet.create({
   subtitleLowVision: {
     fontSize: 18,
     lineHeight: 26,
-  },
-  progressTrack: {
-    width: '100%',
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Palette.surfaceMuted,
-    marginTop: 24,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    width: '58%',
-    height: '100%',
-    borderRadius: 3,
-    backgroundColor: Palette.primary,
   },
 });

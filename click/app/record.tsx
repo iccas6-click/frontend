@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { PairCard, RiskSummaryCard } from '@/components/analysis-ui';
+import { InteractionCoverageCard, PairCard, RiskSummaryCard } from '@/components/analysis-ui';
 import { IconBadge, Screen, TopBar } from '@/components/app-ui';
 import { RecognizedItemRow } from '@/components/recognized-item-row';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
@@ -24,7 +24,6 @@ export default function RecordDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<ItemCategory>('알약');
   const [attentionOpen, setAttentionOpen] = useState(true);
-  const [safeOpen, setSafeOpen] = useState(false);
   const { lowVision } = useUserMode();
 
   useEffect(() => {
@@ -47,7 +46,6 @@ export default function RecordDetailScreen() {
   const supplementCount = record?.items.filter((item) => item.category === '건강기능식품 라벨').length ?? 0;
   const items: RecognizedItem[] = useMemo(() => (record ? record.items.filter((it) => it.category === tab) : []), [record, tab]);
   const attentionPairs = record?.analysis?.pairs.filter((pair) => pair.level !== 'safe') ?? [];
-  const safePairs = record?.analysis?.pairs.filter((pair) => pair.level === 'safe') ?? [];
 
   return (
     <Screen>
@@ -75,14 +73,7 @@ export default function RecordDetailScreen() {
                 tone="amber"
                 lowVision={lowVision}
               />
-              <PairAccordion
-                title="미탐지 조합"
-                pairs={safePairs}
-                open={safeOpen}
-                onToggle={() => setSafeOpen((value) => !value)}
-                tone="green"
-                lowVision={lowVision}
-              />
+              <InteractionCoverageCard result={record.analysis} compact />
             </View>
           ) : (
             <View style={styles.noAnalysis}>

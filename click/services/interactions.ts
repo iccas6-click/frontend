@@ -8,7 +8,7 @@ import type {
 } from '@/types/medication';
 
 import { devLog } from './debug-log';
-import { API_BASE_URL } from './ocr';
+import { BACKEND_API_BASE_URL } from './ocr';
 
 /** 위험도 비교용 순위 */
 const LEVEL_RANK: Record<RiskLevel, number> = { danger: 3, caution: 2, safe: 1 };
@@ -24,6 +24,36 @@ function pairKey(a: string, b: string): string {
   return [a, b].sort().join('|');
 }
 
+function uniqueNames(values: Array<string | null | undefined>) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  values
+    .flatMap((value) => String(value ?? '').split(/[|,，/·ㆍ]+/))
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .forEach((value) => {
+      const key = value.replace(/\s+/g, '').toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      result.push(value);
+    });
+  return result;
+}
+
+function buildAnalyzeItems(items: RecognizedItem[]) {
+  return items.flatMap((item) => {
+    const sourceNames =
+      item.analysisNames?.length
+        ? item.analysisNames
+        : item.ingredients?.length
+          ? item.ingredients
+          : [item.name, item.productName];
+    const names = uniqueNames(sourceNames);
+    const analysisNames = names.length > 0 ? names : [item.name];
+    return analysisNames.map((name) => ({ name, category: item.category }));
+  });
+}
+
 /**
  * 인식·수정된 항목들의 상호작용을 분석한다.
  * API_BASE_URL이 비어 있으면 목업 결과를 반환한다(백엔드 연동 전 테스트용).
@@ -31,18 +61,18 @@ function pairKey(a: string, b: string): string {
 export async function analyzeInteractions(items: RecognizedItem[]): Promise<AnalysisResult> {
   devLog(
     '[상호작용] ▶ 서버로 보냄:',
-    API_BASE_URL ? `POST ${API_BASE_URL}/api/interactions` : '(목업 모드)',
+    BACKEND_API_BASE_URL ? `POST ${BACKEND_API_BASE_URL}/api/v1/interactions/analyze` : '(목업 모드)',
   );
   devLog(
     '[상호작용] ▶ 보낼 항목:',
-    items.map((it) => `${it.name} ${it.dosage} (${it.category})`),
+    buildAnalyzeItems(items).map((it) => `${it.name} (${it.category})`),
   );
 
   // 백엔드 주소가 없으면 목업으로 동작 (약 5초 분석 흉내)
-  if (!API_BASE_URL) {
+  if (!BACKEND_API_BASE_URL) {
     await new Promise((resolve) => setTimeout(resolve, 4500));
 
-    const pairs: InteractionPair[] = [];
+    const allPairs: InteractionPair[] = [];
     let pid = 0;
     for (let i = 0; i < items.length; i++) {
       for (let j = i + 1; j < items.length; j++) {
@@ -50,7 +80,7 @@ export async function analyzeInteractions(items: RecognizedItem[]): Promise<Anal
         const b = items[j].name;
         const known = KNOWN[pairKey(a, b)];
         pid += 1;
-        pairs.push({
+        allPairs.push({
           id: String(pid),
           items: [a, b],
           level: known?.level ?? 'safe',
@@ -59,6 +89,7 @@ export async function analyzeInteractions(items: RecognizedItem[]): Promise<Anal
       }
     }
 
+    const pairs = allPairs.filter((pair) => pair.level !== 'safe');
     // 위험도 높은 순으로 정렬
     pairs.sort((x, y) => LEVEL_RANK[y.level] - LEVEL_RANK[x.level]);
 
@@ -74,15 +105,25 @@ export async function analyzeInteractions(items: RecognizedItem[]): Promise<Anal
           ? '일부 조합에서 주의가 필요합니다'
           : '모든 조합을 함께 복용할 수 있습니다';
 
-    const result = { overall, summary, pairs };
+    const result = {
+      overall,
+      summary,
+      pairs,
+      checkedCount: allPairs.length,
+      detectedCount: pairs.length,
+      undetectedCount: allPairs.length - pairs.length,
+      unmatchedSupplementCount: 0,
+      unmatchedDrugCount: 0,
+      unmatchedCombinationCount: 0,
+    };
     devLog('[상호작용] ◀ 서버에서 받음 (목업):', result);
     return result;
   }
 
   // 실제 백엔드 연동
   const { data } = await axios.post<AnalysisResult>(
-    `${API_BASE_URL}/api/interactions`,
-    { items: items.map((it) => ({ name: it.name, dosage: it.dosage, category: it.category })) },
+    `${BACKEND_API_BASE_URL}/api/v1/interactions/analyze`,
+    { items: buildAnalyzeItems(items), lang: 'ko' },
     { timeout: 30000 },
   );
   devLog('[상호작용] ◀ 서버에서 받음:', data);

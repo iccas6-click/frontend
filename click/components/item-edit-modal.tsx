@@ -40,6 +40,7 @@ export function ItemEditModal({ visible, initial, initialCategory = '알약', on
   const slide = useRef(new Animated.Value(1)).current;
   const [name, setName] = useState('');
   const [dosage, setDosage] = useState('');
+  const [ingredientsText, setIngredientsText] = useState('');
   const [category, setCategory] = useState<ItemCategory>('알약');
 
   // 모달이 열릴 때마다 대상 항목 값으로 초기화
@@ -54,6 +55,7 @@ export function ItemEditModal({ visible, initial, initialCategory = '알약', on
       }).start();
       setName(initial?.name ?? '');
       setDosage(initial?.dosage ?? '');
+      setIngredientsText(initial?.ingredients?.join(', ') ?? '');
       setCategory(initial?.category ?? initialCategory);
     }
   }, [visible, initial, initialCategory, slide]);
@@ -63,10 +65,20 @@ export function ItemEditModal({ visible, initial, initialCategory = '알약', on
   const handleSave = () => {
     if (!canSave) return;
     onSave({
+      ...initial,
       id: initial?.id ?? '',
       name: name.trim(),
       dosage: dosage.trim(),
       category,
+      productName: initial?.productName ?? name.trim(),
+      ingredients: ingredientsText
+        .split(/[|,，/·ㆍ\n]+/)
+        .map((value) => value.trim())
+        .filter(Boolean),
+      analysisNames: ingredientsText
+        .split(/[|,，/·ㆍ\n]+/)
+        .map((value) => value.trim())
+        .filter(Boolean),
     });
   };
 
@@ -83,7 +95,10 @@ export function ItemEditModal({ visible, initial, initialCategory = '알약', on
             { transform: [{ translateY: slide.interpolate({ inputRange: [0, 1], outputRange: [0, 420] }) }] },
           ]}>
           <View style={styles.handle} />
-          <Text style={[styles.sheetTitle, lowVision && styles.sheetTitleLowVision]}>{isNew ? '항목 추가' : '항목 수정'}</Text>
+          
+          <View style={styles.headerRow}>
+            <Text style={[styles.sheetTitle, lowVision && styles.sheetTitleLowVision]}>{isNew ? '항목 추가' : '항목 수정'}</Text>
+          </View>
 
           {/* 이름 */}
           <Text style={[styles.label, lowVision && styles.labelLowVision]}>이름</Text>
@@ -106,6 +121,17 @@ export function ItemEditModal({ visible, initial, initialCategory = '알약', on
             placeholder="예: 100mg"
             placeholderTextColor="#B6C0C6"
             accessibilityLabel="용량"
+          />
+
+          <Text style={[styles.label, lowVision && styles.labelLowVision]}>성분</Text>
+          <TextInput
+            style={[styles.input, styles.ingredientsInput, lowVision && styles.inputLowVision]}
+            value={ingredientsText}
+            onChangeText={setIngredientsText}
+            placeholder="예: 아스피린, EPA 및 DHA 함유 유지"
+            placeholderTextColor="#B6C0C6"
+            multiline
+            accessibilityLabel="성분"
           />
 
           {/* 분류 */}
@@ -151,6 +177,17 @@ export function ItemEditModal({ visible, initial, initialCategory = '알약', on
               <Text style={[styles.deleteText, lowVision && styles.deleteTextLowVision]}>이 항목 삭제</Text>
             </Pressable>
           )}
+
+          {/* 뒤로 가기 (추가됨) */}
+          <Pressable
+            style={[styles.backButton, lowVision && styles.backButtonLowVision]}
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="뒤로 가기">
+            <Ionicons name="arrow-back" size={lowVision ? 22 : 18} color={Palette.textMuted} />
+            <Text style={[styles.backText, lowVision && styles.backTextLowVision]}>뒤로 가기</Text>
+          </Pressable>
+
         </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
@@ -188,16 +225,20 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.borderStrong,
     marginBottom: 16,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
   sheetTitle: {
     ...Typography.section,
     color: Palette.text,
-    marginBottom: 16,
   },
   sheetTitleLowVision: {
     fontSize: 24,
     lineHeight: 31,
     fontWeight: '900',
-    marginBottom: 14,
   },
   label: {
     fontSize: 14,
@@ -225,6 +266,10 @@ const styles = StyleSheet.create({
     minHeight: 58,
     fontSize: 20,
     paddingVertical: 15,
+  },
+  ingredientsInput: {
+    minHeight: 76,
+    textAlignVertical: 'top',
   },
   categoryRow: {
     flexDirection: 'row',
@@ -299,6 +344,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   deleteTextLowVision: {
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  backButton: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+  },
+  backButtonLowVision: {
+    minHeight: 56,
+  },
+  backText: {
+    color: Palette.textMuted,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  backTextLowVision: {
     fontSize: 18,
     fontWeight: '900',
   },

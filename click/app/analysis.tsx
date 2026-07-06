@@ -3,20 +3,19 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { ConsultationNotice, PairCard, RiskSummaryCard } from '@/components/analysis-ui';
+import { ConsultationNotice, InteractionCoverageCard, PairCard, RiskSummaryCard } from '@/components/analysis-ui';
 import { IconBadge, PrimaryButton, Screen, TopBar } from '@/components/app-ui';
 import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
 import { devLog } from '@/services/debug-log';
-import type { AnalysisResult, InteractionPair } from '@/types/medication';
+import type { AnalysisResult, InteractionPair, RecognizedItem } from '@/types/medication';
 
 export default function AnalysisScreen() {
   const router = useRouter();
   const { result: resultParam, items: itemsParam, recordId } = useLocalSearchParams<{ result?: string; items?: string; recordId?: string }>();
   const { lowVision } = useUserMode();
   const [attentionOpen, setAttentionOpen] = useState(true);
-  const [safeOpen, setSafeOpen] = useState(false);
 
   const result = useMemo<AnalysisResult | null>(() => {
     if (!resultParam) return null;
@@ -26,6 +25,16 @@ export default function AnalysisScreen() {
       return null;
     }
   }, [resultParam]);
+
+  const items = useMemo<RecognizedItem[]>(() => {
+    if (!itemsParam) return [];
+    try {
+      const parsed = JSON.parse(itemsParam);
+      return Array.isArray(parsed) ? (parsed as RecognizedItem[]) : [];
+    } catch {
+      return [];
+    }
+  }, [itemsParam]);
 
   useEffect(() => {
     if (result) devLog('[4단계] ◀ 표시할 분석 결과 수신:', result);
@@ -77,6 +86,7 @@ export default function AnalysisScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <RiskSummaryCard result={result} />
         <ConsultationNotice />
+        <AnalyzedIngredientSummary result={result} items={items} lowVision={lowVision} />
 
         <View style={styles.sectionBody}>
           <PairSection
@@ -87,17 +97,84 @@ export default function AnalysisScreen() {
             lowVision={lowVision}
             tone="amber"
           />
-          <PairSection
-            title="미탐지 조합"
-            pairs={result.pairs.filter((pair) => pair.level === 'safe')}
-            open={safeOpen}
-            onToggle={() => setSafeOpen((value) => !value)}
-            lowVision={lowVision}
-            tone="green"
-          />
+          <InteractionCoverageCard result={result} compact />
         </View>
       </ScrollView>
     </Screen>
+  );
+}
+
+function uniqueNames(values: (string | null | undefined)[]) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  values
+    .flatMap((value) => String(value ?? '').split(/[|,，/·ㆍ]+/))
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .forEach((value) => {
+      const key = value.replace(/\s+/g, '').toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      result.push(value);
+    });
+  return result;
+}
+
+function displayNameFor(item: RecognizedItem) {
+  return item.name || item.productName || item.ingredients?.[0] || '이름 없는 항목';
+}
+
+function AnalyzedIngredientSummary({ result, items, lowVision }: { result: AnalysisResult; items: RecognizedItem[]; lowVision: boolean }) {
+  const pills = items.filter((item) => item.category === '알약');
+  const supplements = items.filter((item) => item.category === '건강기능식품 라벨');
+  const recognizedPillNames = uniqueNames(pills.map(displayNameFor));
+  const recognizedSupplementNames = uniqueNames(supplements.map(displayNameFor));
+  const pillNames = recognizedPillNames.length ? recognizedPillNames : result.matchedDrugNames ?? [];
+  const supplementNames = result.matchedSupplementNames?.length
+    ? recognizedSupplementNames.length ? recognizedSupplementNames : result.matchedSupplementNames
+    : recognizedSupplementNames;
+  if (pillNames.length === 0 && supplementNames.length === 0) return null;
+
+  return (
+    <View style={styles.ingredientSummary}>
+      <Text style={[styles.ingredientSummaryTitle, lowVision && styles.ingredientSummaryTitleLowVision]}>인식한 항목</Text>
+      <IngredientColumn title="알약" names={pillNames} tone="blue" lowVision={lowVision} />
+      <IngredientColumn title="건강기능식품" names={supplementNames} tone="green" lowVision={lowVision} />
+    </View>
+  );
+}
+
+function IngredientColumn({
+  title,
+  names,
+  tone,
+  lowVision,
+}: {
+  title: string;
+  names: string[];
+  tone: 'blue' | 'green';
+  lowVision: boolean;
+}) {
+  const dotColor = tone === 'green' ? Palette.mint : Palette.primary;
+  return (
+    <View style={styles.ingredientGroup}>
+      <View style={styles.ingredientGroupHeader}>
+        <View style={[styles.ingredientDot, { backgroundColor: dotColor }]} />
+        <Text style={[styles.ingredientGroupTitle, lowVision && styles.ingredientGroupTitleLowVision]}>{title}</Text>
+        <Text style={[styles.ingredientGroupCount, lowVision && styles.ingredientGroupCountLowVision]}>{names.length}</Text>
+      </View>
+      {names.length === 0 ? (
+        <Text style={[styles.ingredientEmpty, lowVision && styles.ingredientEmptyLowVision]}>성분 확인 필요</Text>
+      ) : (
+        <View style={styles.ingredientChips}>
+          {names.map((name) => (
+            <View key={`${title}-${name}`} style={styles.ingredientChip}>
+              <Text style={[styles.ingredientChipText, lowVision && styles.ingredientChipTextLowVision]} numberOfLines={1}>{name}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -150,6 +227,92 @@ function PairSection({
 const styles = StyleSheet.create({
   content: {
     paddingBottom: 28,
+  },
+  ingredientSummary: {
+    marginHorizontal: Spacing.screen,
+    marginBottom: 14,
+    gap: 10,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    backgroundColor: Palette.surface,
+    padding: 14,
+    ...Shadow.subtle,
+  },
+  ingredientSummaryTitle: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  ingredientSummaryTitleLowVision: {
+    fontSize: 22,
+    lineHeight: 29,
+  },
+  ingredientGroup: {
+    gap: 8,
+  },
+  ingredientGroupHeader: {
+    minHeight: 26,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  ingredientDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+  },
+  ingredientGroupTitle: {
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  ingredientGroupTitleLowVision: {
+    fontSize: 18,
+    lineHeight: 25,
+  },
+  ingredientGroupCount: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: Palette.textSubtle,
+  },
+  ingredientGroupCountLowVision: {
+    fontSize: 17,
+  },
+  ingredientChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+  },
+  ingredientChip: {
+    maxWidth: '100%',
+    borderRadius: Radius.sm,
+    backgroundColor: Palette.surfaceMuted,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  ingredientChipText: {
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '800',
+    color: Palette.textMuted,
+  },
+  ingredientChipTextLowVision: {
+    fontSize: 17,
+    lineHeight: 23,
+  },
+  ingredientEmpty: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '800',
+    color: Palette.textSubtle,
+  },
+  ingredientEmptyLowVision: {
+    fontSize: 17,
+    lineHeight: 24,
   },
   sectionBody: {
     paddingHorizontal: Spacing.screen,
