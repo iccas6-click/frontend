@@ -231,6 +231,7 @@ export default function ResultScreen() {
       bottom={
         <View style={styles.footer}>
           <View style={styles.footerRow}>
+            {/* 뒤로 가기 버튼이 삭제되고 원래 상태인 2개의 버튼으로 복구되었습니다 */}
             <View style={styles.footerButton}>
               <PrimaryButton label="다시 촬영" icon="camera-reverse" variant="secondary" disabled={loading} onPress={retake} />
             </View>
@@ -308,7 +309,8 @@ function StateView({
 }) {
   return (
     <View style={styles.state}>
-      {loading ? <ActivityIndicator color={Palette.primary} size="large" /> : <IconBadge icon={icon} tone="amber" size="lg" />}
+      {/* 로딩 바 (ActivityIndicator) 삭제 적용 */}
+      {!loading && <IconBadge icon={icon} tone="amber" size="lg" />}
       <Text style={styles.stateTitle}>{title}</Text>
       {children ? <View style={styles.stateAction}>{children}</View> : null}
     </View>
