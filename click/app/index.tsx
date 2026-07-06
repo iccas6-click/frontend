@@ -52,7 +52,7 @@ function buildRecentGroups(records: AnalysisSession[]) {
 
 export default function MainScreen() {
   const router = useRouter();
-  const [settings, setSettings] = useState<AppSettings>({ mode: 'standard' });
+  const [settings, setSettings] = useState<AppSettings>({ mode: 'standard', pillRecognizer: 'codeit' });
   const [sessions, setSessions] = useState<AnalysisSession[]>([]);
 
   useFocusEffect(

@@ -7,11 +7,12 @@ import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'rea
 import { IconBadge, Screen, TopBar } from '@/components/app-ui';
 import { Palette, Radius, Shadow, Spacing } from '@/constants/theme';
 import { clearLogs, subscribeLogs, type LogEntry } from '@/services/debug-log';
-import { getSettings, saveSettings, type UserMode } from '@/services/settings-storage';
+import { getSettings, saveSettings, type PillRecognizer, type UserMode } from '@/services/settings-storage';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const [mode, setMode] = useState<UserMode>('standard');
+  const [pillRecognizer, setPillRecognizer] = useState<PillRecognizer>('codeit');
   const [logsOpen, setLogsOpen] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
@@ -22,7 +23,10 @@ export default function SettingsScreen() {
         if (active) setLogs(entries);
       });
       getSettings().then((settings) => {
-        if (active) setMode(settings.mode);
+        if (active) {
+          setMode(settings.mode);
+          setPillRecognizer(settings.pillRecognizer);
+        }
       });
       return () => {
         active = false;
@@ -34,6 +38,11 @@ export default function SettingsScreen() {
   const changeMode = async (nextMode: UserMode) => {
     setMode(nextMode);
     await saveSettings({ mode: nextMode });
+  };
+
+  const changePillRecognizer = async (nextRecognizer: PillRecognizer) => {
+    setPillRecognizer(nextRecognizer);
+    await saveSettings({ pillRecognizer: nextRecognizer });
   };
 
   const showComingSoon = (title: string) => {
@@ -51,6 +60,14 @@ export default function SettingsScreen() {
           <View style={styles.modeGrid}>
             <ModeOption title="일반" body="요양사 · 보호자" active={mode === 'standard'} onPress={() => changeMode('standard')} />
             <ModeOption title="저시력자" body="큰 버튼 · 높은 대비" active={mode === 'lowVision'} onPress={() => changeMode('lowVision')} />
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>알약 인식 엔진</Text>
+          <View style={styles.modeGrid}>
+            <ModeOption title="Codeit" body="RTMDet + CNN" active={pillRecognizer === 'codeit'} onPress={() => changePillRecognizer('codeit')} />
+            <ModeOption title="기존" body="내 파이프라인" active={pillRecognizer === 'retrieval'} onPress={() => changePillRecognizer('retrieval')} />
           </View>
         </View>
 

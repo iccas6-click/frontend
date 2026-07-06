@@ -5,6 +5,7 @@ import { Image as RNImage, Platform } from 'react-native';
 import type { ItemCategory, RecognizedItem, RecognitionCandidate } from '@/types/medication';
 
 import { devLog } from './debug-log';
+import { getSettings, type PillRecognizer } from './settings-storage';
 
 /**
  * 서버 API 주소.
@@ -44,9 +45,11 @@ export async function analyzeImage(
 ): Promise<RecognizedItem[]> {
   const uploadImages = await prepareImagesForUpload(uri, options.source);
   const uploadImage = uploadImages[0];
+  const settings = await getSettings();
   const targetUrl = category === '알약' ? PILL_AI_BASE_URL : SUPPLEMENT_AI_BASE_URL;
   devLog('[OCR] ▶ 서버로 보냄:', targetUrl || '(목업 모드)');
   devLog('[OCR] ▶ 선택한 분류:', category);
+  if (category === '알약') devLog('[OCR] ▶ 알약 인식 엔진:', settings.pillRecognizer);
   devLog('[OCR] ▶ 보낼 사진 uri:', uploadImage.uri);
   devLog('[OCR] ▶ 사진 정규화:', `${Platform.OS} ${uploadImages.map((image) => `${image.label}:${image.width ?? '?'}x${image.height ?? '?'}`).join(', ')}`);
 
@@ -58,7 +61,7 @@ export async function analyzeImage(
   }
 
   if (category === '알약') {
-    return recognizePillWithFallbacks(uploadImages, targetUrl);
+    return recognizePillWithFallbacks(uploadImages, targetUrl, settings.pillRecognizer);
   }
   return recognizeSupplement(uploadImage.uri, targetUrl);
 }
@@ -137,8 +140,11 @@ function getImageSize(uri: string) {
   });
 }
 
-function imageFormField(uri: string, fieldName: string) {
+function imageFormField(uri: string, fieldName: string, fields: Record<string, string> = {}) {
   const form = new FormData();
+  Object.entries(fields).forEach(([key, value]) => {
+    form.append(key, value);
+  });
   form.append(fieldName, {
     uri,
     name: 'photo.jpg',
@@ -244,7 +250,7 @@ function resolveImageUri(value: string | null | undefined, baseUrl: string): str
   return `${baseUrl}${raw.startsWith('/') ? raw : `/${raw}`}`;
 }
 
-async function recognizePill(uri: string, baseUrl: string): Promise<RecognizedItem[]> {
+async function recognizePill(uri: string, baseUrl: string, recognizer: PillRecognizer): Promise<RecognizedItem[]> {
   const urls = pillRecognitionUrls(baseUrl);
   let data: PillRecognitionResponse | null = null;
   let lastError: unknown = null;
@@ -252,7 +258,7 @@ async function recognizePill(uri: string, baseUrl: string): Promise<RecognizedIt
   for (const url of urls) {
     try {
       devLog('[OCR] ▶ 알약 업로드:', `POST ${url}`);
-      const response = await axios.post<PillRecognitionResponse>(url, imageFormField(uri, 'file'), {
+      const response = await axios.post<PillRecognitionResponse>(url, imageFormField(uri, 'file', { recognizer }), {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 60000,
       });
@@ -321,12 +327,12 @@ async function recognizePill(uri: string, baseUrl: string): Promise<RecognizedIt
   return items;
 }
 
-async function recognizePillWithFallbacks(images: UploadImage[], baseUrl: string): Promise<RecognizedItem[]> {
+async function recognizePillWithFallbacks(images: UploadImage[], baseUrl: string, recognizer: PillRecognizer): Promise<RecognizedItem[]> {
   let lastError: unknown = null;
   for (const image of images) {
     try {
       devLog('[OCR] ▶ 알약 인식 이미지 시도:', `${image.label} ${image.width ?? '?'}x${image.height ?? '?'}`);
-      return await recognizePill(image.uri, baseUrl);
+      return await recognizePill(image.uri, baseUrl, recognizer);
     } catch (error) {
       lastError = error;
       devLog('[OCR] 알약 인식 이미지 실패, 다음 이미지 시도:', `${image.label} ${describeHttpError(error)}`);
