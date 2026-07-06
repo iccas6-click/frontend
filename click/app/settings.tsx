@@ -2,24 +2,31 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { IconBadge, Screen, TopBar } from '@/components/app-ui';
 import { Palette, Radius, Shadow, Spacing } from '@/constants/theme';
+import { clearLogs, subscribeLogs, type LogEntry } from '@/services/debug-log';
 import { getSettings, saveSettings, type UserMode } from '@/services/settings-storage';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const [mode, setMode] = useState<UserMode>('standard');
+  const [logsOpen, setLogsOpen] = useState(false);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
+      const unsubscribe = subscribeLogs((entries) => {
+        if (active) setLogs(entries);
+      });
       getSettings().then((settings) => {
         if (active) setMode(settings.mode);
       });
       return () => {
         active = false;
+        unsubscribe();
       };
     }, []),
   );
@@ -50,10 +57,32 @@ export default function SettingsScreen() {
         <View style={styles.menuCard}>
           <MenuRow icon="text" title="글자 크기" value={mode === 'lowVision' ? '크게' : '기본'} />
           <MenuRow icon="contrast" title="화면 대비" value={mode === 'lowVision' ? '높음' : '기본'} />
+          <MenuRow icon="bug" title="진단 로그" value={`${logs.length}개`} onPress={() => setLogsOpen(true)} />
           <MenuRow icon="notifications" title="복용 알림" value="준비 중" onPress={() => showComingSoon('복용 알림')} />
           <MenuRow icon="share-social" title="보호자 공유" value="준비 중" onPress={() => showComingSoon('보호자 공유')} />
         </View>
       </ScrollView>
+
+      <Modal visible={logsOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setLogsOpen(false)}>
+        <Screen>
+          <TopBar title="진단 로그" backLabel="닫기" onBack={() => setLogsOpen(false)} />
+          <View style={styles.logActions}>
+            <Pressable style={styles.logActionButton} onPress={() => clearLogs()} accessibilityRole="button">
+              <Text style={styles.logActionText}>로그 지우기</Text>
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={styles.logContent}>
+            {logs.length === 0 ? (
+              <Text style={styles.emptyLogText}>아직 로그가 없어요.</Text>
+            ) : logs.slice().reverse().map((entry) => (
+              <View key={entry.id} style={styles.logRow}>
+                <Text style={styles.logTime}>{entry.time}</Text>
+                <Text style={styles.logText}>{entry.text}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        </Screen>
+      </Modal>
     </Screen>
   );
 }
@@ -88,7 +117,7 @@ function MenuRow({
   value,
   onPress,
 }: {
-  icon: 'text' | 'contrast' | 'notifications' | 'share-social';
+  icon: 'text' | 'contrast' | 'bug' | 'notifications' | 'share-social';
   title: string;
   value: string;
   onPress?: () => void;
@@ -192,6 +221,54 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '900',
     color: Palette.textMuted,
+  },
+  logActions: {
+    paddingHorizontal: Spacing.screen,
+    paddingBottom: 10,
+    alignItems: 'flex-end',
+  },
+  logActionButton: {
+    minHeight: 42,
+    justifyContent: 'center',
+    borderRadius: Radius.sm,
+    backgroundColor: Palette.surfaceMuted,
+    paddingHorizontal: 14,
+  },
+  logActionText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: Palette.text,
+  },
+  logContent: {
+    paddingHorizontal: Spacing.screen,
+    paddingBottom: 36,
+    gap: 8,
+  },
+  emptyLogText: {
+    paddingTop: 80,
+    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '800',
+    color: Palette.textMuted,
+  },
+  logRow: {
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    backgroundColor: Palette.surface,
+    padding: 10,
+    gap: 5,
+  },
+  logTime: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: Palette.primary,
+  },
+  logText: {
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: '700',
+    color: Palette.text,
   },
   pressed: {
     opacity: 0.78,

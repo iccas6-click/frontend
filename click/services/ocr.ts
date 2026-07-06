@@ -48,7 +48,7 @@ export async function analyzeImage(
   devLog('[OCR] ▶ 서버로 보냄:', targetUrl || '(목업 모드)');
   devLog('[OCR] ▶ 선택한 분류:', category);
   devLog('[OCR] ▶ 보낼 사진 uri:', uploadImage.uri);
-  devLog('[OCR] ▶ 사진 정규화:', `${Platform.OS} ${uploadImage.width ?? '?'}x${uploadImage.height ?? '?'}`);
+  devLog('[OCR] ▶ 사진 정규화:', `${Platform.OS} ${uploadImages.map((image) => `${image.label}:${image.width ?? '?'}x${image.height ?? '?'}`).join(', ')}`);
 
   if (!targetUrl) {
     await new Promise((resolve) => setTimeout(resolve, 1200));
@@ -261,6 +261,7 @@ async function recognizePill(uri: string, baseUrl: string): Promise<RecognizedIt
     } catch (error) {
       lastError = error;
       devLog('[OCR] 알약 업로드 경로 실패, 다음 경로 시도:', `${url} ${describeHttpError(error)}`);
+      if (isUploadRejected(error)) break;
     }
   }
 
@@ -341,6 +342,12 @@ function describeHttpError(error: unknown) {
     return `[${status ?? 'no-status'}] ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`;
   }
   return error instanceof Error ? error.message : String(error);
+}
+
+function isUploadRejected(error: unknown) {
+  if (!axios.isAxiosError(error)) return false;
+  const status = error.response?.status;
+  return status === 400 || status === 413 || status === 415 || status === 422;
 }
 
 function pillRecognitionUrls(baseUrl: string) {

@@ -10,6 +10,7 @@ import { RecognizedItemRow } from '@/components/recognized-item-row';
 import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Spacing, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
+import { devLog } from '@/services/debug-log';
 import { createSession, updateSessionItems } from '@/services/history-storage';
 import { analyzeImage } from '@/services/ocr';
 import type { ItemCategory, RecognizedItem, RecognitionCandidate } from '@/types/medication';
@@ -54,6 +55,7 @@ export default function ResultScreen() {
   const [items, setItems] = useState<RecognizedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [recordId, setRecordId] = useState<string | null>(recordIdParam ?? null);
   const [editTarget, setEditTarget] = useState<RecognizedItem | null | undefined>(undefined);
   const [activePillIndex, setActivePillIndex] = useState(0);
@@ -118,6 +120,7 @@ export default function ResultScreen() {
   const runRecognition = useCallback(async () => {
     setLoading(true);
     setError(false);
+    setErrorMessage('');
     try {
       const source = parsedCurrentItems.length > 0
         ? parsedCurrentItems
@@ -144,6 +147,9 @@ export default function ResultScreen() {
       }
     } catch (e) {
       console.warn('OCR 분석 실패:', e);
+      const message = e instanceof Error ? e.message : String(e);
+      devLog('[OCR] 분석 실패:', message);
+      setErrorMessage(message);
       setError(true);
     } finally {
       setLoading(false);
@@ -245,6 +251,7 @@ export default function ResultScreen() {
         <StateView icon="scan" title="인식 중" loading />
       ) : error ? (
         <StateView icon="alert-circle" title="인식 실패">
+          {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
           <PrimaryButton label="다시 시도" icon="refresh" onPress={runRecognition} />
         </StateView>
       ) : (
@@ -527,6 +534,14 @@ const styles = StyleSheet.create({
   photoEmptyText: {
     fontSize: 15,
     fontWeight: '800',
+    color: Palette.textMuted,
+  },
+  errorMessage: {
+    maxWidth: 320,
+    textAlign: 'center',
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '700',
     color: Palette.textMuted,
   },
   pillBox: {
