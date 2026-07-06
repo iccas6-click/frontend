@@ -17,7 +17,8 @@ export const PILL_AI_BASE_URL = process.env.EXPO_PUBLIC_PILL_AI_URL ?? '';
 /** @deprecated 분석 API 호환용. 새 코드는 BACKEND_API_BASE_URL을 사용한다. */
 export const API_BASE_URL = BACKEND_API_BASE_URL;
 
-const MAX_UPLOAD_IMAGE_SIDE = 2200;
+const MAX_UPLOAD_IMAGE_SIDE = 1600;
+const UPLOAD_JPEG_QUALITY = 0.82;
 
 /** 백엔드 연동 전 화면 확인용 목업 결과 (분류별) */
 const MOCK_BY_CATEGORY: Record<ItemCategory, RecognizedItem[]> = {
@@ -41,7 +42,8 @@ export async function analyzeImage(
   category: ItemCategory,
   options: { source?: 'camera' | 'gallery' | 'record' } = {},
 ): Promise<RecognizedItem[]> {
-  const uploadImage = await prepareImageForUpload(uri, options.source);
+  const uploadImages = await prepareImagesForUpload(uri, options.source);
+  const uploadImage = uploadImages[0];
   const targetUrl = category === '알약' ? PILL_AI_BASE_URL : SUPPLEMENT_AI_BASE_URL;
   devLog('[OCR] ▶ 서버로 보냄:', targetUrl || '(목업 모드)');
   devLog('[OCR] ▶ 선택한 분류:', category);
@@ -56,12 +58,19 @@ export async function analyzeImage(
   }
 
   if (category === '알약') {
-    return recognizePill(uploadImage.uri, targetUrl);
+    return recognizePillWithFallbacks(uploadImages, targetUrl);
   }
   return recognizeSupplement(uploadImage.uri, targetUrl);
 }
 
-async function prepareImageForUpload(uri: string, source: 'camera' | 'gallery' | 'record' = 'record') {
+type UploadImage = {
+  uri: string;
+  width?: number;
+  height?: number;
+  label: string;
+};
+
+async function prepareImagesForUpload(uri: string, source: 'camera' | 'gallery' | 'record' = 'record'): Promise<UploadImage[]> {
   const sourceUri = String(uri ?? '').trim();
   if (!sourceUri) throw new Error('업로드할 사진이 없습니다.');
 
@@ -70,43 +79,52 @@ async function prepareImageForUpload(uri: string, source: 'camera' | 'gallery' |
       devLog('[OCR] 사진 크기 확인 실패, JPEG 변환만 시도:', String(error));
       return null;
     });
-    const actions: ImageManipulator.Action[] = [];
+    const variants: UploadImage[] = [];
+    variants.push(await manipulateImage(sourceUri, resizeActions(size), 'full'));
+
     if (source === 'camera' && size) {
       const cropSize = Math.min(size.width, size.height);
-      actions.push({
-        crop: {
-          originX: Math.max(0, Math.round((size.width - cropSize) / 2)),
-          originY: Math.max(0, Math.round((size.height - cropSize) / 2)),
-          width: cropSize,
-          height: cropSize,
+      const cropActions: ImageManipulator.Action[] = [
+        {
+          crop: {
+            originX: Math.max(0, Math.round((size.width - cropSize) / 2)),
+            originY: Math.max(0, Math.round((size.height - cropSize) / 2)),
+            width: cropSize,
+            height: cropSize,
+          },
         },
-      });
+        ...resizeActions({ width: cropSize, height: cropSize }),
+      ];
+      variants.push(await manipulateImage(sourceUri, cropActions, 'center-crop'));
     }
 
-    const uploadWidth = source === 'camera' && size ? Math.min(size.width, size.height) : size?.width;
-    const uploadHeight = source === 'camera' && size ? Math.min(size.width, size.height) : size?.height;
-    if (uploadWidth && uploadHeight && Math.max(uploadWidth, uploadHeight) > MAX_UPLOAD_IMAGE_SIDE) {
-      actions.push(
-        uploadWidth >= uploadHeight
-          ? { resize: { width: MAX_UPLOAD_IMAGE_SIDE } }
-          : { resize: { height: MAX_UPLOAD_IMAGE_SIDE } },
-      );
-    }
-
-    const result = await ImageManipulator.manipulateAsync(sourceUri, actions, {
-      compress: 0.94,
-      format: ImageManipulator.SaveFormat.JPEG,
-    });
-
-    return {
-      uri: result.uri,
-      width: result.width,
-      height: result.height,
-    };
+    return variants;
   } catch (error) {
     devLog('[OCR] 사진 정규화 실패, 원본 업로드로 fallback:', String(error));
-    return { uri: sourceUri, width: undefined, height: undefined };
+    return [{ uri: sourceUri, width: undefined, height: undefined, label: 'original' }];
   }
+}
+
+function resizeActions(size: { width: number; height: number } | null): ImageManipulator.Action[] {
+  if (!size || Math.max(size.width, size.height) <= MAX_UPLOAD_IMAGE_SIDE) return [];
+  return [
+    size.width >= size.height
+      ? { resize: { width: MAX_UPLOAD_IMAGE_SIDE } }
+      : { resize: { height: MAX_UPLOAD_IMAGE_SIDE } },
+  ];
+}
+
+async function manipulateImage(uri: string, actions: ImageManipulator.Action[], label: string): Promise<UploadImage> {
+  const result = await ImageManipulator.manipulateAsync(uri, actions, {
+    compress: UPLOAD_JPEG_QUALITY,
+    format: ImageManipulator.SaveFormat.JPEG,
+  });
+  return {
+    uri: result.uri,
+    width: result.width,
+    height: result.height,
+    label,
+  };
 }
 
 function getImageSize(uri: string) {
@@ -242,7 +260,7 @@ async function recognizePill(uri: string, baseUrl: string): Promise<RecognizedIt
       break;
     } catch (error) {
       lastError = error;
-      devLog('[OCR] 알약 업로드 경로 실패, 다음 경로 시도:', url);
+      devLog('[OCR] 알약 업로드 경로 실패, 다음 경로 시도:', `${url} ${describeHttpError(error)}`);
     }
   }
 
@@ -300,6 +318,29 @@ async function recognizePill(uri: string, baseUrl: string): Promise<RecognizedIt
 
   devLog('[OCR] ◀ 알약 서버에서 받음:', items);
   return items;
+}
+
+async function recognizePillWithFallbacks(images: UploadImage[], baseUrl: string): Promise<RecognizedItem[]> {
+  let lastError: unknown = null;
+  for (const image of images) {
+    try {
+      devLog('[OCR] ▶ 알약 인식 이미지 시도:', `${image.label} ${image.width ?? '?'}x${image.height ?? '?'}`);
+      return await recognizePill(image.uri, baseUrl);
+    } catch (error) {
+      lastError = error;
+      devLog('[OCR] 알약 인식 이미지 실패, 다음 이미지 시도:', `${image.label} ${describeHttpError(error)}`);
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error('알약 인식 서버에 연결하지 못했습니다.');
+}
+
+function describeHttpError(error: unknown) {
+  if (axios.isAxiosError(error)) {
+    const status = error.response?.status;
+    const detail = error.response?.data?.detail ?? error.message;
+    return `[${status ?? 'no-status'}] ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`;
+  }
+  return error instanceof Error ? error.message : String(error);
 }
 
 function pillRecognitionUrls(baseUrl: string) {
