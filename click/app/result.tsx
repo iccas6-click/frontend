@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { IconBadge, PrimaryButton, Screen, SectionHeader, TopBar } from '@/components/app-ui';
 import { ItemEditModal } from '@/components/item-edit-modal';
@@ -16,7 +16,7 @@ import { analyzeImage } from '@/services/ocr';
 import type { ItemCategory, RecognizedItem, RecognitionCandidate } from '@/types/medication';
 
 const CATEGORY_META: Record<ItemCategory, { label: string; icon: 'medical' | 'leaf'; tone: 'blue' | 'green' }> = {
-  알약: { label: '알약', icon: 'medical', tone: 'blue' },
+  알약: { label: '처방약', icon: 'medical', tone: 'blue' },
   '건강기능식품 라벨': { label: '건강기능식품', icon: 'leaf', tone: 'green' },
 };
 
@@ -132,7 +132,7 @@ export default function ResultScreen() {
         .map((item, index) => ({
           ...item,
           id: `current-${index}`,
-          sourceImageUri: item.sourceImageUri ?? photoUri,
+          sourceImageUri: photoUri ?? item.sourceImageUri,
         }));
       const allItems = buildAllItems(current);
       setItems(current);
@@ -166,6 +166,7 @@ export default function ResultScreen() {
 
   const canContinue = !loading && !error && items.length > 0;
   const showPillReview = !isSupplement && items.some((item) => item.candidates?.length);
+  const sourceImageUri = photoUri ?? items.find((item) => item.sourceImageUri)?.sourceImageUri;
 
   const goSupplement = () => {
     const allItems = buildAllItems(items);
@@ -192,9 +193,9 @@ export default function ResultScreen() {
     });
   };
 
-  const retake = () => {
+  const chooseAgain = () => {
     router.replace({
-      pathname: '/camera',
+      pathname: '/reuse',
       params: {
         category: selectedCategory,
         prevItems,
@@ -216,14 +217,7 @@ export default function ResultScreen() {
       return;
     }
 
-    router.replace({
-      pathname: '/camera',
-      params: {
-        category: selectedCategory,
-        prevItems,
-        recordId: recordId ?? recordIdParam ?? '',
-      },
-    });
+    chooseAgain();
   };
 
   return (
@@ -233,7 +227,7 @@ export default function ResultScreen() {
           <View style={styles.footerRow}>
             {/* 뒤로 가기 버튼이 삭제되고 원래 상태인 2개의 버튼으로 복구되었습니다 */}
             <View style={styles.footerButton}>
-              <PrimaryButton label="다시 촬영" icon="camera-reverse" variant="secondary" disabled={loading} onPress={retake} />
+              <PrimaryButton label="사진 다시 선택" icon="images" variant="secondary" disabled={loading} onPress={chooseAgain} />
             </View>
             <View style={styles.footerButton}>
               {!isSupplement ? (
@@ -249,15 +243,18 @@ export default function ResultScreen() {
       <StepIndicator current={isSupplement ? 2 : 1} />
 
       {loading ? (
-        <StateView icon="scan" title="인식 중" loading />
+        <StateView icon="scan" title="인식 중" loading sourceUri={sourceImageUri} />
       ) : error ? (
-        <StateView icon="alert-circle" title="인식 실패">
+        <StateView icon="alert-circle" title="인식 실패" sourceUri={sourceImageUri}>
           {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
-          <PrimaryButton label="다시 시도" icon="refresh" onPress={runRecognition} />
+          <View style={styles.stateButtonStack}>
+            <PrimaryButton label="다시 시도" icon="refresh" onPress={runRecognition} />
+            <PrimaryButton label="다른 사진 선택" icon="images" variant="secondary" onPress={chooseAgain} />
+          </View>
         </StateView>
       ) : (
         <>
-          <SectionHeader title={showPillReview ? '알약 확인' : `인식된 ${meta.label}`} action={<CountBadge count={items.length} lowVision={lowVision} />} />
+          <SectionHeader title={showPillReview ? '약 후보 확인' : `인식된 ${meta.label}`} action={<CountBadge count={items.length} lowVision={lowVision} />} />
           <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
             {showPillReview ? (
               <GuidedPillReview
@@ -268,9 +265,12 @@ export default function ResultScreen() {
                 onEdit={(item) => setEditTarget(item)}
               />
             ) : (
-              items.map((item) => (
-                <RecognizedItemRow key={item.id} item={item} editable onPress={() => setEditTarget(item)} />
-              ))
+              <>
+                <SourcePhotoCard sourceUri={sourceImageUri} title="인식한 사진" />
+                {items.map((item) => (
+                  <RecognizedItemRow key={item.id} item={item} editable onPress={() => setEditTarget(item)} />
+                ))}
+              </>
             )}
             <Pressable
               style={({ pressed }) => [styles.addCard, lowVision && styles.addCardLowVision, pressed && styles.pressed]}
@@ -300,19 +300,35 @@ function StateView({
   icon,
   title,
   loading,
+  sourceUri,
   children,
 }: {
   icon: 'scan' | 'alert-circle';
   title: string;
   loading?: boolean;
+  sourceUri?: string;
   children?: React.ReactNode;
 }) {
   return (
     <View style={styles.state}>
+      <SourcePhotoCard sourceUri={sourceUri} title="선택한 사진" compact />
       {/* 로딩 바 (ActivityIndicator) 삭제 적용 */}
       {!loading && <IconBadge icon={icon} tone="amber" size="lg" />}
       <Text style={styles.stateTitle}>{title}</Text>
       {children ? <View style={styles.stateAction}>{children}</View> : null}
+    </View>
+  );
+}
+
+function SourcePhotoCard({ sourceUri, title, compact = false }: { sourceUri?: string; title: string; compact?: boolean }) {
+  const { lowVision } = useUserMode();
+  if (!sourceUri) return null;
+  return (
+    <View style={[styles.sourcePhotoCard, compact && styles.sourcePhotoCardCompact, lowVision && styles.sourcePhotoCardLowVision]}>
+      <Text style={[styles.sourcePhotoTitle, lowVision && styles.sourcePhotoTitleLowVision]}>{title}</Text>
+      <View style={[styles.sourcePhotoFrame, compact && styles.sourcePhotoFrameCompact]}>
+        <Image source={{ uri: sourceUri }} style={styles.sourcePhoto} contentFit="contain" />
+      </View>
     </View>
   );
 }
@@ -379,7 +395,7 @@ function GuidedPillReview({
           {activeIndex + 1} / {items.length}
         </Text>
         <Text style={[styles.questionTitle, lowVision && styles.questionTitleLowVision]}>
-          표시된 알약이 이 약인가요?
+          표시된 약 후보가 맞나요?
         </Text>
       </View>
 
@@ -402,7 +418,7 @@ function GuidedPillReview({
             onPress={() => onActiveIndexChange(Math.max(activeIndex - 1, 0))}
             accessibilityRole="button"
             accessibilityState={{ disabled: !hasPrevious }}
-            accessibilityLabel="이전 알약">
+            accessibilityLabel="이전 약 후보">
             <Text style={[styles.pillNavText, lowVision && styles.pillNavTextLowVision, !hasPrevious && styles.pillNavTextDisabled]}>
               이전
             </Text>
@@ -419,9 +435,9 @@ function GuidedPillReview({
             onPress={() => onActiveIndexChange(Math.min(activeIndex + 1, items.length - 1))}
             accessibilityRole="button"
             accessibilityState={{ disabled: !hasNext }}
-            accessibilityLabel="다음 알약">
+            accessibilityLabel="다음 약 후보">
             <Text style={[styles.pillNavText, styles.pillNavTextPrimary, lowVision && styles.pillNavTextLowVision, !hasNext && styles.pillNavTextDisabled]}>
-              다음 알약
+              다음 약
             </Text>
           </Pressable>
         </View>
@@ -466,7 +482,7 @@ function PillBox({
       ]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${index + 1}번 알약 선택`}>
+      accessibilityLabel={`${index + 1}번 약 후보 선택`}>
       <View style={[styles.pillBoxLabel, active && styles.pillBoxLabelActive]}>
         <Text style={[styles.pillBoxLabelText, active && styles.pillBoxLabelTextActive]}>{index + 1}</Text>
       </View>
@@ -500,6 +516,46 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.screen,
     paddingBottom: 20,
     gap: 10,
+  },
+  sourcePhotoCard: {
+    backgroundColor: Palette.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    padding: 10,
+    gap: 8,
+  },
+  sourcePhotoCardCompact: {
+    width: '100%',
+    maxWidth: 340,
+    marginBottom: 10,
+  },
+  sourcePhotoCardLowVision: {
+    padding: 12,
+  },
+  sourcePhotoTitle: {
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '900',
+    color: Palette.textMuted,
+  },
+  sourcePhotoTitleLowVision: {
+    fontSize: 17,
+    lineHeight: 23,
+  },
+  sourcePhotoFrame: {
+    width: '100%',
+    height: 220,
+    borderRadius: Radius.md,
+    backgroundColor: '#101318',
+    overflow: 'hidden',
+  },
+  sourcePhotoFrameCompact: {
+    height: 260,
+  },
+  sourcePhoto: {
+    width: '100%',
+    height: '100%',
   },
   guidedWrap: {
     gap: 10,
@@ -698,6 +754,9 @@ const styles = StyleSheet.create({
   stateAction: {
     width: '100%',
     marginTop: 20,
+  },
+  stateButtonStack: {
+    gap: 10,
   },
   footer: {
     paddingBottom: 8,

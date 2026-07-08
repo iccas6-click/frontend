@@ -19,7 +19,7 @@ export default function SelectScreen() {
       <StatusBar style="dark" />
       <TopBar
         title="촬영할 항목 선택"
-        subtitle="알약과 건강기능식품을 순서대로 추가해 상호작용을 확인합니다."
+        subtitle="처방전·약봉투와 건강기능식품을 순서대로 추가해 상호작용을 확인합니다."
         backLabel="홈"
         onBack={() => router.back()}
       />
@@ -27,8 +27,8 @@ export default function SelectScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <ActionCard
           icon="medical"
-          title="알약 촬영"
-          subtitle="처방약, 일반 의약품, 약 봉투"
+          title="처방전·약봉투 촬영"
+          subtitle="조제약 봉투, 처방전, 복약 안내문"
           onPress={() => goCamera('알약')}
         />
         <ActionCard

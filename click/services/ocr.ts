@@ -20,12 +20,14 @@ export const API_BASE_URL = BACKEND_API_BASE_URL;
 
 const MAX_UPLOAD_IMAGE_SIDE = 1600;
 const UPLOAD_JPEG_QUALITY = 0.82;
+const PRESCRIPTION_RECOGNITION_TIMEOUT_MS = 120000;
+const SUPPLEMENT_RECOGNITION_TIMEOUT_MS = 90000;
 
 /** 백엔드 연동 전 화면 확인용 목업 결과 (분류별) */
 const MOCK_BY_CATEGORY: Record<ItemCategory, RecognizedItem[]> = {
   알약: [
-    { id: '1', name: '아스피린', dosage: '100mg', category: '알약', ingredients: ['아스피린'], analysisNames: ['아스피린'] },
-    { id: '2', name: '리피토', dosage: '10mg', category: '알약', ingredients: ['아토르바스타틴'], analysisNames: ['아토르바스타틴', '리피토'] },
+    { id: '1', name: '아스피린정', dosage: '100mg', category: '알약', ingredients: ['아스피린'], analysisNames: ['아스피린'] },
+    { id: '2', name: '리피토정', dosage: '10mg', category: '알약', ingredients: ['아토르바스타틴'], analysisNames: ['아토르바스타틴', '리피토정'] },
   ],
   '건강기능식품 라벨': [
     { id: '3', name: '오메가-3', dosage: '성분 1개', category: '건강기능식품 라벨', ingredients: ['EPA 및 DHA 함유 유지'], analysisNames: ['EPA 및 DHA 함유 유지', '오메가-3'] },
@@ -49,7 +51,7 @@ export async function analyzeImage(
   const targetUrl = category === '알약' ? PILL_AI_BASE_URL : SUPPLEMENT_AI_BASE_URL;
   devLog('[OCR] ▶ 서버로 보냄:', targetUrl || '(목업 모드)');
   devLog('[OCR] ▶ 선택한 분류:', category);
-  if (category === '알약') devLog('[OCR] ▶ 알약 인식 엔진:', settings.pillRecognizer);
+  if (category === '알약') devLog('[OCR] ▶ 처방전/약봉투 인식 모드');
   devLog('[OCR] ▶ 보낼 사진 uri:', uploadImage.uri);
   devLog('[OCR] ▶ 사진 정규화:', `${Platform.OS} ${uploadImages.map((image) => `${image.label}:${image.width ?? '?'}x${image.height ?? '?'}`).join(', ')}`);
 
@@ -61,7 +63,7 @@ export async function analyzeImage(
   }
 
   if (category === '알약') {
-    return recognizePillWithFallbacks(uploadImages, targetUrl, settings.pillRecognizer);
+    return recognizePillWithFallbacks([uploadImage], targetUrl, settings.pillRecognizer);
   }
   return recognizeSupplement(uploadImage.uri, targetUrl);
 }
@@ -203,22 +205,68 @@ function normalizeSupplementAnalysisNames(productName: string | null | undefined
   return rawNames;
 }
 
+const ADMINISTRATION_PATTERN = /(1일|하루|매일|매주|식전|식후|식간|아침|점심|저녁|취침|공복|복용|투여|씩|마다|회|일분|일간|일수|분복|필요시)/;
+const STRENGTH_PATTERN = /\d+(?:\.\d+)?\s*(?:mg|g|mcg|μg|ug|㎎|㎍|IU|iu|mL|ml|밀리그램|마이크로그램|그램|밀리리터)/gi;
+
 function splitProductAndDosage(productName?: string | null) {
   const raw = String(productName ?? '').trim();
-  if (!raw) return { displayName: '인식된 알약', dosage: '' };
+  if (!raw) return { displayName: '인식된 처방약', dosage: '' };
 
-  const matches = raw.match(/((?:\d+(?:\.\d+)?\s*)?(?:mg|g|mcg|μg|ug|㎎|㎍|IU|정|캡슐|캡|mL|ml)(?:\s*\/\s*[A-Za-z가-힣0-9]+)?)/gi);
+  const dosagePattern = /(\d+(?:\.\d+)?\s*(?:mg|g|mcg|μg|ug|㎎|㎍|IU|iu|정|캡슐|캡|mL|ml|밀리그램|마이크로그램|그램|밀리리터)(?:\s*\/\s*[A-Za-z가-힣0-9]+)?)/gi;
+  const matches = raw.match(dosagePattern);
   const dosage = uniqueClean(matches ?? []).join(', ');
   const displayName = dosage
-    ? raw.replace(/((?:\d+(?:\.\d+)?\s*)?(?:mg|g|mcg|μg|ug|㎎|㎍|IU|정|캡슐|캡|mL|ml)(?:\s*\/\s*[A-Za-z가-힣0-9]+)?)/gi, '').replace(/\s{2,}/g, ' ').trim()
+    ? raw.replace(dosagePattern, '').replace(/\s{2,}/g, ' ').trim()
     : raw;
 
   return { displayName: displayName || raw, dosage };
 }
 
+function splitDosageAndAdministration(productName: string, rawDosage?: string | null, rawAdministration?: string | null) {
+  const dosageText = String(rawDosage ?? '').trim();
+  const administrationText = String(rawAdministration ?? '').trim();
+  const administrationParts = uniqueStrings([
+    administrationText,
+    ADMINISTRATION_PATTERN.test(dosageText) ? dosageText : '',
+  ]);
+  const strengthMatches = uniqueClean([
+    ...(dosageText.match(STRENGTH_PATTERN) ?? []),
+    ...(productName.match(STRENGTH_PATTERN) ?? []),
+  ]);
+  const split = splitProductAndDosage(productName);
+  const safeShortDosage = dosageText && !ADMINISTRATION_PATTERN.test(dosageText) && dosageText.length <= 8
+    ? dosageText
+    : '';
+
+  return {
+    dosage: strengthMatches[0] || safeShortDosage || split.dosage,
+    administration: administrationParts.join(' / '),
+  };
+}
+
 type PillRecognitionResponse = {
   image_width?: number;
   image_height?: number;
+  document_type?: string;
+  medications?: Array<{
+    id?: string | null;
+    name?: string | null;
+    product_name?: string | null;
+    dosage?: string | null;
+    administration?: string | null;
+    usage?: string | null;
+    directions?: string | null;
+    ingredients?: string[];
+    analysis_names?: string[];
+    drug_info?: Record<string, string>;
+    image_url?: string | null;
+    product_image_url?: string | null;
+    reference_image_url?: string | null;
+    confidence?: number | null;
+    match_type?: string | null;
+    needs_confirmation?: boolean | null;
+  }>;
+  warnings?: string[];
   detections?: Array<{
     bbox?: [number, number, number, number];
     candidates?: Array<{
@@ -257,22 +305,62 @@ async function recognizePill(uri: string, baseUrl: string, recognizer: PillRecog
 
   for (const url of urls) {
     try {
-      devLog('[OCR] ▶ 알약 업로드:', `POST ${url}`);
+      devLog('[OCR] ▶ 처방전/약봉투 업로드:', `POST ${url}`);
       const response = await axios.post<PillRecognitionResponse>(url, imageFormField(uri, 'file', { recognizer }), {
         headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 60000,
+        timeout: PRESCRIPTION_RECOGNITION_TIMEOUT_MS,
       });
       data = response.data;
       break;
     } catch (error) {
       lastError = error;
-      devLog('[OCR] 알약 업로드 경로 실패, 다음 경로 시도:', `${url} ${describeHttpError(error)}`);
+      devLog('[OCR] 처방전/약봉투 업로드 경로 실패, 다음 경로 시도:', `${url} ${describeHttpError(error)}`);
       if (isUploadRejected(error)) break;
     }
   }
 
   if (!data) {
-    throw lastError instanceof Error ? lastError : new Error('알약 인식 서버에 연결하지 못했습니다.');
+    throw lastError instanceof Error ? lastError : new Error('처방전/약봉투 인식 서버에 연결하지 못했습니다.');
+  }
+
+  if (data.medications?.length) {
+    const items = data.medications
+      .map((medication, index): RecognizedItem | null => {
+        const productName = String(medication.product_name ?? medication.name ?? '').trim();
+        const ingredients = uniqueClean(medication.ingredients ?? []);
+        const analysisNames = uniqueClean(medication.analysis_names?.length ? medication.analysis_names : ingredients.length ? ingredients : [productName]);
+        const split = splitProductAndDosage(productName);
+        const doseParts = splitDosageAndAdministration(
+          productName,
+          medication.dosage,
+          medication.administration ?? medication.usage ?? medication.directions,
+        );
+        const dosage = doseParts.dosage || split.dosage;
+        const name = split.displayName || productName;
+        const imageUri = resolveImageUri(
+          medication.image_url ?? medication.product_image_url ?? medication.reference_image_url,
+          baseUrl,
+        );
+        if (!productName && ingredients.length === 0) return null;
+        return {
+          id: medication.id || `pill-doc-${index}`,
+          name: name || ingredients[0] || '인식된 처방약',
+          dosage,
+          administration: doseParts.administration,
+          category: '알약',
+          productName: productName || name,
+          imageUri,
+          ingredients,
+          analysisNames,
+          sourceImageUri: uri,
+        };
+      })
+      .filter((item): item is RecognizedItem => Boolean(item));
+
+    if (items.length > 0) {
+      devLog('[OCR] ◀ 처방전/약봉투 서버에서 받음:', items);
+      return items;
+    }
   }
 
   const items: RecognizedItem[] = [];
@@ -282,7 +370,8 @@ async function recognizePill(uri: string, baseUrl: string, recognizer: PillRecog
       .map((candidate, candidateIndex): RecognitionCandidate | null => {
         const productName = candidate.product_name?.trim();
         const ingredients = uniqueClean([candidate.ingredient]);
-        const { displayName, dosage } = splitProductAndDosage(productName);
+        const { displayName } = splitProductAndDosage(productName);
+        const { dosage } = splitDosageAndAdministration(productName ?? '');
         const analysisNames = ingredients.length > 0 ? ingredients : uniqueClean([displayName, productName]);
         const imageUri = resolveImageUri(candidate.reference_image_url, baseUrl);
         if (!productName && ingredients.length === 0) return null;
@@ -291,6 +380,7 @@ async function recognizePill(uri: string, baseUrl: string, recognizer: PillRecog
           pillId: candidate.pill_id ?? undefined,
           name: displayName,
           dosage,
+          administration: '',
           productName: productName || displayName,
           imageUri,
           ingredients,
@@ -305,6 +395,7 @@ async function recognizePill(uri: string, baseUrl: string, recognizer: PillRecog
       id: `pill-${index}`,
       name: selected.name,
       dosage: selected.dosage,
+      administration: selected.administration,
       category: '알약',
       productName: selected.productName,
       imageUri: selected.imageUri,
@@ -320,10 +411,10 @@ async function recognizePill(uri: string, baseUrl: string, recognizer: PillRecog
   });
 
   if (items.length === 0) {
-    throw new Error('알약 인식 결과가 없습니다.');
+    throw new Error('처방전 또는 약봉투에서 약품명을 찾지 못했습니다.');
   }
 
-  devLog('[OCR] ◀ 알약 서버에서 받음:', items);
+  devLog('[OCR] ◀ 처방전/약봉투 서버에서 받음:', items);
   return items;
 }
 
@@ -331,14 +422,14 @@ async function recognizePillWithFallbacks(images: UploadImage[], baseUrl: string
   let lastError: unknown = null;
   for (const image of images) {
     try {
-      devLog('[OCR] ▶ 알약 인식 이미지 시도:', `${image.label} ${image.width ?? '?'}x${image.height ?? '?'}`);
+      devLog('[OCR] ▶ 처방전/약봉투 이미지 시도:', `${image.label} ${image.width ?? '?'}x${image.height ?? '?'}`);
       return await recognizePill(image.uri, baseUrl, recognizer);
     } catch (error) {
       lastError = error;
-      devLog('[OCR] 알약 인식 이미지 실패, 다음 이미지 시도:', `${image.label} ${describeHttpError(error)}`);
+      devLog('[OCR] 처방전/약봉투 이미지 실패, 다음 이미지 시도:', `${image.label} ${describeHttpError(error)}`);
     }
   }
-  throw lastError instanceof Error ? lastError : new Error('알약 인식 서버에 연결하지 못했습니다.');
+  throw lastError instanceof Error ? lastError : new Error('처방전/약봉투 인식 서버에 연결하지 못했습니다.');
 }
 
 function describeHttpError(error: unknown) {
@@ -359,10 +450,10 @@ function isUploadRejected(error: unknown) {
 function pillRecognitionUrls(baseUrl: string) {
   const base = baseUrl.replace(/\/+$/, '');
   return uniqueStrings([
-    `${base}/recognize`,
     base.endsWith('/api/v1') ? `${base}/pill/recognize` : undefined,
     base.endsWith('/api/v1/pill') ? `${base}/recognize` : undefined,
     `${base}/api/v1/pill/recognize`,
+    `${base}/recognize`,
   ]);
 }
 
@@ -375,7 +466,7 @@ async function recognizeSupplement(uri: string, baseUrl: string): Promise<Recogn
     form,
     {
       headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 60000,
+      timeout: SUPPLEMENT_RECOGNITION_TIMEOUT_MS,
     },
   );
 
@@ -393,6 +484,7 @@ async function recognizeSupplement(uri: string, baseUrl: string): Promise<Recogn
     imageUri,
     ingredients,
     analysisNames,
+    sourceImageUri: uri,
   }] : [];
 
   if (items.length === 0) {

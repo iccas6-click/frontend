@@ -85,7 +85,7 @@ export function InteractionCoverageCard({ result, compact = false }: { result: A
           <CoverageRow label="주의 정보 미탐지" value={undetected} color={Palette.mint} lowVision={lowVision} />
           {unmatchedItems > 0 ? (
             <CoverageRow
-              label={`성분 매칭 실패 · 알약 ${unmatchedDrug} · 건강기능식품 ${unmatchedSupplement}`}
+              label={`성분 매칭 실패 · 처방약 ${unmatchedDrug} · 건강기능식품 ${unmatchedSupplement}`}
               value={unmatchedItems}
               color={Palette.blueGrey}
               lowVision={lowVision}

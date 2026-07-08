@@ -45,6 +45,11 @@ export function RecognizedItemRow({
         <Text style={[styles.dose, lowVision && styles.doseLowVision]} numberOfLines={1}>
           {item.dosage || (isSupplement ? '성분 확인 필요' : '용량 정보 없음')}
         </Text>
+        {item.administration ? (
+          <Text style={[styles.administration, lowVision && styles.administrationLowVision]} numberOfLines={1}>
+            복용법: {item.administration}
+          </Text>
+        ) : null}
         <Text style={[styles.ingredients, lowVision && styles.ingredientsLowVision]} numberOfLines={1}>
           성분: {fallbackIngredients(item)}
         </Text>
@@ -146,6 +151,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Palette.textSubtle,
     marginTop: 1,
+  },
+  administration: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '700',
+    color: Palette.textMuted,
+    marginTop: 1,
+  },
+  administrationLowVision: {
+    fontSize: 16,
+    lineHeight: 22,
   },
   ingredientsLowVision: {
     fontSize: 16,

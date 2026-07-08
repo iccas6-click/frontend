@@ -135,7 +135,7 @@ export default function MainScreen() {
         </View>
 
         <View style={styles.flowStrip}>
-          <FlowPill icon="medical" label="알약 인식" large={lowVision} />
+          <FlowPill icon="medical" label="처방약 인식" large={lowVision} />
           <Ionicons name="chevron-forward" size={16} color={Palette.textSubtle} />
           <FlowPill icon="leaf" label="건강기능식품 인식" tone="green" large={lowVision} />
           <Ionicons name="chevron-forward" size={16} color={Palette.textSubtle} />
@@ -250,7 +250,7 @@ function TimelineCard({
           <RiskChip level={level} />
         </View>
         <View style={styles.countRow}>
-          <CountChip icon="medical" label={`알약 ${counts.pill}`} />
+          <CountChip icon="medical" label={`처방약 ${counts.pill}`} />
           <CountChip icon="leaf" label={`건강기능식품 ${counts.supplement}`} />
         </View>
       </View>
@@ -279,7 +279,7 @@ function ResumeCard({
       <View style={styles.resumeText}>
         <Text style={[styles.resumeTitle, lowVision && styles.resumeTitleLowVision]}>하던 인식이 있어요</Text>
         <Text style={[styles.resumeMeta, lowVision && styles.resumeMetaLowVision]}>
-          알약 {counts.pill}개 · 건강기능식품 {counts.supplement}개
+          처방약 {counts.pill}개 · 건강기능식품 {counts.supplement}개
         </Text>
       </View>
       <Ionicons name="chevron-forward" size={lowVision ? 22 : 19} color={Palette.textSubtle} />

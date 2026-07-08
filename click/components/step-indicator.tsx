@@ -3,8 +3,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Palette, Radius, Spacing } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
 
-const STEPS = ['알약', '건강기능식품', '분석', '결과'];
-const STEP_ACCESSIBILITY_LABELS = ['알약 추가', '건강기능식품 추가', '분석', '결과'];
+const STEPS = ['처방약', '건강기능식품', '분석', '결과'];
+const STEP_ACCESSIBILITY_LABELS = ['처방약 추가', '건강기능식품 추가', '분석', '결과'];
 
 export function StepIndicator({ current, background }: { current: number; background?: string }) {
   const { lowVision } = useUserMode();

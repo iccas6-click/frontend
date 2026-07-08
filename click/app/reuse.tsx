@@ -13,9 +13,8 @@ import { getDemoRecognitionSets, type DemoRecognitionSet } from '@/services/demo
 import { formatRecordDateTime, getReusableSessions } from '@/services/history-storage';
 import type { AnalysisSession, ItemCategory, RecognizedItem } from '@/types/medication';
 
-// '알약' 라벨을 '약 봉투나 처방전'으로 변경했습니다.
 const CATEGORY_LABEL: Record<ItemCategory, string> = {
-  알약: '약 봉투나 처방전',
+  알약: '처방전·약봉투',
   '건강기능식품 라벨': '건강기능식품',
 };
 
@@ -147,7 +146,7 @@ export default function ReuseScreen() {
       }>
       <StatusBar style="dark" />
       <TopBar
-        title={isSupplement ? '건강기능식품 추가' : '약 봉투 및 처방전 추가'}
+        title={isSupplement ? '건강기능식품 추가' : '처방전·약봉투 추가'}
         backLabel="뒤로"
         onBack={handleBack}
       />

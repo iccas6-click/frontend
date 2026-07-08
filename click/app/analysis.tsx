@@ -138,7 +138,7 @@ function AnalyzedIngredientSummary({ result, items, lowVision }: { result: Analy
   return (
     <View style={styles.ingredientSummary}>
       <Text style={[styles.ingredientSummaryTitle, lowVision && styles.ingredientSummaryTitleLowVision]}>인식한 항목</Text>
-      <IngredientColumn title="알약" names={pillNames} tone="blue" lowVision={lowVision} />
+      <IngredientColumn title="처방약" names={pillNames} tone="blue" lowVision={lowVision} />
       <IngredientColumn title="건강기능식품" names={supplementNames} tone="green" lowVision={lowVision} />
     </View>
   );

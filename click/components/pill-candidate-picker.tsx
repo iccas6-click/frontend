@@ -26,6 +26,7 @@ export function pillItemFromCandidate(item: RecognizedItem, candidate: Recogniti
     ...item,
     name: candidate.name,
     dosage: candidate.dosage,
+    administration: candidate.administration,
     productName: candidate.productName,
     imageUri: candidate.imageUri,
     ingredients: candidate.ingredients,
@@ -58,7 +59,7 @@ export function PillCandidatePicker({
             후보 Top 3
           </Text>
           <Text style={[styles.headerMeta, lowVision && styles.headerMetaLowVision]}>
-            사진과 가장 가까운 제품을 선택
+            문서 내용과 가장 가까운 제품을 선택
           </Text>
         </View>
         <Pressable
