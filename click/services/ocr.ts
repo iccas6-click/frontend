@@ -5,6 +5,7 @@ import { Image as RNImage, Platform } from 'react-native';
 import type { ItemCategory, RecognizedItem, RecognitionCandidate } from '@/types/medication';
 
 import { devLog } from './debug-log';
+import { translate, type AppLanguage } from './i18n';
 import { getSettings, type PillRecognizer } from './settings-storage';
 
 /**
@@ -18,8 +19,8 @@ export const PILL_AI_BASE_URL = process.env.EXPO_PUBLIC_PILL_AI_URL ?? '';
 /** @deprecated 분석 API 호환용. 새 코드는 BACKEND_API_BASE_URL을 사용한다. */
 export const API_BASE_URL = BACKEND_API_BASE_URL;
 
-const MAX_UPLOAD_IMAGE_SIDE = 1600;
-const UPLOAD_JPEG_QUALITY = 0.82;
+const MAX_UPLOAD_IMAGE_SIDE = 1280;
+const UPLOAD_JPEG_QUALITY = 0.74;
 const PRESCRIPTION_RECOGNITION_TIMEOUT_MS = 120000;
 const SUPPLEMENT_RECOGNITION_TIMEOUT_MS = 90000;
 
@@ -43,11 +44,12 @@ const MOCK_BY_CATEGORY: Record<ItemCategory, RecognizedItem[]> = {
 export async function analyzeImage(
   uri: string,
   category: ItemCategory,
-  options: { source?: 'camera' | 'gallery' | 'record' } = {},
+  options: { source?: 'camera' | 'gallery' | 'record'; language?: AppLanguage } = {},
 ): Promise<RecognizedItem[]> {
-  const uploadImages = await prepareImagesForUpload(uri, options.source);
-  const uploadImage = uploadImages[0];
   const settings = await getSettings();
+  const lang = options.language ?? settings.language;
+  const uploadImages = await prepareImagesForUpload(uri, options.source, lang);
+  const uploadImage = uploadImages[0];
   const targetUrl = category === '알약' ? PILL_AI_BASE_URL : SUPPLEMENT_AI_BASE_URL;
   devLog('[OCR] ▶ 서버로 보냄:', targetUrl || '(목업 모드)');
   devLog('[OCR] ▶ 선택한 분류:', category);
@@ -57,15 +59,23 @@ export async function analyzeImage(
 
   if (!targetUrl) {
     await new Promise((resolve) => setTimeout(resolve, 1200));
-    const result = MOCK_BY_CATEGORY[category];
+    const result = MOCK_BY_CATEGORY[category].map((item) => ({
+      ...item,
+      dosage: item.category === '건강기능식품 라벨' && item.ingredients?.length
+        ? translate(lang, 'ingredientCount', { count: item.ingredients.length })
+        : item.dosage,
+    }));
     devLog('[OCR] ◀ 서버에서 받음 (목업):', result);
-    return result;
+    return localizeRecognizedItemsForDisplay(result, lang);
   }
 
+  let result: RecognizedItem[];
   if (category === '알약') {
-    return recognizePillWithFallbacks([uploadImage], targetUrl, settings.pillRecognizer);
+    result = await recognizePillWithFallbacks([uploadImage], targetUrl, settings.pillRecognizer, lang);
+  } else {
+    result = await recognizeSupplement(uploadImage.uri, targetUrl, lang);
   }
-  return recognizeSupplement(uploadImage.uri, targetUrl);
+  return localizeRecognizedItemsForDisplay(result, lang);
 }
 
 type UploadImage = {
@@ -75,9 +85,9 @@ type UploadImage = {
   label: string;
 };
 
-async function prepareImagesForUpload(uri: string, source: 'camera' | 'gallery' | 'record' = 'record'): Promise<UploadImage[]> {
+async function prepareImagesForUpload(uri: string, source: 'camera' | 'gallery' | 'record' = 'record', lang: AppLanguage = 'ko'): Promise<UploadImage[]> {
   const sourceUri = String(uri ?? '').trim();
-  if (!sourceUri) throw new Error('업로드할 사진이 없습니다.');
+  if (!sourceUri) throw new Error(translate(lang, 'noUploadPhoto'));
 
   try {
     const size = await getImageSize(sourceUri).catch((error) => {
@@ -185,6 +195,77 @@ function uniqueStrings(values: Array<string | null | undefined>) {
   return result;
 }
 
+export async function localizeRecognizedItemsForDisplay(items: RecognizedItem[], lang: AppLanguage): Promise<RecognizedItem[]> {
+  if (lang === 'ko' || !BACKEND_API_BASE_URL || items.length === 0) return items;
+
+  const names = uniqueStrings(items.flatMap((item) => [
+    item.name,
+    item.productName,
+    ...(item.ingredients ?? []),
+    ...(item.candidates ?? []).flatMap((candidate) => [
+      candidate.name,
+      candidate.productName,
+      ...(candidate.ingredients ?? []),
+    ]),
+  ]));
+  const texts = uniqueStrings(items.flatMap((item) => [
+    item.administration,
+    ...(item.candidates ?? []).map((candidate) => candidate.administration),
+  ]));
+  if (names.length === 0 && texts.length === 0) return items;
+
+  let localizedNames: Record<string, string> = {};
+  let localizedTexts: Record<string, string> = {};
+
+  if (names.length > 0) {
+    try {
+      devLog('[OCR] ▶ 표시명 현지화 요청:', `${lang} ${names.join(', ')}`);
+      const { data } = await axios.post<{ names: Record<string, string> }>(
+        `${BACKEND_API_BASE_URL}/api/v1/localize/names`,
+        { names, lang },
+        { timeout: 30000 },
+      );
+      localizedNames = data.names ?? {};
+      devLog('[OCR] ◀ 표시명 현지화 완료:', localizedNames);
+    } catch (error) {
+      devLog('[OCR] 표시명 현지화 실패, 원문 표시 유지:', describeHttpError(error));
+    }
+  }
+
+  if (texts.length > 0) {
+    try {
+      devLog('[OCR] ▶ 복용법 번역 요청:', `${lang} ${texts.join(' / ')}`);
+      const { data } = await axios.post<{ texts: Record<string, string> }>(
+        `${BACKEND_API_BASE_URL}/api/v1/localize/texts`,
+        { texts, lang },
+        { timeout: 30000 },
+      );
+      localizedTexts = data.texts ?? {};
+      devLog('[OCR] ◀ 복용법 번역 완료:', localizedTexts);
+    } catch (error) {
+      devLog('[OCR] 복용법 번역 실패, 원문 표시 유지:', describeHttpError(error));
+    }
+  }
+
+  const pickName = (value: string) => localizedNames[value] || value;
+  const pickText = (value?: string) => value ? localizedTexts[value] || value : value;
+
+  return items.map((item) => ({
+    ...item,
+    name: pickName(item.name),
+    productName: item.productName ? pickName(item.productName) : item.productName,
+    administration: pickText(item.administration),
+    ingredients: item.ingredients?.map(pickName),
+    candidates: item.candidates?.map((candidate) => ({
+      ...candidate,
+      name: pickName(candidate.name),
+      productName: candidate.productName ? pickName(candidate.productName) : candidate.productName,
+      administration: pickText(candidate.administration),
+      ingredients: candidate.ingredients?.map(pickName),
+    })),
+  }));
+}
+
 function normalizeSupplementAnalysisNames(productName: string | null | undefined, ingredients: string[]) {
   const rawNames = uniqueClean([productName, ...ingredients]);
   const normalized = new Set<string>();
@@ -208,9 +289,9 @@ function normalizeSupplementAnalysisNames(productName: string | null | undefined
 const ADMINISTRATION_PATTERN = /(1일|하루|매일|매주|식전|식후|식간|아침|점심|저녁|취침|공복|복용|투여|씩|마다|회|일분|일간|일수|분복|필요시)/;
 const STRENGTH_PATTERN = /\d+(?:\.\d+)?\s*(?:mg|g|mcg|μg|ug|㎎|㎍|IU|iu|mL|ml|밀리그램|마이크로그램|그램|밀리리터)/gi;
 
-function splitProductAndDosage(productName?: string | null) {
+function splitProductAndDosage(productName?: string | null, lang: AppLanguage = 'ko') {
   const raw = String(productName ?? '').trim();
-  if (!raw) return { displayName: '인식된 처방약', dosage: '' };
+  if (!raw) return { displayName: translate(lang, 'recognizedPrescription'), dosage: '' };
 
   const dosagePattern = /(\d+(?:\.\d+)?\s*(?:mg|g|mcg|μg|ug|㎎|㎍|IU|iu|정|캡슐|캡|mL|ml|밀리그램|마이크로그램|그램|밀리리터)(?:\s*\/\s*[A-Za-z가-힣0-9]+)?)/gi;
   const matches = raw.match(dosagePattern);
@@ -298,7 +379,7 @@ function resolveImageUri(value: string | null | undefined, baseUrl: string): str
   return `${baseUrl}${raw.startsWith('/') ? raw : `/${raw}`}`;
 }
 
-async function recognizePill(uri: string, baseUrl: string, recognizer: PillRecognizer): Promise<RecognizedItem[]> {
+async function recognizePill(uri: string, baseUrl: string, recognizer: PillRecognizer, lang: AppLanguage): Promise<RecognizedItem[]> {
   const urls = pillRecognitionUrls(baseUrl);
   let data: PillRecognitionResponse | null = null;
   let lastError: unknown = null;
@@ -320,7 +401,7 @@ async function recognizePill(uri: string, baseUrl: string, recognizer: PillRecog
   }
 
   if (!data) {
-    throw lastError instanceof Error ? lastError : new Error('처방전/약봉투 인식 서버에 연결하지 못했습니다.');
+    throw lastError instanceof Error ? lastError : new Error(translate(lang, 'prescriptionServerUnavailable'));
   }
 
   if (data.medications?.length) {
@@ -329,7 +410,7 @@ async function recognizePill(uri: string, baseUrl: string, recognizer: PillRecog
         const productName = String(medication.product_name ?? medication.name ?? '').trim();
         const ingredients = uniqueClean(medication.ingredients ?? []);
         const analysisNames = uniqueClean(medication.analysis_names?.length ? medication.analysis_names : ingredients.length ? ingredients : [productName]);
-        const split = splitProductAndDosage(productName);
+        const split = splitProductAndDosage(productName, lang);
         const doseParts = splitDosageAndAdministration(
           productName,
           medication.dosage,
@@ -337,19 +418,14 @@ async function recognizePill(uri: string, baseUrl: string, recognizer: PillRecog
         );
         const dosage = doseParts.dosage || split.dosage;
         const name = split.displayName || productName;
-        const imageUri = resolveImageUri(
-          medication.image_url ?? medication.product_image_url ?? medication.reference_image_url,
-          baseUrl,
-        );
         if (!productName && ingredients.length === 0) return null;
         return {
           id: medication.id || `pill-doc-${index}`,
-          name: name || ingredients[0] || '인식된 처방약',
+          name: name || ingredients[0] || translate(lang, 'recognizedPrescription'),
           dosage,
           administration: doseParts.administration,
           category: '알약',
           productName: productName || name,
-          imageUri,
           ingredients,
           analysisNames,
           sourceImageUri: uri,
@@ -370,10 +446,9 @@ async function recognizePill(uri: string, baseUrl: string, recognizer: PillRecog
       .map((candidate, candidateIndex): RecognitionCandidate | null => {
         const productName = candidate.product_name?.trim();
         const ingredients = uniqueClean([candidate.ingredient]);
-        const { displayName } = splitProductAndDosage(productName);
+        const { displayName } = splitProductAndDosage(productName, lang);
         const { dosage } = splitDosageAndAdministration(productName ?? '');
         const analysisNames = ingredients.length > 0 ? ingredients : uniqueClean([displayName, productName]);
-        const imageUri = resolveImageUri(candidate.reference_image_url, baseUrl);
         if (!productName && ingredients.length === 0) return null;
         return {
           id: `pill-${index}-candidate-${candidateIndex}`,
@@ -382,7 +457,6 @@ async function recognizePill(uri: string, baseUrl: string, recognizer: PillRecog
           dosage,
           administration: '',
           productName: productName || displayName,
-          imageUri,
           ingredients,
           analysisNames,
           score: typeof candidate.score === 'number' ? candidate.score : undefined,
@@ -398,7 +472,6 @@ async function recognizePill(uri: string, baseUrl: string, recognizer: PillRecog
       administration: selected.administration,
       category: '알약',
       productName: selected.productName,
-      imageUri: selected.imageUri,
       ingredients: selected.ingredients,
       analysisNames: selected.analysisNames,
       candidates,
@@ -411,25 +484,25 @@ async function recognizePill(uri: string, baseUrl: string, recognizer: PillRecog
   });
 
   if (items.length === 0) {
-    throw new Error('처방전 또는 약봉투에서 약품명을 찾지 못했습니다.');
+    throw new Error(translate(lang, 'noPrescriptionFound'));
   }
 
   devLog('[OCR] ◀ 처방전/약봉투 서버에서 받음:', items);
   return items;
 }
 
-async function recognizePillWithFallbacks(images: UploadImage[], baseUrl: string, recognizer: PillRecognizer): Promise<RecognizedItem[]> {
+async function recognizePillWithFallbacks(images: UploadImage[], baseUrl: string, recognizer: PillRecognizer, lang: AppLanguage): Promise<RecognizedItem[]> {
   let lastError: unknown = null;
   for (const image of images) {
     try {
       devLog('[OCR] ▶ 처방전/약봉투 이미지 시도:', `${image.label} ${image.width ?? '?'}x${image.height ?? '?'}`);
-      return await recognizePill(image.uri, baseUrl, recognizer);
+      return await recognizePill(image.uri, baseUrl, recognizer, lang);
     } catch (error) {
       lastError = error;
       devLog('[OCR] 처방전/약봉투 이미지 실패, 다음 이미지 시도:', `${image.label} ${describeHttpError(error)}`);
     }
   }
-  throw lastError instanceof Error ? lastError : new Error('처방전/약봉투 인식 서버에 연결하지 못했습니다.');
+  throw lastError instanceof Error ? lastError : new Error(translate(lang, 'prescriptionServerUnavailable'));
 }
 
 function describeHttpError(error: unknown) {
@@ -457,7 +530,7 @@ function pillRecognitionUrls(baseUrl: string) {
   ]);
 }
 
-async function recognizeSupplement(uri: string, baseUrl: string): Promise<RecognizedItem[]> {
+async function recognizeSupplement(uri: string, baseUrl: string, lang: AppLanguage): Promise<RecognizedItem[]> {
   const form = imageFormField(uri, 'image');
   devLog('[OCR] ▶ 건강기능식품 업로드:', `POST ${baseUrl}/api/v1/supplement/recognize`);
 
@@ -477,8 +550,8 @@ async function recognizeSupplement(uri: string, baseUrl: string): Promise<Recogn
   const analysisNames = normalizeSupplementAnalysisNames(productName, ingredients);
   const items: RecognizedItem[] = productName || ingredients.length > 0 ? [{
     id: 'supplement-0',
-    name: productName || ingredients[0] || '인식된 건강기능식품',
-    dosage: ingredients.length > 0 ? `성분 ${ingredients.length}개` : '',
+    name: productName || ingredients[0] || translate(lang, 'recognizedSupplement'),
+    dosage: ingredients.length > 0 ? translate(lang, 'ingredientCount', { count: ingredients.length }) : '',
     category: '건강기능식품 라벨' as const,
     productName,
     imageUri,
@@ -488,7 +561,7 @@ async function recognizeSupplement(uri: string, baseUrl: string): Promise<Recogn
   }] : [];
 
   if (items.length === 0) {
-    throw new Error(data.warnings?.[0] ?? '건강기능식품 인식 결과가 없습니다.');
+    throw new Error(data.warnings?.[0] ?? translate(lang, 'noSupplementResult'));
   }
 
   devLog('[OCR] ◀ 건강기능식품 서버에서 받음:', items);

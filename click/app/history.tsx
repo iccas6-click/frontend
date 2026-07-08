@@ -8,6 +8,7 @@ import { IconBadge, PrimaryButton, Screen, TopBar } from '@/components/app-ui';
 import { Palette, Radius, Shadow, Spacing } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
 import { deleteSessions, formatRecordDateTime, formatRecordMonth, getAllSessions } from '@/services/history-storage';
+import { riskLabel, translate, useI18n, type AppLanguage } from '@/services/i18n';
 import type { AnalysisSession, RiskLevel } from '@/types/medication';
 
 type HistorySection = {
@@ -26,16 +27,11 @@ function countByCategory(record: AnalysisSession) {
   };
 }
 
-function itemNames(record: AnalysisSession) {
+function itemNames(record: AnalysisSession, language: AppLanguage) {
   const names = record.items.map((item) => item.name).filter(Boolean);
-  return names.length ? names.slice(0, 4).join(', ') + (names.length > 4 ? ` 외 ${names.length - 4}개` : '') : '인식 항목 없음';
-}
-
-function riskLabel(level?: RiskLevel) {
-  if (level === 'danger') return '위험';
-  if (level === 'caution') return '주의';
-  if (level === 'safe') return '미탐지';
-  return '결과 없음';
+  return names.length
+    ? names.slice(0, 4).join(', ') + (names.length > 4 ? ` ${translate(language, 'moreCount', { count: names.length - 4 })}` : '')
+    : translate(language, 'noRecognizedItems');
 }
 
 function riskColors(level?: RiskLevel) {
@@ -45,10 +41,10 @@ function riskColors(level?: RiskLevel) {
   return { color: Palette.blueGrey, bg: Palette.surfaceMuted };
 }
 
-function buildSections(records: AnalysisSession[]) {
+function buildSections(records: AnalysisSession[], language: AppLanguage) {
   const sections: HistorySection[] = [];
   records.forEach((record) => {
-    const title = formatRecordMonth(record.createdAt);
+    const title = formatRecordMonth(record.createdAt, language);
     const section = sections.find((item) => item.title === title);
     if (section) {
       section.data.push(record);
@@ -65,6 +61,7 @@ export default function HistoryScreen() {
   const [selecting, setSelecting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const { lowVision } = useUserMode();
+  const { language, t } = useI18n();
 
   useFocusEffect(
     useCallback(() => {
@@ -78,7 +75,7 @@ export default function HistoryScreen() {
     }, []),
   );
 
-  const sections = useMemo(() => buildSections(records), [records]);
+  const sections = useMemo(() => buildSections(records, language), [records, language]);
   const selectedCount = selectedIds.length;
   const allSelected = records.length > 0 && records.every((record) => selectedIds.includes(record.id));
 
@@ -105,10 +102,10 @@ export default function HistoryScreen() {
 
   const confirmDelete = () => {
     if (selectedCount === 0) return;
-    Alert.alert('기록 삭제', `${selectedCount}개의 분석 기록을 삭제할까요?`, [
-      { text: '취소', style: 'cancel' },
+    Alert.alert(t('deleteRecords'), t('deleteRecordsMessage', { count: selectedCount }), [
+      { text: t('cancel'), style: 'cancel' },
       {
-        text: '삭제',
+        text: t('delete'),
         style: 'destructive',
         onPress: async () => {
           await deleteSessions(selectedIds);
@@ -126,20 +123,20 @@ export default function HistoryScreen() {
       bottom={
         selecting ? (
           <View style={styles.deleteBar}>
-            <Text style={styles.deleteSummary}>선택 {selectedCount}개</Text>
-            <PrimaryButton label="선택 삭제" icon="trash" variant="danger" disabled={selectedCount === 0} onPress={confirmDelete} />
+            <Text style={styles.deleteSummary}>{t('selectedCount', { count: selectedCount })}</Text>
+            <PrimaryButton label={t('deleteSelected')} icon="trash" variant="danger" disabled={selectedCount === 0} onPress={confirmDelete} />
           </View>
         ) : undefined
       }>
       <StatusBar style="dark" />
       <TopBar
-        title="분석 기록"
-        backLabel="홈"
+        title={t('historyTitle')}
+        backLabel={t('home')}
         onBack={() => router.back()}
         right={
           records.length > 0 ? (
             <Pressable style={[styles.selectButton, lowVision && styles.selectButtonLowVision]} onPress={toggleSelecting} accessibilityRole="button">
-              <Text style={[styles.selectButtonText, lowVision && styles.selectButtonTextLowVision]}>{selecting ? '취소' : '선택'}</Text>
+              <Text style={[styles.selectButtonText, lowVision && styles.selectButtonTextLowVision]}>{selecting ? t('cancel') : t('select')}</Text>
             </Pressable>
           ) : null
         }
@@ -148,7 +145,7 @@ export default function HistoryScreen() {
       {records.length === 0 ? (
         <View style={styles.empty}>
           <IconBadge icon="folder-open" tone="dark" size="lg" />
-          <Text style={[styles.emptyTitle, lowVision && styles.emptyTitleLowVision]}>아직 분석 기록이 없어요</Text>
+          <Text style={[styles.emptyTitle, lowVision && styles.emptyTitleLowVision]}>{t('noRecordsYet')}</Text>
         </View>
       ) : (
         <SectionList
@@ -160,9 +157,9 @@ export default function HistoryScreen() {
           ListHeaderComponent={
             selecting ? (
               <View style={styles.selectionRow}>
-                <Text style={[styles.selectionText, lowVision && styles.selectionTextLowVision]}>삭제할 기록 선택</Text>
+                <Text style={[styles.selectionText, lowVision && styles.selectionTextLowVision]}>{t('selectDeleteRecords')}</Text>
                 <Pressable style={styles.selectAllButton} onPress={toggleAll} accessibilityRole="button">
-                  <Text style={styles.selectAllText}>{allSelected ? '해제' : '전체'}</Text>
+                  <Text style={styles.selectAllText}>{allSelected ? t('deselect') : t('all')}</Text>
                 </Pressable>
               </View>
             ) : null
@@ -175,6 +172,7 @@ export default function HistoryScreen() {
               selecting={selecting}
               selected={selectedIds.includes(item.id)}
               lowVision={lowVision}
+              language={language}
               onPress={() => openRecord(item)}
             />
           )}
@@ -198,6 +196,7 @@ function RecordCard({
   selecting,
   selected,
   lowVision,
+  language,
   onPress,
 }: {
   record: AnalysisSession;
@@ -205,6 +204,7 @@ function RecordCard({
   selecting: boolean;
   selected: boolean;
   lowVision: boolean;
+  language: AppLanguage;
   onPress: () => void;
 }) {
   const counts = countByCategory(record);
@@ -216,7 +216,7 @@ function RecordCard({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={selecting ? { selected } : undefined}
-      accessibilityLabel={`${formatRecordDateTime(record.createdAt)}, ${riskLabel(record.analysis?.overall)}`}>
+      accessibilityLabel={`${formatRecordDateTime(record.createdAt, language)}, ${riskLabel(record.analysis?.overall, language)}`}>
       {selecting ? (
         <View style={[styles.checkCircle, selected && styles.checkCircleSelected]}>
           {selected ? <Ionicons name="checkmark" size={17} color="#FFFFFF" /> : null}
@@ -228,15 +228,15 @@ function RecordCard({
       </View>
       <View style={styles.cardText}>
         <View style={styles.cardTop}>
-          <Text style={[styles.cardTitle, lowVision && styles.cardTitleLowVision]}>{formatRecordDateTime(record.createdAt)}</Text>
-          <RiskChip level={record.analysis?.overall} />
+          <Text style={[styles.cardTitle, lowVision && styles.cardTitleLowVision]}>{formatRecordDateTime(record.createdAt, language)}</Text>
+          <RiskChip level={record.analysis?.overall} language={language} />
         </View>
         <View style={styles.countRow}>
-          <CountPill icon="medical" label={`알약 ${counts.pill}`} />
-          <CountPill icon="leaf" label={`건강기능식품 ${counts.supplement}`} />
+          <CountPill icon="medical" label={translate(language, 'prescriptionCount', { count: counts.pill })} />
+          <CountPill icon="leaf" label={translate(language, 'supplementCount', { count: counts.supplement })} />
         </View>
         <Text style={[styles.cardNames, lowVision && styles.cardNamesLowVision]} numberOfLines={lowVision ? 2 : 1}>
-          {itemNames(record)}
+          {itemNames(record, language)}
         </Text>
       </View>
       {selecting ? null : <Ionicons name="chevron-forward" size={lowVision ? 22 : 19} color={Palette.textSubtle} />}
@@ -244,11 +244,11 @@ function RecordCard({
   );
 }
 
-function RiskChip({ level }: { level?: RiskLevel }) {
+function RiskChip({ level, language }: { level?: RiskLevel; language: AppLanguage }) {
   const colors = riskColors(level);
   return (
     <View style={[styles.riskChip, { backgroundColor: colors.bg }]}>
-      <Text style={[styles.riskChipText, { color: colors.color }]}>{riskLabel(level)}</Text>
+      <Text style={[styles.riskChipText, { color: colors.color }]}>{riskLabel(level, language)}</Text>
     </View>
   );
 }
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
   },
   selectionText: {
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.textMuted,
   },
   selectionTextLowVision: {
@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
   selectAllText: {
     color: Palette.text,
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   monthHeader: {
     backgroundColor: Palette.background,
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
   monthTitle: {
     fontSize: 22,
     lineHeight: 29,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.text,
   },
   monthTitleLowVision: {
@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     lineHeight: 24,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.text,
   },
   cardTitleLowVision: {
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
   },
   riskChipText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   countRow: {
     flexDirection: 'row',
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
   },
   countText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.textMuted,
   },
   cardNames: {
@@ -439,7 +439,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.textMuted,
   },
   emptyTitleLowVision: {
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
   },
   selectButtonText: {
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.primary,
   },
   selectButtonTextLowVision: {
@@ -473,7 +473,7 @@ const styles = StyleSheet.create({
   },
   deleteSummary: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.textMuted,
     textAlign: 'center',
   },

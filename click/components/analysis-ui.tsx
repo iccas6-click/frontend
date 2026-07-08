@@ -3,43 +3,41 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
+import { riskLabel, useI18n } from '@/services/i18n';
 import type { AnalysisResult, InteractionPair, RiskLevel } from '@/types/medication';
 
 export const RISK_META: Record<
   RiskLevel,
   {
-    label: string;
-    title: string;
     color: string;
     bg: string;
     icon: 'alert-circle' | 'warning' | 'checkmark-circle';
+    titleKey: 'riskDangerTitle' | 'riskCautionTitle' | 'riskSafeTitle';
   }
 > = {
   danger: {
-    label: '위험',
-    title: '전문가 상담이 필요해요',
     color: Palette.rose,
     bg: Palette.roseSoft,
     icon: 'alert-circle',
+    titleKey: 'riskDangerTitle',
   },
   caution: {
-    label: '주의',
-    title: '주의해서 확인해 주세요',
     color: Palette.amber,
     bg: Palette.amberSoft,
     icon: 'warning',
+    titleKey: 'riskCautionTitle',
   },
   safe: {
-    label: '미탐지',
-    title: '중대한 주의사항 미탐지',
     color: Palette.mint,
     bg: Palette.mintSoft,
     icon: 'checkmark-circle',
+    titleKey: 'riskSafeTitle',
   },
 };
 
 export function RiskSummaryCard({ result, compact = false }: { result: AnalysisResult; compact?: boolean }) {
   const { lowVision } = useUserMode();
+  const { t } = useI18n();
   const meta = RISK_META[result.overall];
   return (
     <View style={[styles.summaryCard, compact && styles.summaryCardCompact, lowVision && styles.summaryCardLowVision]}>
@@ -47,7 +45,7 @@ export function RiskSummaryCard({ result, compact = false }: { result: AnalysisR
         <Ionicons name={meta.icon} size={lowVision ? 31 : compact ? 26 : 28} color={meta.color} />
       </View>
       <View style={styles.summaryTextWrap}>
-        <Text style={[styles.summaryTitle, compact && styles.summaryTitleCompact, lowVision && styles.summaryTitleLowVision, { color: meta.color }]}>{meta.title}</Text>
+        <Text style={[styles.summaryTitle, compact && styles.summaryTitleCompact, lowVision && styles.summaryTitleLowVision, { color: meta.color }]}>{t(meta.titleKey)}</Text>
         <Text style={[styles.summaryText, compact && styles.summaryTextCompact, lowVision && styles.summaryTextLowVision]}>{result.summary}</Text>
       </View>
     </View>
@@ -56,6 +54,7 @@ export function RiskSummaryCard({ result, compact = false }: { result: AnalysisR
 
 export function InteractionCoverageCard({ result, compact = false }: { result: AnalysisResult; compact?: boolean }) {
   const { lowVision } = useUserMode();
+  const { t } = useI18n();
   const checked = result.checkedCount ?? 0;
   const detected = result.detectedCount ?? result.pairs.filter((pair) => pair.level !== 'safe').length;
   const undetected = result.undetectedCount ?? Math.max(checked - detected, 0);
@@ -66,8 +65,8 @@ export function InteractionCoverageCard({ result, compact = false }: { result: A
 
   const message =
     checked > 0
-      ? `DB에서 매칭된 ${checked}개 조합을 기준으로 확인했어요.`
-      : 'DB에서 양쪽 성분이 모두 매칭된 조합이 없었어요.';
+      ? t('dbCoverageChecked', { count: checked })
+      : t('dbCoverageNoMatch');
 
   return (
     <View style={[styles.coverageCard, compact && styles.coverageCardCompact, lowVision && styles.coverageCardLowVision]}>
@@ -76,16 +75,16 @@ export function InteractionCoverageCard({ result, compact = false }: { result: A
       </View>
       <View style={styles.coverageTextWrap}>
         <View style={styles.coverageTitleRow}>
-          <Text style={[styles.coverageTitle, lowVision && styles.coverageTitleLowVision]}>DB 확인 결과</Text>
+          <Text style={[styles.coverageTitle, lowVision && styles.coverageTitleLowVision]}>{t('dbCoverageTitle')}</Text>
           <Text style={[styles.coverageCount, lowVision && styles.coverageCountLowVision]}>{checked}</Text>
         </View>
         <Text style={[styles.coverageText, lowVision && styles.coverageTextLowVision]}>{message}</Text>
         <View style={styles.coverageRows}>
-          <CoverageRow label="주의 발견" value={detected} color={Palette.amber} lowVision={lowVision} />
-          <CoverageRow label="주의 정보 미탐지" value={undetected} color={Palette.mint} lowVision={lowVision} />
+          <CoverageRow label={t('attentionFound')} value={detected} color={Palette.amber} lowVision={lowVision} />
+          <CoverageRow label={t('noAttentionFound')} value={undetected} color={Palette.mint} lowVision={lowVision} />
           {unmatchedItems > 0 ? (
             <CoverageRow
-              label={`성분 매칭 실패 · 처방약 ${unmatchedDrug} · 건강기능식품 ${unmatchedSupplement}`}
+              label={t('ingredientMatchFailed', { drug: unmatchedDrug, supplement: unmatchedSupplement })}
               value={unmatchedItems}
               color={Palette.blueGrey}
               lowVision={lowVision}
@@ -108,14 +107,17 @@ function CoverageRow({ label, value, color, lowVision }: { label: string; value:
 
 export function PairCard({ pair, compact = false }: { pair: InteractionPair; compact?: boolean }) {
   const { lowVision } = useUserMode();
+  const { language } = useI18n();
   const meta = RISK_META[pair.level];
   return (
     <View style={[styles.pairCard, compact && styles.pairCardCompact, lowVision && styles.pairCardLowVision]}>
       <View style={[styles.levelBadge, lowVision && styles.levelBadgeLowVision, { backgroundColor: meta.bg }]}>
         <Ionicons name={meta.icon} size={lowVision ? 18 : 14} color={meta.color} />
-        <Text style={[styles.levelText, lowVision && styles.levelTextLowVision, { color: meta.color }]}>{meta.label}</Text>
+        <Text style={[styles.levelText, lowVision && styles.levelTextLowVision, { color: meta.color }]}>{riskLabel(pair.level, language)}</Text>
       </View>
-      <Text style={[styles.pairTitle, compact && styles.pairTitleCompact, lowVision && styles.pairTitleLowVision]}>{pair.items.join(' + ')}</Text>
+      <Text style={[styles.pairTitle, compact && styles.pairTitleCompact, lowVision && styles.pairTitleLowVision]} numberOfLines={3}>
+        {pair.items.join(' + ')}
+      </Text>
       <Text style={[styles.pairDesc, compact && styles.pairDescCompact, lowVision && styles.pairDescLowVision]}>{pair.description}</Text>
     </View>
   );
@@ -134,10 +136,11 @@ export function PairList({ pairs, limit }: { pairs: InteractionPair[]; limit?: n
 
 export function ConsultationNotice() {
   const { lowVision } = useUserMode();
+  const { t } = useI18n();
   return (
     <View style={[styles.disclaimer, lowVision && styles.disclaimerLowVision]}>
       <Ionicons name="information-circle" size={lowVision ? 22 : 17} color={Palette.textMuted} />
-      <Text style={[styles.disclaimerText, lowVision && styles.disclaimerTextLowVision]}>복용 변경 전에는 의사 또는 약사와 상담하세요.</Text>
+      <Text style={[styles.disclaimerText, lowVision && styles.disclaimerTextLowVision]}>{t('consultProfessional')}</Text>
     </View>
   );
 }
@@ -192,7 +195,7 @@ const styles = StyleSheet.create({
   summaryTitle: {
     fontSize: 20,
     lineHeight: 26,
-    fontWeight: '900',
+    fontWeight: '600',
     textAlign: 'left',
   },
   summaryTitleCompact: {
@@ -203,7 +206,7 @@ const styles = StyleSheet.create({
   summaryTitleLowVision: {
     fontSize: 23,
     lineHeight: 30,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   summaryText: {
     ...Typography.body,
@@ -268,7 +271,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 17,
     lineHeight: 23,
-    fontWeight: '900',
+    fontWeight: '600',
     color: Palette.text,
   },
   coverageTitleLowVision: {
@@ -278,7 +281,7 @@ const styles = StyleSheet.create({
   coverageCount: {
     fontSize: 20,
     lineHeight: 25,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.mint,
   },
   coverageCountLowVision: {
@@ -288,7 +291,7 @@ const styles = StyleSheet.create({
   coverageText: {
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '700',
+    fontWeight: '600',
     color: Palette.textMuted,
     marginTop: 3,
   },
@@ -310,7 +313,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '800',
+    fontWeight: '700',
     color: Palette.textMuted,
   },
   coverageRowLabelLowVision: {
@@ -320,7 +323,7 @@ const styles = StyleSheet.create({
   coverageRowValue: {
     fontSize: 16,
     lineHeight: 21,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   coverageRowValueLowVision: {
     fontSize: 20,
@@ -357,7 +360,7 @@ const styles = StyleSheet.create({
   },
   levelText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   levelTextLowVision: {
     fontSize: 15,
@@ -365,7 +368,7 @@ const styles = StyleSheet.create({
   pairTitle: {
     fontSize: 17,
     lineHeight: 23,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.text,
   },
   pairTitleCompact: {
@@ -375,6 +378,7 @@ const styles = StyleSheet.create({
   pairTitleLowVision: {
     fontSize: 20,
     lineHeight: 27,
+    fontWeight: '700',
   },
   pairDesc: {
     ...Typography.body,
@@ -408,7 +412,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     lineHeight: 19,
-    fontWeight: '700',
+    fontWeight: '600',
     color: Palette.textMuted,
   },
   disclaimerTextLowVision: {

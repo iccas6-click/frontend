@@ -11,12 +11,8 @@ import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme'
 import { useUserMode } from '@/hooks/use-user-mode';
 import { getDemoRecognitionSets, type DemoRecognitionSet } from '@/services/demo-recognition';
 import { formatRecordDateTime, getReusableSessions } from '@/services/history-storage';
+import { categoryLabel, translate, useI18n, type AppLanguage } from '@/services/i18n';
 import type { AnalysisSession, ItemCategory, RecognizedItem } from '@/types/medication';
-
-const CATEGORY_LABEL: Record<ItemCategory, string> = {
-  알약: '처방전·약봉투',
-  '건강기능식품 라벨': '건강기능식품',
-};
 
 export default function ReuseScreen() {
   const router = useRouter();
@@ -26,6 +22,7 @@ export default function ReuseScreen() {
   const [recordsOpen, setRecordsOpen] = useState(false);
   const [samplesOpen, setSamplesOpen] = useState(false);
   const { lowVision } = useUserMode();
+  const { language, t } = useI18n();
 
   const prevItems = useMemo<RecognizedItem[]>(() => {
     if (!params.prevItems) return [];
@@ -50,9 +47,9 @@ export default function ReuseScreen() {
   );
 
   const isSupplement = category === '건강기능식품 라벨';
-  const label = CATEGORY_LABEL[category];
+  const label = categoryLabel(category, language, 'capture');
   const usableRecords = isSupplement && params.recordId ? records.filter((record) => record.id !== params.recordId) : records;
-  const demoSets = useMemo(() => getDemoRecognitionSets(category), [category]);
+  const demoSets = useMemo(() => getDemoRecognitionSets(category, language), [category, language]);
 
   const handleBack = () => {
     if (isSupplement && params.prevItems) {
@@ -85,7 +82,7 @@ export default function ReuseScreen() {
   const pickFromGallery = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('사진 접근 권한이 필요해요', '갤러리 사진으로 인식하려면 사진 접근을 허용해 주세요.');
+      Alert.alert(t('photoPermissionTitle'), t('photoPermissionBody'));
       return;
     }
 
@@ -141,20 +138,20 @@ export default function ReuseScreen() {
     <Screen
       bottom={
         <View style={styles.footer}>
-          <PrimaryButton label="뒤로 가기" variant="secondary" onPress={handleBack} />
+          <PrimaryButton label={t('back')} variant="secondary" onPress={handleBack} />
         </View>
       }>
       <StatusBar style="dark" />
       <TopBar
-        title={isSupplement ? '건강기능식품 추가' : '처방전·약봉투 추가'}
-        backLabel="뒤로"
+        title={isSupplement ? t('addSupplement') : t('addPrescription')}
+        backLabel={t('back')}
         onBack={handleBack}
       />
       <StepIndicator current={isSupplement ? 2 : 1} />
 
       <ScrollView contentContainerStyle={[styles.content, lowVision && styles.contentLowVision]} showsVerticalScrollIndicator={false}>
         <View style={styles.choiceHeader}>
-          <Text style={[styles.choiceTitle, lowVision && styles.choiceTitleLowVision]}>{label}을 어떻게 추가할까요?</Text>
+          <Text style={[styles.choiceTitle, lowVision && styles.choiceTitleLowVision]}>{t('chooseAddMethod', { label })}</Text>
         </View>
 
         <View style={[styles.sourceRow, lowVision && styles.sourceRowLowVision]}>
@@ -162,18 +159,18 @@ export default function ReuseScreen() {
             style={({ pressed }) => [styles.captureCard, styles.sourceCard, lowVision && styles.choiceCardLowVision, pressed && styles.pressed]}
             onPress={startCamera}
             accessibilityRole="button"
-            accessibilityLabel={`새 ${label} 촬영하기`}>
+            accessibilityLabel={t('captureNew', { label })}>
             <IconBadge icon="camera" tone="blue" />
-            <Text style={[styles.sourceTitle, styles.captureTitle, lowVision && styles.choiceTitleTextLowVision]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78}>새 {label} 촬영하기</Text>
+            <Text style={[styles.sourceTitle, styles.captureTitle, lowVision && styles.choiceTitleTextLowVision]} numberOfLines={3} adjustsFontSizeToFit minimumFontScale={0.74}>{t('captureNew', { label })}</Text>
           </Pressable>
 
           <Pressable
             style={({ pressed }) => [styles.galleryCard, styles.sourceCard, lowVision && styles.choiceCardLowVision, pressed && styles.pressed]}
             onPress={pickFromGallery}
             accessibilityRole="button"
-            accessibilityLabel={`${label} 사진 갤러리에서 가져오기`}>
+            accessibilityLabel={t('chooseFromGallery')}>
             <IconBadge icon="image" tone="blue" />
-            <Text style={[styles.sourceTitle, styles.galleryTitle, lowVision && styles.choiceTitleTextLowVision]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78}>갤러리에서 가져오기</Text>
+            <Text style={[styles.sourceTitle, styles.galleryTitle, lowVision && styles.choiceTitleTextLowVision]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78}>{t('chooseFromGallery')}</Text>
           </Pressable>
         </View>
 
@@ -181,10 +178,10 @@ export default function ReuseScreen() {
           style={({ pressed }) => [styles.recordChoiceCard, lowVision && styles.choiceCardLowVision, pressed && styles.pressed]}
           onPress={() => setRecordsOpen(true)}
           accessibilityRole="button"
-          accessibilityLabel={`기존 ${label} 기록에서 선택하기`}>
+          accessibilityLabel={t('chooseFromRecords')}>
           <IconBadge icon="folder-open" tone="dark" />
           <View style={styles.recordChoiceText}>
-            <Text style={[styles.recordChoiceTitle, lowVision && styles.choiceTitleTextLowVision]}>기존 기록에서 선택하기</Text>
+            <Text style={[styles.recordChoiceTitle, lowVision && styles.choiceTitleTextLowVision]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78}>{t('chooseFromRecords')}</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={Palette.textSubtle} />
         </Pressable>
@@ -193,10 +190,10 @@ export default function ReuseScreen() {
           style={({ pressed }) => [styles.sampleChoiceCard, lowVision && styles.choiceCardLowVision, pressed && styles.pressed]}
           onPress={() => setSamplesOpen(true)}
           accessibilityRole="button"
-          accessibilityLabel={`${label} 예시 인식결과 불러오기`}>
+          accessibilityLabel={t('loadSampleResults')}>
           <IconBadge icon="sparkles" tone="amber" />
           <View style={styles.recordChoiceText}>
-            <Text style={[styles.sampleChoiceTitle, lowVision && styles.choiceTitleTextLowVision]}>예시 결과 불러오기</Text>
+            <Text style={[styles.sampleChoiceTitle, lowVision && styles.choiceTitleTextLowVision]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78}>{t('loadSampleResults')}</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={Palette.amber} />
         </Pressable>
@@ -209,13 +206,13 @@ export default function ReuseScreen() {
           <View style={styles.sheetHandle} />
           <View style={styles.sheetHeader}>
             <View>
-              <Text style={[styles.sheetTitle, lowVision && styles.sheetTitleLowVision]}>기존 {label} 기록</Text>
+              <Text style={[styles.sheetTitle, lowVision && styles.sheetTitleLowVision]}>{t('existingRecords', { label })}</Text>
             </View>
             <Pressable
               style={styles.closeButton}
               onPress={() => setRecordsOpen(false)}
               accessibilityRole="button"
-              accessibilityLabel="기존 기록 선택 창 닫기">
+              accessibilityLabel={t('close')}>
               <Ionicons name="close" size={22} color={Palette.textMuted} />
             </Pressable>
           </View>
@@ -223,13 +220,13 @@ export default function ReuseScreen() {
           {usableRecords.length === 0 ? (
             <View style={styles.empty}>
               <IconBadge icon="folder-open" tone="dark" size="lg" />
-              <Text style={styles.emptyTitle}>아직 재사용할 {label} 기록이 없어요</Text>
-              <Text style={styles.emptyBody}>이번에는 새로 촬영하면 다음부터 여기에서 바로 선택할 수 있습니다.</Text>
+              <Text style={styles.emptyTitle}>{t('noReusableRecords', { label })}</Text>
+              <Text style={styles.emptyBody}>{t('noReusableRecordsBody')}</Text>
             </View>
           ) : (
             <ScrollView contentContainerStyle={styles.recordList} showsVerticalScrollIndicator={false}>
               {usableRecords.map((record) => (
-                <ReuseCard key={record.id} record={record} category={category} lowVision={lowVision} onPress={() => selectRecord(record)} />
+                <ReuseCard key={record.id} record={record} category={category} lowVision={lowVision} language={language} onPress={() => selectRecord(record)} />
               ))}
             </ScrollView>
           )}
@@ -242,19 +239,19 @@ export default function ReuseScreen() {
           <View style={styles.sheetHandle} />
           <View style={styles.sheetHeader}>
             <View>
-              <Text style={[styles.sheetTitle, lowVision && styles.sheetTitleLowVision]}>예시 {label} 결과</Text>
+              <Text style={[styles.sheetTitle, lowVision && styles.sheetTitleLowVision]}>{t('sampleResults', { label })}</Text>
             </View>
             <Pressable
               style={styles.closeButton}
               onPress={() => setSamplesOpen(false)}
               accessibilityRole="button"
-              accessibilityLabel="예시 결과 선택 창 닫기">
+              accessibilityLabel={t('close')}>
               <Ionicons name="close" size={22} color={Palette.textMuted} />
             </Pressable>
           </View>
           <ScrollView contentContainerStyle={styles.recordList} showsVerticalScrollIndicator={false}>
             {demoSets.map((demo) => (
-              <DemoCard key={demo.id} demo={demo} lowVision={lowVision} onPress={() => selectDemo(demo)} />
+              <DemoCard key={demo.id} demo={demo} lowVision={lowVision} language={language} onPress={() => selectDemo(demo)} />
             ))}
           </ScrollView>
         </View>
@@ -267,10 +264,12 @@ function DemoCard({
   demo,
   onPress,
   lowVision,
+  language,
 }: {
   demo: DemoRecognitionSet;
   onPress: () => void;
   lowVision: boolean;
+  language: AppLanguage;
 }) {
   const isSupplement = demo.category === '건강기능식품 라벨';
   const names = demo.items.map((item) => item.name).join(', ');
@@ -280,17 +279,17 @@ function DemoCard({
       style={({ pressed }) => [styles.recordCard, lowVision && styles.recordCardLowVision, pressed && styles.pressed]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${demo.title}, ${demo.items.length}개 예시 사용`}>
+      accessibilityLabel={`${demo.title}, ${translate(language, 'itemsCount', { count: demo.items.length })}`}>
       <IconBadge icon={isSupplement ? 'leaf' : 'medical'} tone={isSupplement ? 'green' : 'blue'} />
       <View style={styles.recordText}>
         <Text style={[styles.recordTitle, lowVision && styles.recordTitleLowVision]}>{demo.title}</Text>
-        <Text style={[styles.recordMeta, lowVision && styles.recordMetaLowVision]}>{demo.subtitle} · {demo.items.length}개</Text>
+        <Text style={[styles.recordMeta, lowVision && styles.recordMetaLowVision]}>{demo.subtitle} · {translate(language, 'itemsCount', { count: demo.items.length })}</Text>
         <Text style={[styles.recordNames, lowVision && styles.recordNamesLowVision]} numberOfLines={lowVision ? 2 : 1}>
           {names}
         </Text>
       </View>
       <View style={[styles.usePill, lowVision && styles.usePillLowVision]}>
-        <Text style={[styles.usePillText, lowVision && styles.usePillTextLowVision]}>사용</Text>
+        <Text style={[styles.usePillText, lowVision && styles.usePillTextLowVision]}>{translate(language, 'use')}</Text>
         <Ionicons name="chevron-forward" size={16} color={Palette.primary} />
       </View>
     </Pressable>
@@ -302,11 +301,13 @@ function ReuseCard({
   category,
   onPress,
   lowVision,
+  language,
 }: {
   record: AnalysisSession;
   category: ItemCategory;
   onPress: () => void;
   lowVision: boolean;
+  language: AppLanguage;
 }) {
   const items = record.items.filter((item) => item.category === category);
   const names = items.map((item) => item.name).slice(0, 3).join(', ');
@@ -317,18 +318,18 @@ function ReuseCard({
       style={({ pressed }) => [styles.recordCard, lowVision && styles.recordCardLowVision, pressed && styles.pressed]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${formatRecordDateTime(record.createdAt)}, ${CATEGORY_LABEL[category]} ${items.length}개 사용`}>
+      accessibilityLabel={`${formatRecordDateTime(record.createdAt, language)}, ${categoryLabel(category, language)} ${translate(language, 'itemsCount', { count: items.length })}`}>
       <IconBadge icon={isSupplement ? 'leaf' : 'medical'} tone={isSupplement ? 'green' : 'blue'} />
       <View style={styles.recordText}>
-        <Text style={[styles.recordTitle, lowVision && styles.recordTitleLowVision]}>{formatRecordDateTime(record.createdAt)}</Text>
-        <Text style={[styles.recordMeta, lowVision && styles.recordMetaLowVision]}>{CATEGORY_LABEL[category]} {items.length}개</Text>
+        <Text style={[styles.recordTitle, lowVision && styles.recordTitleLowVision]}>{formatRecordDateTime(record.createdAt, language)}</Text>
+        <Text style={[styles.recordMeta, lowVision && styles.recordMetaLowVision]}>{categoryLabel(category, language)} {translate(language, 'itemsCount', { count: items.length })}</Text>
         <Text style={[styles.recordNames, lowVision && styles.recordNamesLowVision]} numberOfLines={lowVision ? 2 : 1}>
-          {names || '이름 없는 항목'}
-          {items.length > 3 ? ` 외 ${items.length - 3}개` : ''}
+          {names || translate(language, 'unknownItem')}
+          {items.length > 3 ? ` ${translate(language, 'moreCount', { count: items.length - 3 })}` : ''}
         </Text>
       </View>
       <View style={[styles.usePill, lowVision && styles.usePillLowVision]}>
-        <Text style={[styles.usePillText, lowVision && styles.usePillTextLowVision]}>사용</Text>
+        <Text style={[styles.usePillText, lowVision && styles.usePillTextLowVision]}>{translate(language, 'use')}</Text>
         <Ionicons name="chevron-forward" size={16} color={Palette.primary} />
       </View>
     </Pressable>
@@ -348,9 +349,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   choiceTitle: {
-    fontSize: 21,
-    lineHeight: 28,
-    fontWeight: '900',
+    fontSize: 20,
+    lineHeight: 27,
+    fontWeight: '600',
     color: Palette.text,
   },
   choiceTitleLowVision: {
@@ -366,14 +367,15 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   captureCard: {
-    minHeight: 92,
+    minHeight: 86,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Palette.primary,
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Palette.border,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     ...Shadow.subtle,
   },
   sourceRow: {
@@ -386,14 +388,16 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     justifyContent: 'flex-start',
-    gap: 12,
+    gap: 11,
   },
   sourceTitle: {
-    flexShrink: 1,
+    flex: 1,
+    minWidth: 0,
   },
   choiceCardLowVision: {
-    minHeight: 118,
-    padding: 18,
+    minHeight: 108,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
   },
   captureText: {
     flex: 1,
@@ -401,26 +405,27 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   captureTitle: {
-    fontSize: 19,
-    lineHeight: 25,
-    fontWeight: '900',
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: '700',
     color: '#FFFFFF',
   },
   galleryCard: {
-    minHeight: 92,
+    minHeight: 86,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Palette.primary,
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Palette.border,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     ...Shadow.subtle,
   },
   galleryTitle: {
-    fontSize: 19,
-    lineHeight: 25,
-    fontWeight: '900',
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: '700',
     color: '#FFFFFF',
   },
   choiceTitleTextLowVision: {
@@ -459,7 +464,7 @@ const styles = StyleSheet.create({
   contextTitle: {
     fontSize: 18,
     lineHeight: 24,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.text,
   },
   contextTitleLowVision: {
@@ -480,14 +485,15 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   recordChoiceCard: {
-    minHeight: 92,
+    minHeight: 82,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Palette.surface,
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Palette.borderStrong,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     ...Shadow.subtle,
   },
   recordChoiceText: {
@@ -496,26 +502,27 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   recordChoiceTitle: {
-    fontSize: 19,
-    lineHeight: 25,
-    fontWeight: '900',
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: '600',
     color: Palette.text,
   },
   sampleChoiceCard: {
-    minHeight: 92,
+    minHeight: 82,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Palette.surface,
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Palette.amber,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     ...Shadow.subtle,
   },
   sampleChoiceTitle: {
-    fontSize: 19,
-    lineHeight: 25,
-    fontWeight: '900',
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: '600',
     color: Palette.text,
   },
   recordChoiceBody: {
@@ -576,7 +583,7 @@ const styles = StyleSheet.create({
   recordTitle: {
     fontSize: 18,
     lineHeight: 24,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.text,
   },
   recordTitleLowVision: {
@@ -620,7 +627,7 @@ const styles = StyleSheet.create({
   },
   usePillText: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.primary,
   },
   usePillTextLowVision: {
@@ -684,7 +691,7 @@ const styles = StyleSheet.create({
   sheetTitle: {
     fontSize: 22,
     lineHeight: 28,
-    fontWeight: '900',
+    fontWeight: '600',
     color: Palette.text,
   },
   sheetTitleLowVision: {

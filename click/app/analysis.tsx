@@ -9,12 +9,14 @@ import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
 import { devLog } from '@/services/debug-log';
+import { useI18n } from '@/services/i18n';
 import type { AnalysisResult, InteractionPair, RecognizedItem } from '@/types/medication';
 
 export default function AnalysisScreen() {
   const router = useRouter();
   const { result: resultParam, items: itemsParam, recordId } = useLocalSearchParams<{ result?: string; items?: string; recordId?: string }>();
   const { lowVision } = useUserMode();
+  const { t } = useI18n();
   const [attentionOpen, setAttentionOpen] = useState(true);
 
   const result = useMemo<AnalysisResult | null>(() => {
@@ -64,10 +66,10 @@ export default function AnalysisScreen() {
   if (!result) {
     return (
       <Screen>
-        <TopBar title="분석 결과" backLabel="뒤로" onBack={handleBack} />
+        <TopBar title={t('analysisResult')} backLabel={t('back')} onBack={handleBack} />
         <View style={styles.empty}>
           <IconBadge icon="alert-circle" tone="amber" size="lg" />
-          <Text style={styles.emptyTitle}>결과를 불러올 수 없어요</Text>
+          <Text style={styles.emptyTitle}>{t('cannotLoadResult')}</Text>
         </View>
       </Screen>
     );
@@ -77,10 +79,10 @@ export default function AnalysisScreen() {
     <Screen
       bottom={
         <View style={styles.footer}>
-          <PrimaryButton label="처음으로 돌아가기" icon="home" onPress={goHome} />
+          <PrimaryButton label={t('goHome')} icon="home" onPress={goHome} />
         </View>
       }>
-      <TopBar title="분석 결과" backLabel="뒤로" onBack={handleBack} />
+      <TopBar title={t('analysisResult')} backLabel={t('back')} onBack={handleBack} />
       <StepIndicator current={4} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -90,7 +92,7 @@ export default function AnalysisScreen() {
 
         <View style={styles.sectionBody}>
           <PairSection
-            title="주의할 조합"
+            title={t('attentionPairs')}
             pairs={result.pairs.filter((pair) => pair.level !== 'safe')}
             open={attentionOpen}
             onToggle={() => setAttentionOpen((value) => !value)}
@@ -121,10 +123,11 @@ function uniqueNames(values: (string | null | undefined)[]) {
 }
 
 function displayNameFor(item: RecognizedItem) {
-  return item.name || item.productName || item.ingredients?.[0] || '이름 없는 항목';
+  return item.name || item.productName || item.ingredients?.[0] || '';
 }
 
 function AnalyzedIngredientSummary({ result, items, lowVision }: { result: AnalysisResult; items: RecognizedItem[]; lowVision: boolean }) {
+  const { t } = useI18n();
   const pills = items.filter((item) => item.category === '알약');
   const supplements = items.filter((item) => item.category === '건강기능식품 라벨');
   const recognizedPillNames = uniqueNames(pills.map(displayNameFor));
@@ -137,9 +140,9 @@ function AnalyzedIngredientSummary({ result, items, lowVision }: { result: Analy
 
   return (
     <View style={styles.ingredientSummary}>
-      <Text style={[styles.ingredientSummaryTitle, lowVision && styles.ingredientSummaryTitleLowVision]}>인식한 항목</Text>
-      <IngredientColumn title="처방약" names={pillNames} tone="blue" lowVision={lowVision} />
-      <IngredientColumn title="건강기능식품" names={supplementNames} tone="green" lowVision={lowVision} />
+      <Text style={[styles.ingredientSummaryTitle, lowVision && styles.ingredientSummaryTitleLowVision]}>{t('recognizedItems')}</Text>
+      <IngredientColumn title={t('prescription')} names={pillNames} tone="blue" lowVision={lowVision} />
+      <IngredientColumn title={t('supplement')} names={supplementNames} tone="green" lowVision={lowVision} />
     </View>
   );
 }
@@ -155,6 +158,7 @@ function IngredientColumn({
   tone: 'blue' | 'green';
   lowVision: boolean;
 }) {
+  const { t } = useI18n();
   const dotColor = tone === 'green' ? Palette.mint : Palette.primary;
   return (
     <View style={styles.ingredientGroup}>
@@ -164,12 +168,12 @@ function IngredientColumn({
         <Text style={[styles.ingredientGroupCount, lowVision && styles.ingredientGroupCountLowVision]}>{names.length}</Text>
       </View>
       {names.length === 0 ? (
-        <Text style={[styles.ingredientEmpty, lowVision && styles.ingredientEmptyLowVision]}>성분 확인 필요</Text>
+        <Text style={[styles.ingredientEmpty, lowVision && styles.ingredientEmptyLowVision]}>{t('needsIngredientCheck')}</Text>
       ) : (
         <View style={styles.ingredientChips}>
           {names.map((name) => (
             <View key={`${title}-${name}`} style={styles.ingredientChip}>
-              <Text style={[styles.ingredientChipText, lowVision && styles.ingredientChipTextLowVision]} numberOfLines={1}>{name}</Text>
+              <Text style={[styles.ingredientChipText, lowVision && styles.ingredientChipTextLowVision]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.76}>{name}</Text>
             </View>
           ))}
         </View>
@@ -193,6 +197,7 @@ function PairSection({
   lowVision: boolean;
   tone: 'amber' | 'green';
 }) {
+  const { t } = useI18n();
   const color = tone === 'amber' ? Palette.amber : Palette.mint;
   const bg = tone === 'amber' ? Palette.amberSoft : Palette.mintSoft;
   return (
@@ -202,7 +207,7 @@ function PairSection({
         onPress={onToggle}
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
-        accessibilityLabel={`${title} ${pairs.length}개`}>
+        accessibilityLabel={`${title} ${pairs.length}`}>
         <View style={[styles.pairSectionIcon, { backgroundColor: bg }]}>
           <Ionicons name={tone === 'amber' ? 'warning' : 'checkmark-circle'} size={lowVision ? 23 : 19} color={color} />
         </View>
@@ -214,7 +219,7 @@ function PairSection({
       {open ? (
         <View style={styles.pairSectionBody}>
           {pairs.length === 0 ? (
-            <Text style={[styles.emptyPairText, lowVision && styles.emptyPairTextLowVision]}>해당 조합이 없어요</Text>
+            <Text style={[styles.emptyPairText, lowVision && styles.emptyPairTextLowVision]}>{t('noPairs')}</Text>
           ) : (
             pairs.map((pair) => <PairCard key={pair.id} pair={pair} />)
           )}
@@ -242,7 +247,7 @@ const styles = StyleSheet.create({
   ingredientSummaryTitle: {
     fontSize: 18,
     lineHeight: 24,
-    fontWeight: '900',
+    fontWeight: '600',
     color: Palette.text,
   },
   ingredientSummaryTitleLowVision: {
@@ -267,7 +272,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     lineHeight: 21,
-    fontWeight: '900',
+    fontWeight: '600',
     color: Palette.text,
   },
   ingredientGroupTitleLowVision: {
@@ -276,7 +281,7 @@ const styles = StyleSheet.create({
   },
   ingredientGroupCount: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.textSubtle,
   },
   ingredientGroupCountLowVision: {
@@ -297,7 +302,7 @@ const styles = StyleSheet.create({
   ingredientChipText: {
     fontSize: 14,
     lineHeight: 18,
-    fontWeight: '800',
+    fontWeight: '700',
     color: Palette.textMuted,
   },
   ingredientChipTextLowVision: {
@@ -307,7 +312,7 @@ const styles = StyleSheet.create({
   ingredientEmpty: {
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '800',
+    fontWeight: '700',
     color: Palette.textSubtle,
   },
   ingredientEmptyLowVision: {
@@ -348,7 +353,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     lineHeight: 24,
-    fontWeight: '900',
+    fontWeight: '600',
     color: Palette.text,
   },
   pairSectionTitleLowVision: {
@@ -357,7 +362,7 @@ const styles = StyleSheet.create({
   },
   pairSectionCount: {
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.text,
   },
   pairSectionCountLowVision: {

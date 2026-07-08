@@ -9,12 +9,9 @@ import { RecognizedItemRow } from '@/components/recognized-item-row';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
 import { formatRecordDateTime, getSession } from '@/services/history-storage';
+import { categoryLabel, useI18n } from '@/services/i18n';
 import type { AnalysisSession, InteractionPair, ItemCategory, RecognizedItem } from '@/types/medication';
-
-const TABS: { value: ItemCategory; label: string }[] = [
-  { value: '알약', label: '알약' },
-  { value: '건강기능식품 라벨', label: '건강기능식품' },
-];
+const TABS: { value: ItemCategory }[] = [{ value: '알약' }, { value: '건강기능식품 라벨' }];
 
 export default function RecordDetailScreen() {
   const router = useRouter();
@@ -25,6 +22,7 @@ export default function RecordDetailScreen() {
   const [tab, setTab] = useState<ItemCategory>('알약');
   const [attentionOpen, setAttentionOpen] = useState(true);
   const { lowVision } = useUserMode();
+  const { language, t } = useI18n();
 
   useEffect(() => {
     let active = true;
@@ -50,15 +48,15 @@ export default function RecordDetailScreen() {
   return (
     <Screen>
       <TopBar
-        title={record ? formatRecordDateTime(record.createdAt) : '기록'}
-        backLabel="기록"
+        title={record ? formatRecordDateTime(record.createdAt, language) : t('record')}
+        backLabel={t('historyTitle')}
         onBack={() => router.back()}
       />
 
       {loading ? null : !record ? (
         <View style={styles.empty}>
           <IconBadge icon="document-outline" tone="dark" size="lg" />
-          <Text style={styles.emptyText}>기록을 찾을 수 없어요</Text>
+          <Text style={styles.emptyText}>{t('recordNotFound')}</Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={[styles.content, lowVision && styles.contentLowVision]} showsVerticalScrollIndicator={false}>
@@ -66,7 +64,7 @@ export default function RecordDetailScreen() {
             <View style={styles.analysisBox}>
               <RiskSummaryCard result={record.analysis} compact />
               <PairAccordion
-                title="주의할 조합"
+                title={t('attentionPairs')}
                 pairs={attentionPairs}
                 open={attentionOpen}
                 onToggle={() => setAttentionOpen((value) => !value)}
@@ -78,14 +76,14 @@ export default function RecordDetailScreen() {
           ) : (
             <View style={styles.noAnalysis}>
               <IconBadge icon="analytics-outline" tone="dark" />
-              <Text style={[styles.noAnalysisText, lowVision && styles.noAnalysisTextLowVision]}>분석 결과가 없어요</Text>
+              <Text style={[styles.noAnalysisText, lowVision && styles.noAnalysisTextLowVision]}>{t('noAnalysisResult')}</Text>
             </View>
           )}
 
           <View style={[styles.summary, lowVision && styles.summaryLowVision]}>
-            <CountBlock icon="medical" label="알약" value={pillCount} />
+            <CountBlock icon="medical" label={t('pill')} value={pillCount} />
             <View style={styles.summaryDivider} />
-            <CountBlock icon="leaf" label="건강기능식품" value={supplementCount} />
+            <CountBlock icon="leaf" label={t('supplement')} value={supplementCount} />
           </View>
 
           <View style={styles.segment}>
@@ -98,7 +96,7 @@ export default function RecordDetailScreen() {
                   onPress={() => setTab(t.value)}
                   accessibilityRole="button"
                   accessibilityState={{ selected: active }}>
-                  <Text style={[styles.segmentText, lowVision && styles.segmentTextLowVision, active && styles.segmentTextActive]}>{t.label}</Text>
+                  <Text style={[styles.segmentText, lowVision && styles.segmentTextLowVision, active && styles.segmentTextActive]}>{categoryLabel(t.value, language)}</Text>
                 </Pressable>
               );
             })}
@@ -107,7 +105,7 @@ export default function RecordDetailScreen() {
           <View style={styles.itemList}>
             {items.length === 0 ? (
               <View style={styles.emptyItems}>
-                <Text style={styles.emptyItemsText}>인식 기록 없음</Text>
+                <Text style={styles.emptyItemsText}>{t('noRecognizedItems')}</Text>
               </View>
             ) : (
               items.map((item) => <RecognizedItemRow key={item.id} item={item} />)
@@ -144,6 +142,7 @@ function PairAccordion({
   tone: 'amber' | 'green';
   lowVision: boolean;
 }) {
+  const { t } = useI18n();
   const color = tone === 'amber' ? Palette.amber : Palette.mint;
   const bg = tone === 'amber' ? Palette.amberSoft : Palette.mintSoft;
   return (
@@ -159,7 +158,7 @@ function PairAccordion({
       {open ? (
         <View style={styles.accordionBody}>
           {pairs.length === 0 ? (
-            <Text style={styles.emptyPairText}>해당 조합이 없어요</Text>
+            <Text style={styles.emptyPairText}>{t('noPairs')}</Text>
           ) : (
             pairs.map((pair) => <PairCard key={pair.id} pair={pair} compact />)
           )}
@@ -206,13 +205,13 @@ const styles = StyleSheet.create({
   countValue: {
     fontSize: 22,
     lineHeight: 28,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.text,
   },
   countLabel: {
     fontSize: 16,
     lineHeight: 22,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.text,
   },
   analysisBox: {
@@ -244,7 +243,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 17,
     lineHeight: 23,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.text,
   },
   accordionTitleLowVision: {
@@ -253,7 +252,7 @@ const styles = StyleSheet.create({
   },
   accordionCount: {
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.text,
   },
   accordionCountLowVision: {
@@ -284,7 +283,7 @@ const styles = StyleSheet.create({
   },
   noAnalysisText: {
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.text,
   },
   noAnalysisTextLowVision: {
@@ -312,12 +311,12 @@ const styles = StyleSheet.create({
   },
   segmentText: {
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '700',
     color: Palette.textMuted,
   },
   segmentTextLowVision: {
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   segmentTextActive: {
     color: Palette.text,
@@ -337,7 +336,7 @@ const styles = StyleSheet.create({
   },
   emptyItemsText: {
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.textMuted,
   },
   empty: {

@@ -5,10 +5,12 @@ import { ScrollView, StyleSheet } from 'react-native';
 import { ActionCard, Screen, TopBar } from '@/components/app-ui';
 import { StepIndicator } from '@/components/step-indicator';
 import { Spacing } from '@/constants/theme';
+import { useI18n } from '@/services/i18n';
 import type { ItemCategory } from '@/types/medication';
 
 export default function SelectScreen() {
   const router = useRouter();
+  const { t } = useI18n();
 
   const goCamera = (category: ItemCategory) => {
     router.replace({ pathname: '/reuse', params: { category } });
@@ -18,24 +20,24 @@ export default function SelectScreen() {
     <Screen>
       <StatusBar style="dark" />
       <TopBar
-        title="촬영할 항목 선택"
-        subtitle="처방전·약봉투와 건강기능식품을 순서대로 추가해 상호작용을 확인합니다."
-        backLabel="홈"
+        title={t('selectCaptureItem')}
+        subtitle={t('selectCaptureSubtitle')}
+        backLabel={t('home')}
         onBack={() => router.back()}
       />
       <StepIndicator current={1} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <ActionCard
           icon="medical"
-          title="처방전·약봉투 촬영"
-          subtitle="조제약 봉투, 처방전, 복약 안내문"
+          title={t('capturePrescription')}
+          subtitle={t('capturePrescriptionSubtitle')}
           onPress={() => goCamera('알약')}
         />
         <ActionCard
           icon="leaf"
           tone="green"
-          title="건강기능식품 촬영"
-          subtitle="비타민, 오메가3, 유산균 등 제품 라벨"
+          title={t('captureSupplement')}
+          subtitle={t('captureSupplementSubtitle')}
           onPress={() => goCamera('건강기능식품 라벨')}
         />
       </ScrollView>

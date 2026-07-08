@@ -4,16 +4,17 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Palette, Radius, Shadow } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
+import { useI18n } from '@/services/i18n';
 import type { RecognizedItem, RecognitionCandidate } from '@/types/medication';
 
 function imageSource(imageUri: RecognitionCandidate['imageUri']) {
   return typeof imageUri === 'number' ? imageUri : { uri: imageUri };
 }
 
-function candidateSummary(candidate: RecognitionCandidate) {
+function candidateSummary(candidate: RecognitionCandidate, fallback: string) {
   const ingredients = candidate.ingredients?.filter(Boolean) ?? [];
   if (ingredients.length > 0) return ingredients.slice(0, 2).join(', ');
-  return '성분 정보 확인 필요';
+  return fallback;
 }
 
 function scoreLabel(score?: number) {
@@ -45,6 +46,7 @@ export function PillCandidatePicker({
   onEdit: () => void;
 }) {
   const { lowVision } = useUserMode();
+  const { t } = useI18n();
   const candidates = item.candidates?.slice(0, 3) ?? [];
 
   if (candidates.length === 0) {
@@ -56,19 +58,19 @@ export function PillCandidatePicker({
       <View style={styles.header}>
         <View>
           <Text style={[styles.headerTitle, lowVision && styles.headerTitleLowVision]}>
-            후보 Top 3
+            {t('candidateTop3')}
           </Text>
           <Text style={[styles.headerMeta, lowVision && styles.headerMetaLowVision]}>
-            문서 내용과 가장 가까운 제품을 선택
+            {t('chooseClosestProduct')}
           </Text>
         </View>
         <Pressable
           style={({ pressed }) => [styles.editButton, pressed && styles.pressed]}
           onPress={onEdit}
           accessibilityRole="button"
-          accessibilityLabel="직접 수정">
+          accessibilityLabel={t('edit')}>
           <Ionicons name="create-outline" size={lowVision ? 22 : 18} color={Palette.textMuted} />
-          <Text style={[styles.editText, lowVision && styles.editTextLowVision]}>수정</Text>
+          <Text style={[styles.editText, lowVision && styles.editTextLowVision]}>{t('edit')}</Text>
         </Pressable>
       </View>
 
@@ -88,7 +90,7 @@ export function PillCandidatePicker({
               ]}
               onPress={() => onSelect(candidate)}
               accessibilityRole="button"
-              accessibilityLabel={`${index + 1}번 후보 ${candidate.name}`}>
+              accessibilityLabel={`${index + 1}. ${candidate.name}`}>
               <View style={[styles.thumb, lowVision && styles.thumbLowVision]}>
                 {candidate.imageUri ? (
                   <Image source={imageSource(candidate.imageUri)} style={styles.image} contentFit="cover" />
@@ -98,7 +100,7 @@ export function PillCandidatePicker({
               </View>
               <View style={styles.optionText}>
                 <View style={styles.nameRow}>
-                  <Text style={[styles.name, lowVision && styles.nameLowVision]} numberOfLines={1}>
+                  <Text style={[styles.name, lowVision && styles.nameLowVision]} numberOfLines={2}>
                     {candidate.name}
                   </Text>
                   {scoreLabel(candidate.score) ? (
@@ -108,10 +110,10 @@ export function PillCandidatePicker({
                   ) : null}
                 </View>
                 <Text style={[styles.dosage, lowVision && styles.dosageLowVision]} numberOfLines={1}>
-                  {candidate.dosage || '용량 정보 없음'}
+                  {candidate.dosage || t('noDosageInfo')}
                 </Text>
-                <Text style={[styles.ingredients, lowVision && styles.ingredientsLowVision]} numberOfLines={1}>
-                  {candidateSummary(candidate)}
+                <Text style={[styles.ingredients, lowVision && styles.ingredientsLowVision]} numberOfLines={2}>
+                  {candidateSummary(candidate, t('ingredientInfoNeeded'))}
                 </Text>
               </View>
               <Ionicons
@@ -149,17 +151,18 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     lineHeight: 23,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.text,
   },
   headerTitleLowVision: {
     fontSize: 21,
     lineHeight: 28,
+    fontWeight: '700',
   },
   headerMeta: {
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: '800',
+    fontWeight: '600',
     color: Palette.textMuted,
     marginTop: 1,
   },
@@ -178,7 +181,7 @@ const styles = StyleSheet.create({
   },
   editText: {
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.textMuted,
   },
   editTextLowVision: {
@@ -237,7 +240,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     fontSize: 16,
     lineHeight: 22,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.text,
   },
   nameLowVision: {
@@ -247,7 +250,7 @@ const styles = StyleSheet.create({
   score: {
     fontSize: 12,
     lineHeight: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.textMuted,
     paddingHorizontal: 7,
     paddingVertical: 2,
@@ -260,7 +263,7 @@ const styles = StyleSheet.create({
   dosage: {
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: '800',
+    fontWeight: '700',
     color: Palette.textMuted,
     marginTop: 2,
   },
@@ -271,7 +274,7 @@ const styles = StyleSheet.create({
   ingredients: {
     fontSize: 12,
     lineHeight: 17,
-    fontWeight: '700',
+    fontWeight: '600',
     color: Palette.textSubtle,
     marginTop: 1,
   },

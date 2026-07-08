@@ -8,6 +8,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { IconBadge, PrimaryButton, Screen } from '@/components/app-ui';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { formatRecordDateTime, formatRecordMonth, getAllSessions } from '@/services/history-storage';
+import { riskLabel, translate, useI18n, type AppLanguage } from '@/services/i18n';
 import { getSettings, type AppSettings } from '@/services/settings-storage';
 import type { AnalysisSession, RiskLevel } from '@/types/medication';
 
@@ -16,13 +17,6 @@ function countByCategory(record: AnalysisSession) {
     pill: record.items.filter((item) => item.category === '알약').length,
     supplement: record.items.filter((item) => item.category === '건강기능식품 라벨').length,
   };
-}
-
-function riskLabel(level?: RiskLevel) {
-  if (level === 'danger') return '위험';
-  if (level === 'caution') return '주의';
-  if (level === 'safe') return '미탐지';
-  return '결과 없음';
 }
 
 function riskTone(level?: RiskLevel): 'red' | 'amber' | 'green' | 'dark' {
@@ -36,10 +30,10 @@ function hasAnalysis(record: AnalysisSession) {
   return Boolean(record.analysis) || record.status === 'analyzed';
 }
 
-function buildRecentGroups(records: AnalysisSession[]) {
+function buildRecentGroups(records: AnalysisSession[], language: AppLanguage) {
   const groups: { title: string; records: AnalysisSession[] }[] = [];
   records.forEach((record) => {
-    const title = formatRecordMonth(record.createdAt);
+    const title = formatRecordMonth(record.createdAt, language);
     const group = groups.find((item) => item.title === title);
     if (group) {
       group.records.push(record);
@@ -52,8 +46,9 @@ function buildRecentGroups(records: AnalysisSession[]) {
 
 export default function MainScreen() {
   const router = useRouter();
-  const [settings, setSettings] = useState<AppSettings>({ mode: 'standard', pillRecognizer: 'codeit' });
+  const [settings, setSettings] = useState<AppSettings>({ mode: 'standard', pillRecognizer: 'codeit', language: 'ko' });
   const [sessions, setSessions] = useState<AnalysisSession[]>([]);
+  const { t } = useI18n();
 
   useFocusEffect(
     useCallback(() => {
@@ -70,10 +65,11 @@ export default function MainScreen() {
   );
 
   const lowVision = settings.mode === 'lowVision';
+  const language = settings.language;
   const analyzedRecords = useMemo(() => sessions.filter(hasAnalysis), [sessions]);
   const [visibleRecentCount, setVisibleRecentCount] = useState(5);
   const recentRecords = useMemo(() => analyzedRecords.slice(0, visibleRecentCount), [analyzedRecords, visibleRecentCount]);
-  const recentGroups = useMemo(() => buildRecentGroups(recentRecords), [recentRecords]);
+  const recentGroups = useMemo(() => buildRecentGroups(recentRecords, language), [recentRecords, language]);
   const inProgressRecord = useMemo(() => sessions.find((session) => !hasAnalysis(session) && session.items.length > 0) ?? null, [sessions]);
 
   const continueProgress = (record: AnalysisSession) => {
@@ -107,22 +103,21 @@ export default function MainScreen() {
         <View style={styles.header}>
           <View style={styles.brandLeft}>
             <View style={styles.logoMark}>
-              <Image source={require('@/assets/images/click.png')} style={styles.logoImage} contentFit="contain" />
+              <Image source={require('@/assets/images/brand-wordmark.png')} style={styles.logoImage} contentFit="contain" />
             </View>
-            <Text style={[styles.logoText, lowVision && styles.logoTextLowVision]}>CLICK</Text>
           </View>
 
           <View style={styles.headerRight}>
             <View style={[styles.modeBadge, lowVision && styles.modeBadgeLowVision]}>
               <Text style={[styles.modeBadgeText, lowVision && styles.modeBadgeTextLowVision]}>
-                {lowVision ? '저시력자' : '일반'}
+                {lowVision ? t('lowVision') : t('standard')}
               </Text>
             </View>
             <Pressable
               style={({ pressed }) => [styles.settingsButton, lowVision && styles.settingsButtonLowVision, pressed && styles.pressed]}
               onPress={() => router.push({ pathname: '/settings' })}
               accessibilityRole="button"
-              accessibilityLabel="설정 열기">
+              accessibilityLabel={t('openSettings')}>
               <Ionicons name="settings-outline" size={lowVision ? 25 : 22} color={Palette.text} />
             </Pressable>
           </View>
@@ -131,39 +126,39 @@ export default function MainScreen() {
 
       <ScrollView contentContainerStyle={[styles.content, lowVision && styles.contentLowVision]} showsVerticalScrollIndicator={false}>
         <View style={styles.heroBlock}>
-          <Text style={[styles.heroTitle, lowVision && styles.heroTitleLowVision]}>같이 먹어도 괜찮은지{'\n'}사진으로 먼저 확인하세요.</Text>
+          <Text style={[styles.heroTitle, lowVision && styles.heroTitleLowVision]}>{t('heroTitle')}</Text>
         </View>
 
         <View style={styles.flowStrip}>
-          <FlowPill icon="medical" label="처방약 인식" large={lowVision} />
+          <FlowPill icon="medical" label={t('prescriptionRecognitionShort')} large={lowVision} />
           <Ionicons name="chevron-forward" size={16} color={Palette.textSubtle} />
-          <FlowPill icon="leaf" label="건강기능식품 인식" tone="green" large={lowVision} />
+          <FlowPill icon="leaf" label={t('supplementRecognitionShort')} tone="green" large={lowVision} />
           <Ionicons name="chevron-forward" size={16} color={Palette.textSubtle} />
-          <FlowPill icon="shield-checkmark" label="상호작용 분석" tone="dark" large={lowVision} />
+          <FlowPill icon="shield-checkmark" label={t('interactionAnalysis')} tone="dark" large={lowVision} />
         </View>
 
         <View style={styles.startPanel}>
-          <Text style={[styles.startTitle, lowVision && styles.startTitleLowVision]}>복용 전 1분 체크</Text>
+          <Text style={[styles.startTitle, lowVision && styles.startTitleLowVision]}>{t('oneMinuteCheck')}</Text>
           <PrimaryButton
-            label="인식 시작하기"
+            label={t('startRecognition')}
             icon="camera"
             onPress={() => router.push({ pathname: '/reuse', params: { category: '알약', mode: 'start' } })}
           />
         </View>
 
-        {inProgressRecord ? <ResumeCard record={inProgressRecord} lowVision={lowVision} onPress={() => continueProgress(inProgressRecord)} /> : null}
+        {inProgressRecord ? <ResumeCard record={inProgressRecord} lowVision={lowVision} language={language} onPress={() => continueProgress(inProgressRecord)} /> : null}
 
         <View style={styles.sectionRow}>
-          <Text style={[styles.sectionTitle, lowVision && styles.sectionTitleLowVision]}>최근 기록</Text>
-          <Pressable onPress={() => router.push('/history')} hitSlop={10} accessibilityRole="button" accessibilityLabel="전체 기록 보기">
-            <Text style={[styles.sectionAction, lowVision && styles.sectionActionLowVision]}>전체</Text>
+          <Text style={[styles.sectionTitle, lowVision && styles.sectionTitleLowVision]}>{t('recentRecords')}</Text>
+          <Pressable onPress={() => router.push('/history')} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('historyTitle')}>
+            <Text style={[styles.sectionAction, lowVision && styles.sectionActionLowVision]}>{t('all')}</Text>
           </Pressable>
         </View>
 
         {analyzedRecords.length === 0 ? (
           <View style={[styles.emptyTimeline, lowVision && styles.emptyTimelineLowVision]}>
             <IconBadge icon="folder-open" tone="dark" />
-            <Text style={[styles.emptyTitle, lowVision && styles.emptyTitleLowVision]}>아직 기록이 없어요</Text>
+            <Text style={[styles.emptyTitle, lowVision && styles.emptyTitleLowVision]}>{t('noRecordsYet')}</Text>
           </View>
         ) : (
           <View style={styles.timeline}>
@@ -176,6 +171,7 @@ export default function MainScreen() {
                     record={record}
                     first={index === 0}
                     lowVision={lowVision}
+                    language={language}
                     onPress={() => router.push({ pathname: '/record', params: { id: record.id } })}
                   />
                 ))}
@@ -186,7 +182,7 @@ export default function MainScreen() {
                 style={({ pressed }) => [styles.moreButton, lowVision && styles.moreButtonLowVision, pressed && styles.pressed]}
                 onPress={() => setVisibleRecentCount((count) => count + 5)}
                 accessibilityRole="button">
-                <Text style={[styles.moreButtonText, lowVision && styles.moreButtonTextLowVision]}>5개 더보기</Text>
+                <Text style={[styles.moreButtonText, lowVision && styles.moreButtonTextLowVision]}>{t('showMoreFive')}</Text>
               </Pressable>
             ) : null}
           </View>
@@ -223,11 +219,13 @@ function TimelineCard({
   record,
   first,
   lowVision,
+  language,
   onPress,
 }: {
   record: AnalysisSession;
   first: boolean;
   lowVision: boolean;
+  language: AppLanguage;
   onPress: () => void;
 }) {
   const counts = countByCategory(record);
@@ -237,7 +235,7 @@ function TimelineCard({
       style={({ pressed }) => [styles.timelineCard, lowVision && styles.timelineCardLowVision, first && styles.timelineCardFirst, pressed && styles.pressed]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${formatRecordDateTime(record.createdAt)}, ${riskLabel(level)}`}>
+      accessibilityLabel={`${formatRecordDateTime(record.createdAt, language)}, ${riskLabel(level, language)}`}>
       <View style={styles.timelineLeft}>
         <View style={[styles.timelineDot, { backgroundColor: Palette[riskTone(level) === 'red' ? 'rose' : riskTone(level) === 'amber' ? 'amber' : riskTone(level) === 'green' ? 'mint' : 'blueGrey'] }]} />
         <View style={styles.timelineLine} />
@@ -245,13 +243,13 @@ function TimelineCard({
       <View style={styles.timelineBody}>
         <View style={styles.timelineTop}>
           <Text style={[styles.timelineTitle, lowVision && styles.timelineTitleLowVision]}>
-            {formatRecordDateTime(record.createdAt)}
+            {formatRecordDateTime(record.createdAt, language)}
           </Text>
-          <RiskChip level={level} />
+          <RiskChip level={level} language={language} />
         </View>
         <View style={styles.countRow}>
-          <CountChip icon="medical" label={`처방약 ${counts.pill}`} />
-          <CountChip icon="leaf" label={`건강기능식품 ${counts.supplement}`} />
+          <CountChip icon="medical" label={translate(language, 'prescriptionCount', { count: counts.pill })} />
+          <CountChip icon="leaf" label={translate(language, 'supplementCount', { count: counts.supplement })} />
         </View>
       </View>
       <Ionicons name="chevron-forward" size={lowVision ? 22 : 19} color={Palette.textSubtle} />
@@ -262,10 +260,12 @@ function TimelineCard({
 function ResumeCard({
   record,
   lowVision,
+  language,
   onPress,
 }: {
   record: AnalysisSession;
   lowVision: boolean;
+  language: AppLanguage;
   onPress: () => void;
 }) {
   const counts = countByCategory(record);
@@ -274,12 +274,12 @@ function ResumeCard({
       style={({ pressed }) => [styles.resumeCard, lowVision && styles.resumeCardLowVision, pressed && styles.pressed]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel="하던 인식 이어하기">
+      accessibilityLabel={translate(language, 'resumeRecognition')}>
       <IconBadge icon="time" tone="amber" />
       <View style={styles.resumeText}>
-        <Text style={[styles.resumeTitle, lowVision && styles.resumeTitleLowVision]}>하던 인식이 있어요</Text>
+        <Text style={[styles.resumeTitle, lowVision && styles.resumeTitleLowVision]}>{translate(language, 'resumeRecognition')}</Text>
         <Text style={[styles.resumeMeta, lowVision && styles.resumeMetaLowVision]}>
-          처방약 {counts.pill}개 · 건강기능식품 {counts.supplement}개
+          {translate(language, 'prescriptionCount', { count: counts.pill })} · {translate(language, 'supplementCount', { count: counts.supplement })}
         </Text>
       </View>
       <Ionicons name="chevron-forward" size={lowVision ? 22 : 19} color={Palette.textSubtle} />
@@ -287,13 +287,13 @@ function ResumeCard({
   );
 }
 
-function RiskChip({ level }: { level?: RiskLevel }) {
+function RiskChip({ level, language }: { level?: RiskLevel; language: AppLanguage }) {
   const tone = riskTone(level);
   const color = tone === 'red' ? Palette.rose : tone === 'amber' ? Palette.amber : tone === 'green' ? Palette.mint : Palette.blueGrey;
   const backgroundColor = tone === 'red' ? Palette.roseSoft : tone === 'amber' ? Palette.amberSoft : tone === 'green' ? Palette.mintSoft : Palette.surfaceMuted;
   return (
     <View style={[styles.riskChip, { backgroundColor }]}>
-      <Text style={[styles.riskChipText, { color }]}>{riskLabel(level)}</Text>
+      <Text style={[styles.riskChipText, { color }]}>{riskLabel(level, language)}</Text>
     </View>
   );
 }
@@ -333,29 +333,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   logoMark: {
-    width: 42,
-    height: 42,
-    borderRadius: Radius.md,
+    width: 150,
+    height: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Palette.surface,
-    borderWidth: 1,
-    borderColor: Palette.border,
-    ...Shadow.subtle,
+    marginLeft: -6,
   },
   logoImage: {
-    width: 32,
-    height: 32,
-  },
-  logoText: {
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: '900',
-    color: Palette.text,
-  },
-  logoTextLowVision: {
-    fontSize: 31,
-    lineHeight: 37,
+    width: 150,
+    height: 52,
   },
   settingsButton: {
     width: 46,
@@ -407,7 +393,7 @@ const styles = StyleSheet.create({
   modeBadgeText: {
     fontSize: 12,
     lineHeight: 17,
-    fontWeight: '900',
+    fontWeight: '600',
     color: Palette.blueGrey,
   },
   modeBadgeTextLowVision: {
@@ -445,7 +431,7 @@ const styles = StyleSheet.create({
   flowPillText: {
     fontSize: 12,
     lineHeight: 16,
-    fontWeight: '900',
+    fontWeight: '600',
     color: Palette.text,
     textAlign: 'center',
   },
@@ -465,7 +451,7 @@ const styles = StyleSheet.create({
   startTitle: {
     fontSize: 21,
     lineHeight: 28,
-    fontWeight: '900',
+    fontWeight: '600',
     color: Palette.text,
   },
   startTitleLowVision: {
@@ -495,7 +481,7 @@ const styles = StyleSheet.create({
   resumeTitle: {
     fontSize: 18,
     lineHeight: 24,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.text,
   },
   resumeTitleLowVision: {
@@ -505,7 +491,7 @@ const styles = StyleSheet.create({
   resumeMeta: {
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '800',
+    fontWeight: '700',
     color: Palette.textMuted,
   },
   resumeMetaLowVision: {
@@ -521,7 +507,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 21,
     lineHeight: 28,
-    fontWeight: '900',
+    fontWeight: '600',
     color: Palette.text,
   },
   sectionTitleLowVision: {
@@ -530,7 +516,7 @@ const styles = StyleSheet.create({
   },
   sectionAction: {
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.primary,
   },
   sectionActionLowVision: {
@@ -552,7 +538,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '600',
     color: Palette.textMuted,
   },
   emptyTitleLowVision: {
@@ -567,7 +553,7 @@ const styles = StyleSheet.create({
   recentMonthTitle: {
     fontSize: 18,
     lineHeight: 24,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.text,
     marginTop: 2,
   },
@@ -624,7 +610,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     lineHeight: 24,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.text,
   },
   timelineTitleLowVision: {
@@ -638,7 +624,7 @@ const styles = StyleSheet.create({
   },
   riskChipText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   countRow: {
     flexDirection: 'row',
@@ -657,7 +643,7 @@ const styles = StyleSheet.create({
   },
   countChipText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.textMuted,
   },
   moreButton: {
@@ -674,7 +660,7 @@ const styles = StyleSheet.create({
   },
   moreButtonText: {
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.primary,
   },
   moreButtonTextLowVision: {

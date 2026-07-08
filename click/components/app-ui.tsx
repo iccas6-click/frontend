@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
+import { useI18n } from '@/services/i18n';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -43,6 +44,10 @@ export function TopBar({
   right?: ReactNode;
 }) {
   const { lowVision } = useUserMode();
+  const { tx } = useI18n();
+  const displayTitle = title ? tx(title) : title;
+  const displaySubtitle = subtitle ? tx(subtitle) : subtitle;
+  const displayBackLabel = tx(backLabel ?? '뒤로');
   return (
     <View style={[styles.topBar, lowVision && styles.topBarLowVision]}>
       <View style={[styles.navRow, lowVision && styles.navRowLowVision]}>
@@ -52,23 +57,27 @@ export function TopBar({
             onPress={onBack}
             hitSlop={12}
             accessibilityRole="button"
-            accessibilityLabel={`${backLabel ?? '뒤로'}로 이동`}>
+            accessibilityLabel={`${displayBackLabel}`}>
             <Ionicons name="chevron-back" size={lowVision ? 25 : 22} color={Palette.primary} />
-            <Text style={[styles.backText, lowVision && styles.backTextLowVision]}>{backLabel ?? '뒤로'}</Text>
+            <Text style={[styles.backText, lowVision && styles.backTextLowVision]}>{displayBackLabel}</Text>
           </Pressable>
         ) : (
           <View />
         )}
         {right}
       </View>
-      {title ? <Text style={[styles.title, lowVision && styles.titleLowVision]}>{title}</Text> : null}
-      {subtitle ? (
+      {displayTitle ? (
+        <Text style={[styles.title, lowVision && styles.titleLowVision]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.82}>
+          {displayTitle}
+        </Text>
+      ) : null}
+      {displaySubtitle ? (
         <Text
           style={[styles.subtitle, lowVision && styles.subtitleLowVision]}
           numberOfLines={subtitleNumberOfLines}
           adjustsFontSizeToFit={Boolean(subtitleNumberOfLines)}
           minimumFontScale={0.82}>
-          {subtitle}
+          {displaySubtitle}
         </Text>
       ) : null}
     </View>
@@ -77,9 +86,12 @@ export function TopBar({
 
 export function SectionHeader({ title, action }: { title: string; action?: ReactNode }) {
   const { lowVision } = useUserMode();
+  const { tx } = useI18n();
   return (
     <View style={[styles.sectionHeader, lowVision && styles.sectionHeaderLowVision]}>
-      <Text style={[styles.sectionTitle, lowVision && styles.sectionTitleLowVision]}>{title}</Text>
+      <Text style={[styles.sectionTitle, lowVision && styles.sectionTitleLowVision]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.82}>
+        {tx(title)}
+      </Text>
       {action}
     </View>
   );
@@ -126,21 +138,24 @@ export function ActionCard({
   onPress?: () => void;
 }) {
   const { lowVision } = useUserMode();
+  const { tx } = useI18n();
+  const displayTitle = tx(title);
+  const displaySubtitle = subtitle ? tx(subtitle) : subtitle;
   return (
     <Pressable
       style={({ pressed }) => [styles.card, lowVision && styles.cardLowVision, pressed && onPress ? styles.pressed : null]}
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={subtitle ? `${title}. ${subtitle}` : title}>
+      accessibilityLabel={displaySubtitle ? `${displayTitle}. ${displaySubtitle}` : displayTitle}>
       <IconBadge icon={icon} tone={tone} />
       <View style={styles.cardText}>
         <Text style={[styles.cardTitle, lowVision && styles.cardTitleLowVision]} numberOfLines={lowVision ? 2 : 1}>
-          {title}
+          {displayTitle}
         </Text>
-        {subtitle ? (
+        {displaySubtitle ? (
           <Text style={[styles.cardSubtitle, lowVision && styles.cardSubtitleLowVision]} numberOfLines={2}>
-            {subtitle}
+            {displaySubtitle}
           </Text>
         ) : null}
         {meta}
@@ -166,6 +181,8 @@ export function PrimaryButton({
   accessibilityHint?: string;
 }) {
   const { lowVision } = useUserMode();
+  const { tx } = useI18n();
+  const displayLabel = tx(label);
   const variantStyle =
     variant === 'secondary' ? styles.secondaryButton : variant === 'danger' ? styles.dangerButton : styles.primaryButton;
   const textStyle =
@@ -184,12 +201,12 @@ export function PrimaryButton({
       disabled={disabled}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={displayLabel}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: Boolean(disabled) }}>
       {icon ? <Ionicons name={icon} size={lowVision ? 23 : 19} color={iconColor} /> : null}
-      <Text style={[textStyle, lowVision && styles.buttonTextLowVision]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>
-        {label}
+      <Text style={[textStyle, lowVision && styles.buttonTextLowVision]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.68}>
+        {displayLabel}
       </Text>
     </Pressable>
   );
@@ -254,7 +271,7 @@ const styles = StyleSheet.create({
   },
   backTextLowVision: {
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   title: {
     ...Typography.title,
@@ -263,7 +280,7 @@ const styles = StyleSheet.create({
   titleLowVision: {
     fontSize: 31,
     lineHeight: 37,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   subtitle: {
     ...Typography.body,
@@ -282,18 +299,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 12,
   },
   sectionHeaderLowVision: {
     marginBottom: 10,
   },
   sectionTitle: {
     ...Typography.section,
+    flex: 1,
+    minWidth: 0,
     color: Palette.text,
   },
   sectionTitleLowVision: {
     fontSize: 23,
     lineHeight: 29,
-    fontWeight: '900',
+    fontWeight: '600',
   },
   card: {
     minHeight: 88,
@@ -326,13 +346,13 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     lineHeight: 24,
-    fontWeight: '800',
+    fontWeight: '600',
     color: Palette.text,
   },
   cardTitleLowVision: {
     fontSize: 21,
     lineHeight: 28,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   cardSubtitle: {
     fontSize: 15,
@@ -346,15 +366,16 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   button: {
-    minHeight: 60,
+    minHeight: 62,
     borderRadius: Radius.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    paddingHorizontal: 14,
   },
   buttonLowVision: {
-    minHeight: 68,
+    minHeight: 72,
     borderRadius: Radius.lg,
     gap: 10,
   },
@@ -369,22 +390,28 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '900',
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   secondaryButtonText: {
     color: Palette.primary,
-    fontSize: 18,
-    fontWeight: '900',
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   dangerButtonText: {
     color: Palette.rose,
-    fontSize: 18,
-    fontWeight: '900',
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   buttonTextLowVision: {
-    fontSize: 21,
-    lineHeight: 27,
+    fontSize: 19,
+    lineHeight: 24,
   },
   buttonDisabled: {
     opacity: 0.42,

@@ -10,11 +10,12 @@ import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
 import { updateSessionItems } from '@/services/history-storage';
+import { categoryLabel, translate, useI18n } from '@/services/i18n';
 import type { ItemCategory, RecognizedItem } from '@/types/medication';
 
-const CATEGORY_META: Record<ItemCategory, { label: string; icon: 'medical' | 'leaf'; tone: 'blue' | 'green' }> = {
-  알약: { label: '처방약', icon: 'medical', tone: 'blue' },
-  '건강기능식품 라벨': { label: '건강기능식품', icon: 'leaf', tone: 'green' },
+const CATEGORY_META: Record<ItemCategory, { icon: 'medical' | 'leaf'; tone: 'blue' | 'green' }> = {
+  알약: { icon: 'medical', tone: 'blue' },
+  '건강기능식품 라벨': { icon: 'leaf', tone: 'green' },
 };
 
 function parseItems(raw?: string): RecognizedItem[] {
@@ -39,6 +40,7 @@ export default function ReviewScreen() {
   const [editTarget, setEditTarget] = useState<RecognizedItem | null | undefined>(undefined);
   const [addCategory, setAddCategory] = useState<ItemCategory>('알약');
   const { lowVision } = useUserMode();
+  const { language, t } = useI18n();
 
   const pillItems = items.filter((item) => item.category === '알약');
   const supplementItems = items.filter((item) => item.category === '건강기능식품 라벨');
@@ -101,10 +103,10 @@ export default function ReviewScreen() {
     <Screen
       bottom={
         <View style={styles.footer}>
-          <PrimaryButton label="상호작용 분석하기" icon="analytics" disabled={items.length === 0} onPress={analyze} />
+          <PrimaryButton label={t('analyzeInteractions')} icon="analytics" disabled={items.length === 0} onPress={analyze} />
         </View>
       }>
-      <TopBar title="전체 인식 결과" backLabel="뒤로" onBack={handleBack} />
+      <TopBar title={t('reviewAllResults')} backLabel={t('back')} onBack={handleBack} />
       <StepIndicator current={3} />
 
       <ScrollView contentContainerStyle={[styles.content, lowVision && styles.contentLowVision]} showsVerticalScrollIndicator={false}>
@@ -112,6 +114,7 @@ export default function ReviewScreen() {
           category="알약"
           items={pillItems}
           lowVision={lowVision}
+          language={language}
           onAdd={() => openAdd('알약')}
           onPress={setEditTarget}
         />
@@ -119,6 +122,7 @@ export default function ReviewScreen() {
           category="건강기능식품 라벨"
           items={supplementItems}
           lowVision={lowVision}
+          language={language}
           onAdd={() => openAdd('건강기능식품 라벨')}
           onPress={setEditTarget}
         />
@@ -140,23 +144,26 @@ function ItemSection({
   category,
   items,
   lowVision,
+  language,
   onAdd,
   onPress,
 }: {
   category: ItemCategory;
   items: RecognizedItem[];
   lowVision: boolean;
+  language: ReturnType<typeof useI18n>['language'];
   onAdd: () => void;
   onPress: (item: RecognizedItem) => void;
 }) {
   const meta = CATEGORY_META[category];
+  const label = categoryLabel(category, language);
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <View style={styles.sectionTitleRow}>
           <IconBadge icon={meta.icon} tone={meta.tone} size="sm" />
-          <Text style={[styles.sectionTitle, lowVision && styles.sectionTitleLowVision]} numberOfLines={1}>
-            {meta.label}
+          <Text style={[styles.sectionTitle, lowVision && styles.sectionTitleLowVision]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78}>
+            {label}
           </Text>
         </View>
         <Text style={[styles.sectionCount, lowVision && styles.sectionCountLowVision]}>{items.length}</Text>
@@ -170,9 +177,9 @@ function ItemSection({
           style={({ pressed }) => [styles.addRow, lowVision && styles.addRowLowVision, pressed && styles.pressed]}
           onPress={onAdd}
           accessibilityRole="button"
-          accessibilityLabel={`${meta.label} 직접 추가`}>
+          accessibilityLabel={`${label} ${translate(language, 'addManually')}`}>
           <Ionicons name="add" size={lowVision ? 23 : 19} color={Palette.textMuted} />
-          <Text style={[styles.addRowText, lowVision && styles.addRowTextLowVision]}>직접 추가</Text>
+          <Text style={[styles.addRowText, lowVision && styles.addRowTextLowVision]}>{translate(language, 'addManually')}</Text>
         </Pressable>
       </View>
     </View>
@@ -198,7 +205,7 @@ const styles = StyleSheet.create({
     ...Shadow.subtle,
   },
   sectionHeader: {
-    minHeight: 42,
+    minHeight: 50,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -215,7 +222,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 19,
     lineHeight: 25,
-    fontWeight: '900',
+    fontWeight: '600',
     color: Palette.text,
   },
   sectionTitleLowVision: {
@@ -226,7 +233,7 @@ const styles = StyleSheet.create({
     minWidth: 34,
     textAlign: 'right',
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: '600',
     color: Palette.text,
   },
   sectionCountLowVision: {
@@ -252,7 +259,7 @@ const styles = StyleSheet.create({
   },
   addRowText: {
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '600',
     color: Palette.textMuted,
   },
   addRowTextLowVision: {

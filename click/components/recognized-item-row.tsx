@@ -4,11 +4,12 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Palette, Radius, Shadow } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
+import { useI18n } from '@/services/i18n';
 import type { RecognizedItem } from '@/types/medication';
 
-function fallbackIngredients(item: RecognizedItem) {
+function fallbackIngredients(item: RecognizedItem, fallback: string) {
   if (item.ingredients?.length) return item.ingredients.join(', ');
-  return '성분 정보 없음';
+  return fallback;
 }
 
 function imageSource(imageUri: RecognizedItem['imageUri']) {
@@ -25,6 +26,7 @@ export function RecognizedItemRow({
   editable?: boolean;
 }) {
   const { lowVision } = useUserMode();
+  const { t } = useI18n();
   const isSupplement = item.category === '건강기능식품 라벨';
   const icon = isSupplement ? 'leaf' : 'medical';
   const iconColor = isSupplement ? Palette.mint : Palette.primary;
@@ -39,19 +41,19 @@ export function RecognizedItemRow({
         )}
       </View>
       <View style={styles.textWrap}>
-        <Text style={[styles.name, lowVision && styles.nameLowVision]} numberOfLines={1}>
+        <Text style={[styles.name, lowVision && styles.nameLowVision]} numberOfLines={2}>
           {item.name}
         </Text>
-        <Text style={[styles.dose, lowVision && styles.doseLowVision]} numberOfLines={1}>
-          {item.dosage || (isSupplement ? '성분 확인 필요' : '용량 정보 없음')}
+        <Text style={[styles.dose, lowVision && styles.doseLowVision]} numberOfLines={2}>
+          {item.dosage || (isSupplement ? t('supplementNeedsIngredient') : t('noDosageInfo'))}
         </Text>
         {item.administration ? (
-          <Text style={[styles.administration, lowVision && styles.administrationLowVision]} numberOfLines={1}>
-            복용법: {item.administration}
+          <Text style={[styles.administration, lowVision && styles.administrationLowVision]} numberOfLines={2}>
+            {t('administration')}: {item.administration}
           </Text>
         ) : null}
-        <Text style={[styles.ingredients, lowVision && styles.ingredientsLowVision]} numberOfLines={1}>
-          성분: {fallbackIngredients(item)}
+        <Text style={[styles.ingredients, lowVision && styles.ingredientsLowVision]} numberOfLines={2}>
+          {t('ingredients')}: {fallbackIngredients(item, t('noIngredientInfo'))}
         </Text>
       </View>
       {editable ? <Ionicons name="create-outline" size={lowVision ? 23 : 19} color={Palette.textSubtle} /> : null}
@@ -88,9 +90,9 @@ export function RecognizedItemRow({
 
 const styles = StyleSheet.create({
   row: {
-    minHeight: 92,
+    minHeight: 108,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     backgroundColor: Palette.surface,
     borderRadius: Radius.lg,
     borderWidth: 1,
@@ -99,7 +101,7 @@ const styles = StyleSheet.create({
     ...Shadow.subtle,
   },
   rowLowVision: {
-    minHeight: 112,
+    minHeight: 132,
     padding: 16,
   },
   thumb: {
@@ -127,7 +129,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 17,
     lineHeight: 23,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.text,
   },
   nameLowVision: {
@@ -137,7 +139,7 @@ const styles = StyleSheet.create({
   dose: {
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '800',
+    fontWeight: '600',
     color: Palette.textMuted,
     marginTop: 2,
   },
@@ -148,14 +150,14 @@ const styles = StyleSheet.create({
   ingredients: {
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: '700',
+    fontWeight: '600',
     color: Palette.textSubtle,
     marginTop: 1,
   },
   administration: {
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: '700',
+    fontWeight: '600',
     color: Palette.textMuted,
     marginTop: 1,
   },
