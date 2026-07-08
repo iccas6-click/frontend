@@ -30,12 +30,14 @@ export function Screen({
 export function TopBar({
   title,
   subtitle,
+  subtitleNumberOfLines,
   backLabel,
   onBack,
   right,
 }: {
   title?: string;
   subtitle?: string;
+  subtitleNumberOfLines?: number;
   backLabel?: string;
   onBack?: () => void;
   right?: ReactNode;
@@ -60,7 +62,15 @@ export function TopBar({
         {right}
       </View>
       {title ? <Text style={[styles.title, lowVision && styles.titleLowVision]}>{title}</Text> : null}
-      {subtitle ? <Text style={[styles.subtitle, lowVision && styles.subtitleLowVision]}>{subtitle}</Text> : null}
+      {subtitle ? (
+        <Text
+          style={[styles.subtitle, lowVision && styles.subtitleLowVision]}
+          numberOfLines={subtitleNumberOfLines}
+          adjustsFontSizeToFit={Boolean(subtitleNumberOfLines)}
+          minimumFontScale={0.82}>
+          {subtitle}
+        </Text>
+      ) : null}
     </View>
   );
 }

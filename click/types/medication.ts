@@ -1,12 +1,13 @@
 /** 인식된 항목의 분류 */
 export type ItemCategory = '알약' | '건강기능식품 라벨';
 
-/** 알약 인식 모델이 반환한 제품 후보 */
+/** 처방전·약봉투 인식이 반환한 제품 후보 */
 export interface RecognitionCandidate {
   id: string;
   pillId?: string;
   name: string;
   dosage: string;
+  administration?: string;
   productName?: string;
   imageUri?: string | number;
   ingredients?: string[];
@@ -21,6 +22,8 @@ export interface RecognizedItem {
   name: string;
   /** 용량 표기 (예: "100mg", "2000IU") */
   dosage: string;
+  /** 처방전/약봉투에 적힌 복용법. 용량과 분리해서 보관한다. */
+  administration?: string;
   category: ItemCategory;
   /** 원본 제품명. name에서 용량을 분리했을 때도 원문을 보존한다. */
   productName?: string;
@@ -30,7 +33,7 @@ export interface RecognizedItem {
   ingredients?: string[];
   /** 백엔드 상호작용 분석에 보낼 성분/약물 후보명 */
   analysisNames?: string[];
-  /** 알약 인식 후보 Top-K. 사용자가 최종 후보를 고르면 항목 본문에 반영된다. */
+  /** 약품명 인식 후보 Top-K. 사용자가 최종 후보를 고르면 항목 본문에 반영된다. */
   candidates?: RecognitionCandidate[];
   selectedCandidateId?: string;
   /** 원본 사진 위에서 이 항목을 표시하기 위한 탐지 정보 */
@@ -61,9 +64,9 @@ export interface AnalysisResult {
   matchedDrugNames?: string[];
   /** 백엔드가 실제 분석에 사용한 건강기능식품 성분명 */
   matchedSupplementNames?: string[];
-  /** 제품/포장/용량 등 분석 성분에서 제외된 알약 OCR 후보 */
+  /** 제품/포장/용량 등 분석 성분에서 제외된 처방약 OCR 후보 */
   ignoredDrugNames?: string[];
-  /** 백엔드가 실제로 확인한 건강기능식품 성분 x 알약 성분 조합 수 */
+  /** 백엔드가 실제로 확인한 건강기능식품 성분 x 처방약 성분 조합 수 */
   checkedCount?: number;
   /** 주의 정보가 발견된 조합 수 */
   detectedCount?: number;
@@ -71,7 +74,7 @@ export interface AnalysisResult {
   undetectedCount?: number;
   /** 현재 DB에서 매칭하지 못한 건강기능식품 성분 수 */
   unmatchedSupplementCount?: number;
-  /** 현재 DB에서 매칭하지 못한 알약 성분/약물 수 */
+  /** 현재 DB에서 매칭하지 못한 처방약 성분/약물 수 */
   unmatchedDrugCount?: number;
   /** 매칭 실패 항목이 포함되어 DB 확인까지 가지 못한 조합 수 */
   unmatchedCombinationCount?: number;

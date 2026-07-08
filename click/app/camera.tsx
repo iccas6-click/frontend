@@ -53,7 +53,7 @@ export default function CameraScreen() {
           <IconBadge icon="camera-outline" tone="blue" size="lg" />
           <Text style={[styles.permissionTitle, lowVision && styles.permissionTitleLowVision]}>카메라 권한이 필요해요</Text>
           <Text style={[styles.permissionDesc, lowVision && styles.permissionDescLowVision]}>
-            약 봉투와 건강기능식품 라벨을 촬영할 수 있도록 접근을 허용해 주세요.
+            처방전, 약 봉투와 건강기능식품 라벨을 촬영할 수 있도록 접근을 허용해 주세요.
           </Text>
           <PrimaryButton label="권한 허용하기" icon="lock-open" onPress={requestPermission} />
         </View>
@@ -97,7 +97,7 @@ export default function CameraScreen() {
             onPress={takePicture}
             disabled={taking}
             accessibilityRole="button"
-            accessibilityLabel={`${isSupplement ? '건강기능식품' : '약 봉투 및 처방전'} 촬영하기`}
+            accessibilityLabel={`${isSupplement ? '건강기능식품' : '처방전 또는 약봉투'} 촬영하기`}
             accessibilityState={{ disabled: taking }}>
             {taking ? <ActivityIndicator color={Palette.primary} /> : <View style={[styles.shutterInner, lowVision && styles.shutterInnerLowVision]} />}
           </Pressable>
@@ -106,9 +106,9 @@ export default function CameraScreen() {
       }>
       <StatusBar style="dark" />
       <TopBar
-        title={isSupplement ? '건강기능식품 촬영' : '약 봉투 및 처방전 촬영'}
-        
-        subtitle={isSupplement ? '밝은 곳에서 제품명과 성분표가 보이게 정면으로 촬영하세요.' : '밝은 곳에서 글자가 잘 보이게 펴서 촬영하세요.'}
+        title={isSupplement ? '건강기능식품 촬영' : '처방전·약봉투 촬영'}
+        subtitle={isSupplement ? '제품명과 성분표가 보이게 촬영하세요.' : '약품명·용량이 보이게 전체를 촬영하세요.'}
+        subtitleNumberOfLines={1}
         backLabel="뒤로"
         onBack={handleBack}
       />
@@ -127,12 +127,12 @@ export default function CameraScreen() {
       </View>
 
       <View style={[styles.tipCard, compact && styles.tipCardCompact, lowVision && styles.tipCardLowVision]}>
-        <IconBadge icon="text" tone={isSupplement ? 'green' : 'blue'} size="sm" />
+        <IconBadge icon={isSupplement ? 'text' : 'document-text'} tone={isSupplement ? 'green' : 'blue'} size="sm" />
         <View style={styles.tipTextWrap}>
-          <Text style={[styles.tipTitle, lowVision && styles.tipTitleLowVision]}>{isSupplement ? '라벨 글자가 중요해요' : '글자가 잘 보이게 촬영해 주세요'}</Text>
+          <Text style={[styles.tipTitle, lowVision && styles.tipTitleLowVision]}>{isSupplement ? '라벨 글자가 중요해요' : '약품명이 보이게 촬영해요'}</Text>
           {!compact ? (
             <Text style={[styles.tipBody, lowVision && styles.tipBodyLowVision]}>
-              {isSupplement ? '성분명과 함량이 잘리지 않게 촬영해 주세요.' : '구겨지지 않게 반듯하게 펴서 촬영해 주세요.'}
+              {isSupplement ? '성분명과 함량 부분이 잘리지 않게 촬영하면 확인이 쉬워집니다.' : '처방전이나 약 봉투의 약 이름과 용량 부분이 선명하면 확인이 쉬워집니다.'}
             </Text>
           ) : null}
         </View>

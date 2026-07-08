@@ -13,7 +13,7 @@ import { updateSessionItems } from '@/services/history-storage';
 import type { ItemCategory, RecognizedItem } from '@/types/medication';
 
 const CATEGORY_META: Record<ItemCategory, { label: string; icon: 'medical' | 'leaf'; tone: 'blue' | 'green' }> = {
-  알약: { label: '알약', icon: 'medical', tone: 'blue' },
+  알약: { label: '처방약', icon: 'medical', tone: 'blue' },
   '건강기능식품 라벨': { label: '건강기능식품', icon: 'leaf', tone: 'green' },
 };
 

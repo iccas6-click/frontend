@@ -7,12 +7,11 @@ import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'rea
 import { IconBadge, Screen, TopBar } from '@/components/app-ui';
 import { Palette, Radius, Shadow, Spacing } from '@/constants/theme';
 import { clearLogs, subscribeLogs, type LogEntry } from '@/services/debug-log';
-import { getSettings, saveSettings, type PillRecognizer, type UserMode } from '@/services/settings-storage';
+import { getSettings, saveSettings, type UserMode } from '@/services/settings-storage';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const [mode, setMode] = useState<UserMode>('standard');
-  const [pillRecognizer, setPillRecognizer] = useState<PillRecognizer>('codeit');
   const [logsOpen, setLogsOpen] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
@@ -25,7 +24,6 @@ export default function SettingsScreen() {
       getSettings().then((settings) => {
         if (active) {
           setMode(settings.mode);
-          setPillRecognizer(settings.pillRecognizer);
         }
       });
       return () => {
@@ -38,11 +36,6 @@ export default function SettingsScreen() {
   const changeMode = async (nextMode: UserMode) => {
     setMode(nextMode);
     await saveSettings({ mode: nextMode });
-  };
-
-  const changePillRecognizer = async (nextRecognizer: PillRecognizer) => {
-    setPillRecognizer(nextRecognizer);
-    await saveSettings({ pillRecognizer: nextRecognizer });
   };
 
   const showComingSoon = (title: string) => {
@@ -64,11 +57,8 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>알약 인식 엔진</Text>
-          <View style={styles.modeGrid}>
-            <ModeOption title="Codeit" body="RTMDet + CNN" active={pillRecognizer === 'codeit'} onPress={() => changePillRecognizer('codeit')} />
-            <ModeOption title="기존" body="내 파이프라인" active={pillRecognizer === 'retrieval'} onPress={() => changePillRecognizer('retrieval')} />
-          </View>
+          <Text style={styles.cardTitle}>처방전·약봉투 인식</Text>
+          <Text style={styles.infoText}>약품명과 용량을 읽고 성분명을 찾아 상호작용 분석에 사용합니다.</Text>
         </View>
 
         <View style={styles.menuCard}>
@@ -205,6 +195,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Palette.textMuted,
     marginTop: 4,
+  },
+  infoText: {
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '700',
+    color: Palette.textMuted,
   },
   menuCard: {
     backgroundColor: Palette.surface,
