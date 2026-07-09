@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { IconBadge, PrimaryButton, Screen, TopBar } from '@/components/app-ui';
@@ -9,6 +9,7 @@ import { RecognizedItemRow } from '@/components/recognized-item-row';
 import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
+import { markReviewReached } from '@/services/flow-metrics';
 import { updateSessionItems } from '@/services/history-storage';
 import { categoryLabel, translate, useI18n } from '@/services/i18n';
 import type { ItemCategory, RecognizedItem } from '@/types/medication';
@@ -34,7 +35,7 @@ function normalizeItems(items: RecognizedItem[]) {
 
 export default function ReviewScreen() {
   const router = useRouter();
-  const { items: itemsParam, recordId } = useLocalSearchParams<{ items?: string; recordId?: string }>();
+  const { items: itemsParam, recordId, flowId } = useLocalSearchParams<{ items?: string; recordId?: string; flowId?: string }>();
   const initialItems = useMemo(() => normalizeItems(parseItems(itemsParam)), [itemsParam]);
   const [items, setItems] = useState<RecognizedItem[]>(initialItems);
   const [editTarget, setEditTarget] = useState<RecognizedItem | null | undefined>(undefined);
@@ -44,6 +45,10 @@ export default function ReviewScreen() {
 
   const pillItems = items.filter((item) => item.category === '알약');
   const supplementItems = items.filter((item) => item.category === '건강기능식품 라벨');
+
+  useEffect(() => {
+    markReviewReached(flowId).catch((e) => console.warn('[metrics] 리뷰 도달 기록 실패:', e));
+  }, [flowId]);
 
   const persist = (nextItems: RecognizedItem[]) => {
     if (recordId) {
@@ -83,6 +88,7 @@ export default function ReviewScreen() {
       params: {
         items: JSON.stringify(items),
         recordId: recordId ?? '',
+        flowId: flowId ?? '',
       },
     });
   };
@@ -95,6 +101,7 @@ export default function ReviewScreen() {
         prevItems: JSON.stringify(pillItems),
         items: JSON.stringify(supplementItems),
         recordId: recordId ?? '',
+        flowId: flowId ?? '',
       },
     });
   };

@@ -8,6 +8,7 @@ import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
 import { devLog } from '@/services/debug-log';
+import { markAnalysisCompleted, markAnalysisFailed, markAnalysisStarted } from '@/services/flow-metrics';
 import { updateSessionAnalysis, updateSessionItems } from '@/services/history-storage';
 import { analyzeInteractions } from '@/services/interactions';
 import { formatElapsedSeconds, useI18n } from '@/services/i18n';
@@ -15,7 +16,7 @@ import type { RecognizedItem } from '@/types/medication';
 
 export default function AnalyzeScreen() {
   const router = useRouter();
-  const { items: itemsParam, recordId } = useLocalSearchParams<{ items?: string; recordId?: string }>();
+  const { items: itemsParam, recordId, flowId } = useLocalSearchParams<{ items?: string; recordId?: string; flowId?: string }>();
   const { lowVision } = useUserMode();
   const { language, t } = useI18n();
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -34,7 +35,7 @@ export default function AnalyzeScreen() {
 
     const goFail = () => {
       if (!cancelled) {
-        router.replace({ pathname: '/analysis-failed', params: { items: itemsParam, recordId: recordId ?? '' } });
+        router.replace({ pathname: '/analysis-failed', params: { items: itemsParam, recordId: recordId ?? '', flowId: flowId ?? '' } });
       }
     };
 
@@ -42,10 +43,12 @@ export default function AnalyzeScreen() {
       try {
         const items: RecognizedItem[] = itemsParam ? JSON.parse(itemsParam) : [];
         devLog('[3단계] ▶ 상호작용 분석 요청, 항목 수:', items.length);
+        await markAnalysisStarted(flowId);
         const result = await analyzeInteractions(items);
         if (cancelled) return;
 
         if (!result || !Array.isArray(result.pairs)) {
+          await markAnalysisFailed(flowId);
           goFail();
           return;
         }
@@ -55,12 +58,14 @@ export default function AnalyzeScreen() {
           await updateSessionAnalysis(recordId, result);
         }
 
+        await markAnalysisCompleted(flowId, result);
         router.replace({
           pathname: '/analysis',
-          params: { result: JSON.stringify(result), items: itemsParam, recordId: recordId ?? '' },
+          params: { result: JSON.stringify(result), items: itemsParam, recordId: recordId ?? '', flowId: flowId ?? '' },
         });
       } catch (e) {
         console.warn('상호작용 분석 실패:', e);
+        await markAnalysisFailed(flowId);
         goFail();
       }
     })();
@@ -68,7 +73,7 @@ export default function AnalyzeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [itemsParam, recordId, router]);
+  }, [flowId, itemsParam, recordId, router]);
 
   return (
     <Screen>

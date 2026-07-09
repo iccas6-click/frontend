@@ -14,7 +14,7 @@ import type { AnalysisResult, InteractionPair, RecognizedItem } from '@/types/me
 
 export default function AnalysisScreen() {
   const router = useRouter();
-  const { result: resultParam, items: itemsParam, recordId } = useLocalSearchParams<{ result?: string; items?: string; recordId?: string }>();
+  const { result: resultParam, items: itemsParam, recordId, flowId } = useLocalSearchParams<{ result?: string; items?: string; recordId?: string; flowId?: string }>();
   const { lowVision } = useUserMode();
   const { t } = useI18n();
   const [attentionOpen, setAttentionOpen] = useState(true);
@@ -56,6 +56,7 @@ export default function AnalysisScreen() {
         params: {
           items: itemsParam,
           recordId: recordId ?? '',
+          flowId: flowId ?? '',
         },
       });
       return;

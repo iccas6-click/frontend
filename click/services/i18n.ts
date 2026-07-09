@@ -36,6 +36,7 @@ type TranslationKey =
   | 'large'
   | 'high'
   | 'clearLogs'
+  | 'metricSummary'
   | 'noLogs'
   | 'close'
   | 'openSettings'
@@ -217,6 +218,7 @@ const STRINGS: Record<TranslationKey, Record<AppLanguage, string>> = {
   large: { ko: '크게', en: 'Large', fr: 'Grand' },
   high: { ko: '높음', en: 'High', fr: 'Élevé' },
   clearLogs: { ko: '로그 지우기', en: 'Clear logs', fr: 'Effacer les journaux' },
+  metricSummary: { ko: '지표 요약', en: 'Metric summary', fr: 'Résumé des indicateurs' },
   noLogs: { ko: '아직 로그가 없어요.', en: 'No logs yet.', fr: 'Aucun journal pour le moment.' },
   close: { ko: '닫기', en: 'Close', fr: 'Fermer' },
   openSettings: { ko: '설정 열기', en: 'Open settings', fr: 'Ouvrir les paramètres' },

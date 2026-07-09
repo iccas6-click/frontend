@@ -9,12 +9,13 @@ import { IconBadge, PrimaryButton, Screen, TopBar } from '@/components/app-ui';
 import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
+import { createFlowMetric } from '@/services/flow-metrics';
 import { useI18n } from '@/services/i18n';
 import type { ItemCategory } from '@/types/medication';
 
 export default function CameraScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ category?: string; prevItems?: string; recordId?: string }>();
+  const params = useLocalSearchParams<{ category?: string; prevItems?: string; recordId?: string; flowId?: string }>();
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [taking, setTaking] = useState(false);
@@ -75,6 +76,7 @@ export default function CameraScreen() {
         skipProcessing: false,
       });
       if (!photo?.uri) return;
+      const flowId = params.flowId ?? await createFlowMetric(category, 'camera');
       router.replace({
         pathname: '/result',
         params: {
@@ -83,6 +85,7 @@ export default function CameraScreen() {
           category,
           prevItems: params.prevItems,
           recordId: params.recordId,
+          flowId,
         },
       });
     } catch (e) {

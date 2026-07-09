@@ -6,7 +6,8 @@ import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'rea
 
 import { IconBadge, Screen, TopBar } from '@/components/app-ui';
 import { Palette, Radius, Shadow, Spacing } from '@/constants/theme';
-import { clearLogs, subscribeLogs, type LogEntry } from '@/services/debug-log';
+import { clearLogs, devLog, subscribeLogs, type LogEntry } from '@/services/debug-log';
+import { summarizeFlowMetrics } from '@/services/flow-metrics';
 import { LANGUAGE_OPTIONS, translate, type AppLanguage } from '@/services/i18n';
 import { getSettings, saveSettings, type UserMode } from '@/services/settings-storage';
 
@@ -52,6 +53,16 @@ export default function SettingsScreen() {
 
   const showComingSoon = (title: string) => {
     Alert.alert(title, t('comingSoon'));
+  };
+
+  const logMetricSummary = async () => {
+    const summary = await summarizeFlowMetrics();
+    devLog('[metrics] 요약:', {
+      totalFlows: summary.totalFlows,
+      ocrSuccessToReviewRate: `${Math.round(summary.ocrSuccessToReviewRate * 1000) / 10}%`,
+      analysisCompletionRate: `${Math.round(summary.analysisCompletionRate * 1000) / 10}%`,
+      averageEndToEndSeconds: Math.round(summary.averageEndToEndMs / 100) / 10,
+    });
   };
 
   return (
@@ -109,6 +120,9 @@ export default function SettingsScreen() {
         <Screen>
           <TopBar title={t('diagnosticLogs')} backLabel={t('close')} onBack={() => setLogsOpen(false)} />
           <View style={styles.logActions}>
+            <Pressable style={styles.logActionButton} onPress={logMetricSummary} accessibilityRole="button">
+              <Text style={styles.logActionText}>{t('metricSummary')}</Text>
+            </Pressable>
             <Pressable style={styles.logActionButton} onPress={() => clearLogs()} accessibilityRole="button">
               <Text style={styles.logActionText}>{t('clearLogs')}</Text>
             </Pressable>
@@ -306,6 +320,9 @@ const styles = StyleSheet.create({
   logActions: {
     paddingHorizontal: Spacing.screen,
     paddingBottom: 10,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'flex-end',
     alignItems: 'flex-end',
   },
   logActionButton: {

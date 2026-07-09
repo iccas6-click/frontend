@@ -10,13 +10,14 @@ import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
 import { getDemoRecognitionSets, type DemoRecognitionSet } from '@/services/demo-recognition';
+import { createFlowMetric } from '@/services/flow-metrics';
 import { formatRecordDateTime, getReusableSessions } from '@/services/history-storage';
 import { categoryLabel, translate, useI18n, type AppLanguage } from '@/services/i18n';
 import type { AnalysisSession, ItemCategory, RecognizedItem } from '@/types/medication';
 
 export default function ReuseScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ category?: string; prevItems?: string; recordId?: string; mode?: string }>();
+  const params = useLocalSearchParams<{ category?: string; prevItems?: string; recordId?: string; mode?: string; flowId?: string }>();
   const category: ItemCategory = params.category === '건강기능식품 라벨' ? '건강기능식품 라벨' : '알약';
   const [records, setRecords] = useState<AnalysisSession[]>([]);
   const [recordsOpen, setRecordsOpen] = useState(false);
@@ -73,6 +74,7 @@ export default function ReuseScreen() {
         category,
         prevItems: params.prevItems,
         recordId: params.recordId,
+        flowId: params.flowId,
       },
     } as const;
 
@@ -93,6 +95,7 @@ export default function ReuseScreen() {
     });
     if (result.canceled || !result.assets[0]?.uri) return;
 
+    const flowId = params.flowId ?? await createFlowMetric(category, 'gallery');
     router.replace({
       pathname: '/result',
       params: {
@@ -101,13 +104,15 @@ export default function ReuseScreen() {
         category,
         prevItems: params.prevItems,
         recordId: params.recordId,
+        flowId,
       },
     });
   };
 
-  const selectRecord = (record: AnalysisSession) => {
+  const selectRecord = async (record: AnalysisSession) => {
     setRecordsOpen(false);
     const selectedItems = record.items.filter((item) => item.category === category);
+    const flowId = params.flowId ?? await createFlowMetric(category, 'record');
     const next = {
       pathname: '/result',
       params: {
@@ -115,14 +120,16 @@ export default function ReuseScreen() {
         prevItems: JSON.stringify(prevItems),
         items: JSON.stringify(selectedItems),
         recordId: params.recordId ?? '',
+        flowId,
       },
     } as const;
 
     router.replace(next);
   };
 
-  const selectDemo = (demo: DemoRecognitionSet) => {
+  const selectDemo = async (demo: DemoRecognitionSet) => {
     setSamplesOpen(false);
+    const flowId = params.flowId ?? await createFlowMetric(category, 'demo');
     router.replace({
       pathname: '/result',
       params: {
@@ -130,6 +137,7 @@ export default function ReuseScreen() {
         prevItems: JSON.stringify(prevItems),
         items: JSON.stringify(demo.items),
         recordId: params.recordId ?? '',
+        flowId,
       },
     });
   };

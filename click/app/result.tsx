@@ -11,6 +11,7 @@ import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Spacing, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
 import { devLog } from '@/services/debug-log';
+import { markRecognitionFinished, markRecognitionStarted } from '@/services/flow-metrics';
 import { createSession, updateSessionItems } from '@/services/history-storage';
 import { categoryLabel, formatElapsedSeconds, useI18n } from '@/services/i18n';
 import { analyzeImage, localizeRecognizedItemsForDisplay } from '@/services/ocr';
@@ -33,13 +34,14 @@ function normalizeItems(items: RecognizedItem[]) {
 
 export default function ResultScreen() {
   const router = useRouter();
-  const { photoUri, photoSource, category, prevItems, items: itemsParam, recordId: recordIdParam } = useLocalSearchParams<{
+  const { photoUri, photoSource, category, prevItems, items: itemsParam, recordId: recordIdParam, flowId: flowIdParam } = useLocalSearchParams<{
     photoUri?: string;
     photoSource?: string;
     category?: string;
     prevItems?: string;
     items?: string;
     recordId?: string;
+    flowId?: string;
   }>();
 
   const parsedPrevItems = useMemo(() => parseItems(prevItems), [prevItems]);
@@ -57,6 +59,7 @@ export default function ResultScreen() {
   const [activePillIndex, setActivePillIndex] = useState(0);
   const [recognitionElapsedSeconds, setRecognitionElapsedSeconds] = useState(0);
   const nextId = useRef(0);
+  const flowIdRef = useRef<string | undefined>(flowIdParam);
   const { lowVision } = useUserMode();
   const { language, t } = useI18n();
   const categoryName = categoryLabel(selectedCategory, language);
@@ -121,7 +124,17 @@ export default function ResultScreen() {
     setRecognitionElapsedSeconds(0);
     setError(false);
     setErrorMessage('');
+    const shouldMeasureRecognition = photoSource === 'camera' || photoSource === 'gallery';
+    let activeFlowId = flowIdRef.current;
     try {
+      if (shouldMeasureRecognition) {
+        activeFlowId = await markRecognitionStarted(
+          activeFlowId,
+          selectedCategory,
+          photoSource === 'camera' ? 'camera' : 'gallery',
+        );
+        flowIdRef.current = activeFlowId;
+      }
       const settings = await getSettings();
       const displayLanguage = settings.language;
       const source = parsedCurrentItems.length > 0
@@ -145,14 +158,23 @@ export default function ResultScreen() {
       if (recordIdParam) {
         await updateSessionItems(recordIdParam, allItems);
         setRecordId(recordIdParam);
+        if (shouldMeasureRecognition) {
+          await markRecognitionFinished(activeFlowId, selectedCategory, 'success', { itemCount: current.length, recordId: recordIdParam });
+        }
       } else {
         const id = await createSession(selectedCategory, allItems);
         setRecordId(id);
+        if (shouldMeasureRecognition) {
+          await markRecognitionFinished(activeFlowId, selectedCategory, 'success', { itemCount: current.length, recordId: id });
+        }
       }
     } catch (e) {
       console.warn('OCR 분석 실패:', e);
       const message = e instanceof Error ? e.message : String(e);
       devLog('[OCR] 분석 실패:', message);
+      if (shouldMeasureRecognition) {
+        await markRecognitionFinished(activeFlowId, selectedCategory, 'failed', { errorMessage: message });
+      }
       setErrorMessage(message);
       setError(true);
     } finally {
@@ -193,6 +215,7 @@ export default function ResultScreen() {
         category: '건강기능식품 라벨',
         prevItems: JSON.stringify(allItems),
         recordId: recordId ?? '',
+        flowId: flowIdRef.current ?? '',
       },
     });
   };
@@ -205,6 +228,7 @@ export default function ResultScreen() {
       params: {
         items: JSON.stringify(allItems),
         recordId: recordId ?? '',
+        flowId: flowIdRef.current ?? '',
       },
     });
   };
@@ -216,6 +240,7 @@ export default function ResultScreen() {
         category: selectedCategory,
         prevItems,
         recordId: recordId ?? recordIdParam ?? '',
+        flowId: flowIdRef.current ?? '',
       },
     });
   };
@@ -228,6 +253,7 @@ export default function ResultScreen() {
           category: selectedCategory,
           prevItems,
           recordId: recordId ?? recordIdParam ?? '',
+          flowId: flowIdRef.current ?? '',
         },
       });
       return;

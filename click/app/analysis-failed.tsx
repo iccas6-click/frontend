@@ -9,11 +9,11 @@ import { useI18n } from '@/services/i18n';
 
 export default function AnalysisFailedScreen() {
   const router = useRouter();
-  const { items, recordId } = useLocalSearchParams<{ items?: string; recordId?: string }>();
+  const { items, recordId, flowId } = useLocalSearchParams<{ items?: string; recordId?: string; flowId?: string }>();
   const { t } = useI18n();
 
   const retry = () => {
-    router.replace({ pathname: '/analyze', params: { items, recordId: recordId ?? '' } });
+    router.replace({ pathname: '/analyze', params: { items, recordId: recordId ?? '', flowId: flowId ?? '' } });
   };
 
   const goHome = () => {
