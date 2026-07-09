@@ -51,7 +51,11 @@ export default function RecordItemsScreen() {
     <Screen>
       <StatusBar style="dark" />
       <TopBar
-        title={record ? formatRecordDateTime(record.createdAt, language) : t('record')}
+        title={
+          record
+            ? formatRecordDateTime(record.createdAt, language)
+            : t('record')
+        }
         subtitle={t('usedItemsTitle')}
         backLabel={t('home')}
         onBack={() => router.back()}
@@ -63,10 +67,18 @@ export default function RecordItemsScreen() {
           <Text style={styles.emptyText}>{t('recordNotFound')}</Text>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={[styles.content, lowVision && styles.contentLowVision]} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.content,
+            lowVision && styles.contentLowVision,
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
           {groups.length === 0 ? (
             <View style={styles.emptyItems}>
-              <Text style={styles.emptyItemsText}>{t('noRecognizedItems')}</Text>
+              <Text style={styles.emptyItemsText}>
+                {t('noRecognizedItems')}
+              </Text>
             </View>
           ) : (
             groups.map((group) => {
@@ -74,12 +86,29 @@ export default function RecordItemsScreen() {
               return (
                 <View key={group.category} style={styles.group}>
                   <View style={styles.groupHeader}>
-                    <IconBadge icon={isSupplement ? 'leaf' : 'medical'} tone={isSupplement ? 'green' : 'blue'} size="sm" />
-                    <Text style={[styles.groupTitle, lowVision && styles.groupTitleLowVision]} numberOfLines={2}>
+                    <IconBadge
+                      icon={isSupplement ? 'leaf' : 'medical'}
+                      tone={isSupplement ? 'green' : 'blue'}
+                      size="sm"
+                    />
+                    <Text
+                      style={[
+                        styles.groupTitle,
+                        lowVision && styles.groupTitleLowVision,
+                      ]}
+                      numberOfLines={2}
+                    >
                       {categoryLabel(group.category, language)}
                     </Text>
-                    <Text style={[styles.groupCount, lowVision && styles.groupCountLowVision]}>
-                      {translate(language, 'itemsCount', { count: group.items.length })}
+                    <Text
+                      style={[
+                        styles.groupCount,
+                        lowVision && styles.groupCountLowVision,
+                      ]}
+                    >
+                      {translate(language, 'itemsCount', {
+                        count: group.items.length,
+                      })}
                     </Text>
                   </View>
                   <View style={styles.itemList}>
