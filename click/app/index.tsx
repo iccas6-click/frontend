@@ -2,14 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { IconBadge, PrimaryButton, Screen } from '@/components/app-ui';
 import { Palette, Radius, Shadow, Spacing } from '@/constants/theme';
 import { formatRecordDateTime, formatRecordMonth, getAllSessions } from '@/services/history-storage';
 import { riskLabel, translate, useI18n, type AppLanguage } from '@/services/i18n';
-import { getSettings, hasSeenIntro, markIntroSeen, type AppSettings } from '@/services/settings-storage';
+import { getSettings, type AppSettings } from '@/services/settings-storage';
 import type { AnalysisSession, RiskLevel } from '@/types/medication';
 
 function countByCategory(record: AnalysisSession) {
@@ -45,27 +45,6 @@ export default function MainScreen() {
   const [settings, setSettings] = useState<AppSettings>({ mode: 'standard', pillRecognizer: 'codeit', language: 'ko' });
   const [sessions, setSessions] = useState<AnalysisSession[]>([]);
   const { t } = useI18n();
-  const introShownRef = useRef(false);
-
-  // 이 기기에서 앱을 처음 켠 경우에만 안내 문구를 알림으로 한 번 띄운다.
-  // 확인 버튼을 누르면 다음 실행부터는 나타나지 않는다.
-  useEffect(() => {
-    if (introShownRef.current) return;
-    let active = true;
-    hasSeenIntro().then((seen) => {
-      if (!active || seen || introShownRef.current) return;
-      introShownRef.current = true;
-      Alert.alert(
-        t('heroTitle').replace(/\n/g, ' '),
-        undefined,
-        [{ text: t('confirm'), onPress: () => { void markIntroSeen(); } }],
-        { cancelable: false },
-      );
-    });
-    return () => {
-      active = false;
-    };
-  }, [t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -131,12 +110,18 @@ export default function MainScreen() {
 
         <View style={styles.startPanel}>
           <Text style={[styles.startTitle, lowVision && styles.startTitleLowVision]}>{t('oneMinuteCheck')}</Text>
-          <Text style={[styles.startHint, lowVision && styles.startHintLowVision]}>{t('heroTitle').replace(/\n/g, ' ')}</Text>
           <PrimaryButton
             label={t('startRecognition')}
             icon="camera"
             onPress={() => router.push({ pathname: '/reuse', params: { category: '알약', mode: 'start' } })}
           />
+        </View>
+
+        <View style={[styles.tipCard, lowVision && styles.tipCardLowVision]}>
+          <View style={styles.tipIcon}>
+            <Ionicons name="bulb-outline" size={lowVision ? 20 : 17} color={Palette.primary} />
+          </View>
+          <Text style={[styles.tipText, lowVision && styles.tipTextLowVision]}>{t('heroTitle').replace(/\n/g, ' ')}</Text>
         </View>
 
         <View style={styles.sectionRow}>
@@ -426,14 +411,35 @@ const styles = StyleSheet.create({
     fontSize: 25,
     lineHeight: 32,
   },
-  startHint: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '500',
-    color: Palette.textMuted,
-    marginTop: -4,
+  tipCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: Radius.md,
+    backgroundColor: Palette.primarySoft,
   },
-  startHintLowVision: {
+  tipCardLowVision: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  tipIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Palette.surface,
+  },
+  tipText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: '600',
+    color: Palette.primary,
+  },
+  tipTextLowVision: {
     fontSize: 16,
     lineHeight: 23,
   },
