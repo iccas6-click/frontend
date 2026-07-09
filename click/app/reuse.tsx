@@ -11,7 +11,7 @@ import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme'
 import { useUserMode } from '@/hooks/use-user-mode';
 import { getDemoRecognitionSets, type DemoRecognitionSet } from '@/services/demo-recognition';
 import { createFlowMetric } from '@/services/flow-metrics';
-import { formatRecordDateTime, getReusableSessions } from '@/services/history-storage';
+import { getReusableSessions } from '@/services/history-storage';
 import { categoryLabel, translate, useI18n, type AppLanguage } from '@/services/i18n';
 import type { AnalysisSession, ItemCategory, RecognizedItem } from '@/types/medication';
 
@@ -318,22 +318,24 @@ function ReuseCard({
   language: AppLanguage;
 }) {
   const items = record.items.filter((item) => item.category === category);
-  const names = items.map((item) => item.name).slice(0, 3).join(', ');
+  const names = items.map((item) => item.name).filter(Boolean);
+  const shown = names.slice(0, 4);
+  const rest = names.length - shown.length;
   const isSupplement = category === '건강기능식품 라벨';
+  const namesText = shown.length
+    ? shown.join(', ') + (rest > 0 ? ` ${translate(language, 'moreCount', { count: rest })}` : '')
+    : translate(language, 'unknownItem');
 
   return (
     <Pressable
       style={({ pressed }) => [styles.recordCard, lowVision && styles.recordCardLowVision, pressed && styles.pressed]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${formatRecordDateTime(record.createdAt, language)}, ${categoryLabel(category, language)} ${translate(language, 'itemsCount', { count: items.length })}`}>
+      accessibilityLabel={`${categoryLabel(category, language)}, ${namesText}`}>
       <IconBadge icon={isSupplement ? 'leaf' : 'medical'} tone={isSupplement ? 'green' : 'blue'} />
       <View style={styles.recordText}>
-        <Text style={[styles.recordTitle, lowVision && styles.recordTitleLowVision]}>{formatRecordDateTime(record.createdAt, language)}</Text>
-        <Text style={[styles.recordMeta, lowVision && styles.recordMetaLowVision]}>{categoryLabel(category, language)} {translate(language, 'itemsCount', { count: items.length })}</Text>
-        <Text style={[styles.recordNames, lowVision && styles.recordNamesLowVision]} numberOfLines={lowVision ? 2 : 1}>
-          {names || translate(language, 'unknownItem')}
-          {items.length > 3 ? ` ${translate(language, 'moreCount', { count: items.length - 3 })}` : ''}
+        <Text style={[styles.recordNamesTitle, lowVision && styles.recordNamesTitleLowVision]} numberOfLines={3}>
+          {namesText}
         </Text>
       </View>
       <View style={[styles.usePill, lowVision && styles.usePillLowVision]}>
@@ -617,6 +619,16 @@ const styles = StyleSheet.create({
   recordNamesLowVision: {
     fontSize: 16,
     lineHeight: 22,
+  },
+  recordNamesTitle: {
+    fontSize: 18,
+    lineHeight: 25,
+    fontWeight: '700',
+    color: Palette.text,
+  },
+  recordNamesTitleLowVision: {
+    fontSize: 21,
+    lineHeight: 29,
   },
   usePill: {
     minHeight: 36,

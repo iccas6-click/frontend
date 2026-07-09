@@ -282,7 +282,7 @@ export default function ResultScreen() {
         </View>
       }>
       <TopBar title={`${categoryName} ${t('analysisResult')}`} backLabel={t('back')} onBack={handleBack} />
-      <StepIndicator current={isSupplement ? 2 : 1} />
+      <StepIndicator current={isSupplement ? 2 : 1} phase="result" />
 
       {loading ? (
         <StateView icon="scan" title={t('recognizing')} loading sourceUri={sourceImageUri} elapsedSeconds={recognitionElapsedSeconds} />
