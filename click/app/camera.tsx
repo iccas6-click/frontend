@@ -119,7 +119,7 @@ export default function CameraScreen() {
         lowVision={lowVision}
         onBack={handleBack}
       />
-      <StepIndicator current={isSupplement ? 2 : 1} compact />
+      <StepIndicator current={isSupplement ? 2 : 1} phase="capture" compact />
 
       <View style={[styles.captureContent, compact && styles.captureContentCompact, lowVision && styles.captureContentLowVision]}>
         <View style={[styles.cameraSection, compact && styles.cameraSectionCompact]}>
@@ -138,9 +138,6 @@ export default function CameraScreen() {
           <IconBadge icon={isSupplement ? 'text' : 'document-text'} tone={isSupplement ? 'green' : 'blue'} size="sm" />
           <View style={styles.tipTextWrap}>
             <Text style={[styles.tipTitle, lowVision && styles.tipTitleLowVision]}>{isSupplement ? t('labelTipTitle') : t('pillTipTitle')}</Text>
-            <Text style={[styles.tipBody, lowVision && styles.tipBodyLowVision]}>
-              {isSupplement ? t('labelTipBody') : t('pillTipBody')}
-            </Text>
           </View>
         </View>
       </View>
@@ -338,23 +335,25 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.screen,
     marginTop: 12,
     marginBottom: 0,
-    minHeight: 76,
+    minHeight: 54,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Palette.surface,
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Palette.border,
-    padding: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
   tipCardCompact: {
     marginTop: 7,
-    minHeight: 72,
-    paddingVertical: 10,
+    minHeight: 50,
+    paddingVertical: 7,
   },
   tipCardLowVision: {
-    minHeight: 84,
-    padding: 15,
+    minHeight: 62,
+    paddingHorizontal: 15,
+    paddingVertical: 9,
   },
   tipTextWrap: {
     flex: 1,
@@ -369,16 +368,6 @@ const styles = StyleSheet.create({
     fontSize: 19,
     lineHeight: 25,
     fontWeight: '700',
-  },
-  tipBody: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: Palette.textMuted,
-    marginTop: 2,
-  },
-  tipBodyLowVision: {
-    fontSize: 16,
-    lineHeight: 23,
   },
   bottomControls: {
     alignItems: 'center',
