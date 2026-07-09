@@ -53,21 +53,21 @@ export const Shadow = {
 
 export const Typography = {
   hero: {
-    fontSize: 34,
-    lineHeight: 40,
-    fontWeight: '800' as const,
+    fontSize: 32,
+    lineHeight: 38,
+    fontWeight: '500' as const,
     letterSpacing: 0,
   },
   title: {
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: '800' as const,
+    fontSize: 27,
+    lineHeight: 33,
+    fontWeight: '500' as const,
     letterSpacing: 0,
   },
   section: {
     fontSize: 20,
     lineHeight: 26,
-    fontWeight: '800' as const,
+    fontWeight: '500' as const,
     letterSpacing: 0,
   },
   body: {

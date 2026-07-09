@@ -6,14 +6,21 @@ import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'rea
 
 import { IconBadge, Screen, TopBar } from '@/components/app-ui';
 import { Palette, Radius, Shadow, Spacing } from '@/constants/theme';
-import { clearLogs, subscribeLogs, type LogEntry } from '@/services/debug-log';
+import { clearLogs, devLog, subscribeLogs, type LogEntry } from '@/services/debug-log';
+import { summarizeFlowMetrics } from '@/services/flow-metrics';
+import { LANGUAGE_OPTIONS, translate, type AppLanguage } from '@/services/i18n';
 import { getSettings, saveSettings, type UserMode } from '@/services/settings-storage';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const [mode, setMode] = useState<UserMode>('standard');
+  const [language, setLanguage] = useState<AppLanguage>('ko');
   const [logsOpen, setLogsOpen] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const t = useCallback(
+    (key: Parameters<typeof translate>[1], vars?: Parameters<typeof translate>[2]) => translate(language, key, vars),
+    [language],
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -24,6 +31,7 @@ export default function SettingsScreen() {
       getSettings().then((settings) => {
         if (active) {
           setMode(settings.mode);
+          setLanguage(settings.language);
         }
       });
       return () => {
@@ -38,49 +46,90 @@ export default function SettingsScreen() {
     await saveSettings({ mode: nextMode });
   };
 
+  const changeLanguage = async (nextLanguage: AppLanguage) => {
+    setLanguage(nextLanguage);
+    await saveSettings({ language: nextLanguage });
+  };
+
   const showComingSoon = (title: string) => {
-    Alert.alert(title, '백엔드 연결 후 설정할 수 있어요.');
+    Alert.alert(title, t('comingSoon'));
+  };
+
+  const logMetricSummary = async () => {
+    const summary = await summarizeFlowMetrics();
+    devLog('[metrics] 요약:', {
+      totalFlows: summary.totalFlows,
+      ocrSuccessToReviewRate: `${Math.round(summary.ocrSuccessToReviewRate * 1000) / 10}%`,
+      analysisCompletionRate: `${Math.round(summary.analysisCompletionRate * 1000) / 10}%`,
+      averageEndToEndSeconds: Math.round(summary.averageEndToEndMs / 100) / 10,
+    });
   };
 
   return (
     <Screen>
       <StatusBar style="dark" />
-      <TopBar title="설정" backLabel="홈" onBack={() => router.back()} />
+      <TopBar title={t('settings')} backLabel={t('home')} onBack={() => router.back()} />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>사용 모드</Text>
-          <View style={styles.modeGrid}>
-            <ModeOption title="일반" body="요양사 · 보호자" active={mode === 'standard'} onPress={() => changeMode('standard')} />
-            <ModeOption title="저시력자" body="큰 버튼 · 높은 대비" active={mode === 'lowVision'} onPress={() => changeMode('lowVision')} />
+          <Text style={styles.cardTitle}>{t('language')}</Text>
+          <View style={styles.languageGrid}>
+            {LANGUAGE_OPTIONS.map((option) => (
+              <Pressable
+                key={option.value}
+                style={({ pressed }) => [
+                  styles.languageOption,
+                  language === option.value && styles.languageOptionActive,
+                  pressed && styles.pressed,
+                ]}
+                onPress={() => changeLanguage(option.value)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: language === option.value }}>
+                <Text style={[styles.languageNative, language === option.value && styles.languageNativeActive]}>
+                  {option.nativeLabel}
+                </Text>
+                <Text style={styles.languageLabel}>{translate(language, option.value === 'ko' ? 'korean' : option.value === 'en' ? 'english' : 'french')}</Text>
+              </Pressable>
+            ))}
           </View>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>처방전·약봉투 인식</Text>
-          <Text style={styles.infoText}>약품명과 용량을 읽고 성분명을 찾아 상호작용 분석에 사용합니다.</Text>
+          <Text style={styles.cardTitle}>{t('mode')}</Text>
+          <View style={styles.modeGrid}>
+            <ModeOption title={t('standard')} body={t('standardBody')} active={mode === 'standard'} onPress={() => changeMode('standard')} />
+            <ModeOption title={t('lowVision')} body={t('lowVisionBody')} active={mode === 'lowVision'} onPress={() => changeMode('lowVision')} />
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>{t('prescriptionRecognition')}</Text>
+          <Text style={styles.infoText}>{t('prescriptionRecognitionInfo')}</Text>
         </View>
 
         <View style={styles.menuCard}>
-          <MenuRow icon="text" title="글자 크기" value={mode === 'lowVision' ? '크게' : '기본'} />
-          <MenuRow icon="contrast" title="화면 대비" value={mode === 'lowVision' ? '높음' : '기본'} />
-          <MenuRow icon="bug" title="진단 로그" value={`${logs.length}개`} onPress={() => setLogsOpen(true)} />
-          <MenuRow icon="notifications" title="복용 알림" value="준비 중" onPress={() => showComingSoon('복용 알림')} />
-          <MenuRow icon="share-social" title="보호자 공유" value="준비 중" onPress={() => showComingSoon('보호자 공유')} />
+          <MenuRow icon="text" title={t('fontSize')} value={mode === 'lowVision' ? t('large') : t('default')} />
+          <MenuRow icon="contrast" title={t('screenContrast')} value={mode === 'lowVision' ? t('high') : t('default')} />
+          <MenuRow icon="bug" title={t('diagnosticLogs')} value={t('itemsCount', { count: logs.length })} onPress={() => setLogsOpen(true)} />
+          <MenuRow icon="notifications" title={t('medicationReminder')} value={t('comingSoon')} onPress={() => showComingSoon(t('medicationReminder'))} />
+          <MenuRow icon="share-social" title={t('caregiverSharing')} value={t('comingSoon')} onPress={() => showComingSoon(t('caregiverSharing'))} />
         </View>
       </ScrollView>
 
       <Modal visible={logsOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setLogsOpen(false)}>
         <Screen>
-          <TopBar title="진단 로그" backLabel="닫기" onBack={() => setLogsOpen(false)} />
+          <TopBar title={t('diagnosticLogs')} backLabel={t('close')} onBack={() => setLogsOpen(false)} />
           <View style={styles.logActions}>
+            <Pressable style={styles.logActionButton} onPress={logMetricSummary} accessibilityRole="button">
+              <Text style={styles.logActionText}>{t('metricSummary')}</Text>
+            </Pressable>
             <Pressable style={styles.logActionButton} onPress={() => clearLogs()} accessibilityRole="button">
-              <Text style={styles.logActionText}>로그 지우기</Text>
+              <Text style={styles.logActionText}>{t('clearLogs')}</Text>
             </Pressable>
           </View>
           <ScrollView contentContainerStyle={styles.logContent}>
             {logs.length === 0 ? (
-              <Text style={styles.emptyLogText}>아직 로그가 없어요.</Text>
+              <Text style={styles.emptyLogText}>{t('noLogs')}</Text>
             ) : logs.slice().reverse().map((entry) => (
               <View key={entry.id} style={styles.logRow}>
                 <Text style={styles.logTime}>{entry.time}</Text>
@@ -111,7 +160,7 @@ function ModeOption({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
-      accessibilityLabel={`${title} 모드`}>
+      accessibilityLabel={title}>
       <Text style={[styles.modeTitle, active && styles.modeTitleActive]}>{title}</Text>
       <Text style={styles.modeBody}>{body}</Text>
     </Pressable>
@@ -158,9 +207,42 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 20,
     lineHeight: 26,
-    fontWeight: '900',
+    fontWeight: '600',
     color: Palette.text,
     marginBottom: 12,
+  },
+  languageGrid: {
+    gap: 8,
+  },
+  languageOption: {
+    minHeight: 58,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Palette.border,
+    backgroundColor: Palette.background,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  languageOptionActive: {
+    borderColor: Palette.primary,
+    backgroundColor: Palette.primarySoft,
+  },
+  languageNative: {
+    fontSize: 17,
+    lineHeight: 23,
+    fontWeight: '600',
+    color: Palette.text,
+  },
+  languageNativeActive: {
+    color: Palette.primary,
+  },
+  languageLabel: {
+    marginTop: 2,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
+    color: Palette.textMuted,
   },
   modeGrid: {
     flexDirection: 'row',
@@ -183,7 +265,7 @@ const styles = StyleSheet.create({
   modeTitle: {
     fontSize: 18,
     lineHeight: 24,
-    fontWeight: '900',
+    fontWeight: '600',
     color: Palette.text,
   },
   modeTitleActive: {
@@ -192,14 +274,14 @@ const styles = StyleSheet.create({
   modeBody: {
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '700',
+    fontWeight: '600',
     color: Palette.textMuted,
     marginTop: 4,
   },
   infoText: {
     fontSize: 15,
     lineHeight: 22,
-    fontWeight: '700',
+    fontWeight: '600',
     color: Palette.textMuted,
   },
   menuCard: {
@@ -222,7 +304,7 @@ const styles = StyleSheet.create({
   menuTitle: {
     flex: 1,
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '600',
     color: Palette.text,
   },
   menuRight: {
@@ -232,12 +314,15 @@ const styles = StyleSheet.create({
   },
   menuValue: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.textMuted,
   },
   logActions: {
     paddingHorizontal: Spacing.screen,
     paddingBottom: 10,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'flex-end',
     alignItems: 'flex-end',
   },
   logActionButton: {
@@ -249,7 +334,7 @@ const styles = StyleSheet.create({
   },
   logActionText: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.text,
   },
   logContent: {
@@ -261,7 +346,7 @@ const styles = StyleSheet.create({
     paddingTop: 80,
     textAlign: 'center',
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '700',
     color: Palette.textMuted,
   },
   logRow: {
@@ -274,7 +359,7 @@ const styles = StyleSheet.create({
   },
   logTime: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.primary,
   },
   logText: {

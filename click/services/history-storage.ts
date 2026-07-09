@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import type { AppLanguage } from '@/services/settings-storage';
 import type { AnalysisResult, AnalysisSession, ItemCategory, RecognizedItem, SessionStatus } from '@/types/medication';
 
 import { devLog } from './debug-log';
@@ -14,31 +15,35 @@ function removeIncomplete(records: AnalysisSession[], keepId?: string): Analysis
   return records.filter((record) => isAnalyzed(record) || record.id === keepId);
 }
 
-/** ISO → 'M월 D일 기록' */
-export function formatRecordTitle(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getMonth() + 1}월 ${d.getDate()}일 기록`;
+function localeFor(lang: AppLanguage) {
+  return lang === 'ko' ? 'ko-KR' : lang === 'fr' ? 'fr-FR' : 'en-US';
 }
 
-/** ISO → 'M월 D일 오전/오후 H:MM' */
-export function formatRecordDateTime(iso: string): string {
+/** ISO → localized record title */
+export function formatRecordTitle(iso: string, lang: AppLanguage = 'ko'): string {
   const d = new Date(iso);
-  return `${d.getMonth() + 1}월 ${d.getDate()}일 ${formatRecordTime(iso)}`;
+  const date = new Intl.DateTimeFormat(localeFor(lang), { month: 'short', day: 'numeric' }).format(d);
+  if (lang === 'ko') return `${date} 기록`;
+  if (lang === 'fr') return `Historique du ${date}`;
+  return `${date} record`;
 }
 
-/** ISO → 'YYYY년 M월' */
-export function formatRecordMonth(iso: string): string {
+/** ISO → localized date and time */
+export function formatRecordDateTime(iso: string, lang: AppLanguage = 'ko'): string {
   const d = new Date(iso);
-  return `${d.getFullYear()}년 ${d.getMonth() + 1}월`;
+  return new Intl.DateTimeFormat(localeFor(lang), { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(d);
 }
 
-/** ISO → '오전/오후 H:MM' */
-export function formatRecordTime(iso: string): string {
+/** ISO → localized year and month */
+export function formatRecordMonth(iso: string, lang: AppLanguage = 'ko'): string {
   const d = new Date(iso);
-  const ampm = d.getHours() < 12 ? '오전' : '오후';
-  let h = d.getHours() % 12;
-  if (h === 0) h = 12;
-  return `${ampm} ${h}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return new Intl.DateTimeFormat(localeFor(lang), { year: 'numeric', month: 'long' }).format(d);
+}
+
+/** ISO → localized time */
+export function formatRecordTime(iso: string, lang: AppLanguage = 'ko'): string {
+  const d = new Date(iso);
+  return new Intl.DateTimeFormat(localeFor(lang), { hour: 'numeric', minute: '2-digit' }).format(d);
 }
 
 /** 저장된 모든 세션을 읽는다 (내부용, 정렬 안 함) */

@@ -1,3 +1,4 @@
+import { translate, type AppLanguage } from '@/services/i18n';
 import type { ItemCategory, RecognizedItem } from '@/types/medication';
 
 export type DemoRecognitionSet = {
@@ -186,6 +187,66 @@ const SUPPLEMENT_DEMOS: DemoRecognitionSet[] = [
   },
 ];
 
-export function getDemoRecognitionSets(category: ItemCategory): DemoRecognitionSet[] {
-  return category === '건강기능식품 라벨' ? SUPPLEMENT_DEMOS : PILL_DEMOS;
+const DEMO_COPY: Record<string, Record<AppLanguage, { title: string; subtitle: string }>> = {
+  'bleeding-pill': {
+    ko: { title: '데모용 알약 세트', subtitle: '처방약과 자주 쓰는 진통제' },
+    en: { title: 'Sample pill set', subtitle: 'Prescription medicines and common pain relievers' },
+    fr: { title: 'Exemple de comprimés', subtitle: 'Médicaments prescrits et antalgiques courants' },
+  },
+  'metabolic-pill': {
+    ko: { title: '혈당·혈압 약 조합', subtitle: '당뇨약과 혈압약' },
+    en: { title: 'Blood sugar and blood pressure medicines', subtitle: 'Diabetes and hypertension medicines' },
+    fr: { title: 'Médicaments glycémie et tension', subtitle: 'Traitements du diabète et de l’hypertension' },
+  },
+  'absorption-pill': {
+    ko: { title: '흡수 영향 확인용', subtitle: '항생제와 갑상샘약' },
+    en: { title: 'Absorption check sample', subtitle: 'Antibiotic and thyroid medicines' },
+    fr: { title: 'Exemple sur l’absorption', subtitle: 'Antibiotique et traitement thyroïdien' },
+  },
+  'bleeding-supplement': {
+    ko: { title: '데모용 건강기능식품 세트', subtitle: '오메가3·은행잎·비타민D' },
+    en: { title: 'Sample supplement set', subtitle: 'Omega-3, ginkgo, and vitamin D' },
+    fr: { title: 'Exemple de compléments', subtitle: 'Oméga-3, ginkgo et vitamine D' },
+  },
+  'metabolic-supplement': {
+    ko: { title: '혈당·혈압 주의 건강기능식품', subtitle: '인삼·울금·호로파' },
+    en: { title: 'Supplements for metabolic caution', subtitle: 'Ginseng, turmeric, and fenugreek' },
+    fr: { title: 'Compléments à surveiller', subtitle: 'Ginseng, curcuma et fenugrec' },
+  },
+  'absorption-supplement': {
+    ko: { title: '흡수 방해 확인용', subtitle: '칼슘·마그네슘·철' },
+    en: { title: 'Absorption interference sample', subtitle: 'Calcium, magnesium, and iron' },
+    fr: { title: 'Exemple d’interférence d’absorption', subtitle: 'Calcium, magnésium et fer' },
+  },
+};
+
+function localizeItem(item: RecognizedItem, language: AppLanguage): RecognizedItem {
+  if (language === 'ko') return item;
+  const needsCheck = translate(language, 'ingredientInfoNeeded');
+  return {
+    ...item,
+    name: item.name === '직접 확인 필요' ? needsCheck : item.name,
+    productName: item.productName === '직접 확인 필요' ? needsCheck : item.productName,
+    dosage: item.dosage.startsWith('성분 ') && item.ingredients?.length
+      ? translate(language, 'ingredientCount', { count: item.ingredients.length })
+      : item.dosage,
+    candidates: item.candidates?.map((candidate) => ({
+      ...candidate,
+      name: candidate.name === '직접 확인 필요' ? needsCheck : candidate.name,
+      productName: candidate.productName === '직접 확인 필요' ? needsCheck : candidate.productName,
+    })),
+  };
+}
+
+export function getDemoRecognitionSets(category: ItemCategory, language: AppLanguage = 'ko'): DemoRecognitionSet[] {
+  const demos = category === '건강기능식품 라벨' ? SUPPLEMENT_DEMOS : PILL_DEMOS;
+  return demos.map((demo) => {
+    const copy = DEMO_COPY[demo.id]?.[language] ?? DEMO_COPY[demo.id]?.ko;
+    return {
+      ...demo,
+      title: copy?.title ?? demo.title,
+      subtitle: copy?.subtitle ?? demo.subtitle,
+      items: demo.items.map((item) => localizeItem(item, language)),
+    };
+  });
 }

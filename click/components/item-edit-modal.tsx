@@ -15,14 +15,10 @@ import {
 
 import { Palette, Radius, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
+import { categoryLabel, useI18n } from '@/services/i18n';
 import type { ItemCategory, RecognizedItem } from '@/types/medication';
 
 const CATEGORIES: ItemCategory[] = ['알약', '건강기능식품 라벨'];
-
-const CATEGORY_LABEL: Record<ItemCategory, string> = {
-  알약: '알약',
-  '건강기능식품 라벨': '건강기능식품',
-};
 
 type Props = {
   visible: boolean;
@@ -36,6 +32,7 @@ type Props = {
 
 export function ItemEditModal({ visible, initial, initialCategory = '알약', onClose, onSave, onDelete }: Props) {
   const { lowVision } = useUserMode();
+  const { language, t } = useI18n();
   const isNew = initial === null;
   const slide = useRef(new Animated.Value(1)).current;
   const [name, setName] = useState('');
@@ -97,45 +94,45 @@ export function ItemEditModal({ visible, initial, initialCategory = '알약', on
           <View style={styles.handle} />
           
           <View style={styles.headerRow}>
-            <Text style={[styles.sheetTitle, lowVision && styles.sheetTitleLowVision]}>{isNew ? '항목 추가' : '항목 수정'}</Text>
+            <Text style={[styles.sheetTitle, lowVision && styles.sheetTitleLowVision]}>{isNew ? t('addItem') : t('editItem')}</Text>
           </View>
 
           {/* 이름 */}
-          <Text style={[styles.label, lowVision && styles.labelLowVision]}>이름</Text>
+          <Text style={[styles.label, lowVision && styles.labelLowVision]}>{t('name')}</Text>
           <TextInput
             style={[styles.input, lowVision && styles.inputLowVision]}
             value={name}
             onChangeText={setName}
-            placeholder="예: 아스피린"
+            placeholder={t('namePlaceholder')}
             placeholderTextColor="#B6C0C6"
             autoFocus={isNew}
-            accessibilityLabel="항목 이름"
+            accessibilityLabel={t('itemName')}
           />
 
           {/* 용량 */}
-          <Text style={[styles.label, lowVision && styles.labelLowVision]}>용량</Text>
+          <Text style={[styles.label, lowVision && styles.labelLowVision]}>{t('dosage')}</Text>
           <TextInput
             style={[styles.input, lowVision && styles.inputLowVision]}
             value={dosage}
             onChangeText={setDosage}
-            placeholder="예: 100mg"
+            placeholder={t('dosagePlaceholder')}
             placeholderTextColor="#B6C0C6"
-            accessibilityLabel="용량"
+            accessibilityLabel={t('dosage')}
           />
 
-          <Text style={[styles.label, lowVision && styles.labelLowVision]}>성분</Text>
+          <Text style={[styles.label, lowVision && styles.labelLowVision]}>{t('ingredients')}</Text>
           <TextInput
             style={[styles.input, styles.ingredientsInput, lowVision && styles.inputLowVision]}
             value={ingredientsText}
             onChangeText={setIngredientsText}
-            placeholder="예: 아스피린, EPA 및 DHA 함유 유지"
+            placeholder={t('ingredientsPlaceholder')}
             placeholderTextColor="#B6C0C6"
             multiline
-            accessibilityLabel="성분"
+            accessibilityLabel={t('ingredients')}
           />
 
           {/* 분류 */}
-          <Text style={[styles.label, lowVision && styles.labelLowVision]}>분류</Text>
+          <Text style={[styles.label, lowVision && styles.labelLowVision]}>{t('category')}</Text>
           <View style={styles.categoryRow}>
             {CATEGORIES.map((cat) => {
               const active = category === cat;
@@ -146,9 +143,9 @@ export function ItemEditModal({ visible, initial, initialCategory = '알약', on
                   onPress={() => setCategory(cat)}
                   accessibilityRole="button"
                   accessibilityState={{ selected: active }}
-                  accessibilityLabel={`${CATEGORY_LABEL[cat]} 선택`}>
+                  accessibilityLabel={categoryLabel(cat, language)}>
                   <Text style={[styles.categoryText, lowVision && styles.categoryTextLowVision, active && styles.categoryTextActive]}>
-                    {CATEGORY_LABEL[cat]}
+                    {categoryLabel(cat, language)}
                   </Text>
                 </Pressable>
               );
@@ -162,8 +159,8 @@ export function ItemEditModal({ visible, initial, initialCategory = '알약', on
             onPress={handleSave}
             accessibilityRole="button"
             accessibilityState={{ disabled: !canSave }}
-            accessibilityLabel="항목 저장">
-            <Text style={[styles.saveText, lowVision && styles.saveTextLowVision]}>저장</Text>
+            accessibilityLabel={t('saveItem')}>
+            <Text style={[styles.saveText, lowVision && styles.saveTextLowVision]}>{t('save')}</Text>
           </Pressable>
 
           {/* 삭제 (수정 모드에서만) */}
@@ -172,9 +169,9 @@ export function ItemEditModal({ visible, initial, initialCategory = '알약', on
               style={[styles.deleteButton, lowVision && styles.deleteButtonLowVision]}
               onPress={() => onDelete(initial!.id)}
               accessibilityRole="button"
-              accessibilityLabel="이 항목 삭제">
+              accessibilityLabel={t('deleteThisItem')}>
               <Ionicons name="trash-outline" size={lowVision ? 22 : 18} color="#E5484D" />
-              <Text style={[styles.deleteText, lowVision && styles.deleteTextLowVision]}>이 항목 삭제</Text>
+              <Text style={[styles.deleteText, lowVision && styles.deleteTextLowVision]}>{t('deleteThisItem')}</Text>
             </Pressable>
           )}
 
@@ -183,9 +180,9 @@ export function ItemEditModal({ visible, initial, initialCategory = '알약', on
             style={[styles.backButton, lowVision && styles.backButtonLowVision]}
             onPress={onClose}
             accessibilityRole="button"
-            accessibilityLabel="뒤로 가기">
+            accessibilityLabel={t('back')}>
             <Ionicons name="arrow-back" size={lowVision ? 22 : 18} color={Palette.textMuted} />
-            <Text style={[styles.backText, lowVision && styles.backTextLowVision]}>뒤로 가기</Text>
+            <Text style={[styles.backText, lowVision && styles.backTextLowVision]}>{t('back')}</Text>
           </Pressable>
 
         </Animated.View>
@@ -238,7 +235,7 @@ const styles = StyleSheet.create({
   sheetTitleLowVision: {
     fontSize: 24,
     lineHeight: 31,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   label: {
     fontSize: 14,
@@ -249,7 +246,7 @@ const styles = StyleSheet.create({
   },
   labelLowVision: {
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '700',
     marginTop: 13,
   },
   input: {
@@ -299,11 +296,11 @@ const styles = StyleSheet.create({
   },
   categoryTextLowVision: {
     fontSize: 18,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   categoryTextActive: {
     color: Palette.primary,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   saveButton: {
     marginTop: 24,
@@ -321,11 +318,11 @@ const styles = StyleSheet.create({
   saveText: {
     color: '#FFFFFF',
     fontSize: 17,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   saveTextLowVision: {
     fontSize: 21,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   deleteButton: {
     marginTop: 12,
@@ -345,7 +342,7 @@ const styles = StyleSheet.create({
   },
   deleteTextLowVision: {
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   backButton: {
     marginTop: 8,
@@ -365,6 +362,6 @@ const styles = StyleSheet.create({
   },
   backTextLowVision: {
     fontSize: 18,
-    fontWeight: '900',
+    fontWeight: '700',
   },
 });

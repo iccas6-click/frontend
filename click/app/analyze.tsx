@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Screen, TopBar } from '@/components/app-ui';
@@ -8,21 +8,34 @@ import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
 import { devLog } from '@/services/debug-log';
+import { markAnalysisCompleted, markAnalysisFailed, markAnalysisStarted } from '@/services/flow-metrics';
 import { updateSessionAnalysis, updateSessionItems } from '@/services/history-storage';
 import { analyzeInteractions } from '@/services/interactions';
+import { formatElapsedSeconds, useI18n } from '@/services/i18n';
 import type { RecognizedItem } from '@/types/medication';
 
 export default function AnalyzeScreen() {
   const router = useRouter();
-  const { items: itemsParam, recordId } = useLocalSearchParams<{ items?: string; recordId?: string }>();
+  const { items: itemsParam, recordId, flowId } = useLocalSearchParams<{ items?: string; recordId?: string; flowId?: string }>();
   const { lowVision } = useUserMode();
+  const { language, t } = useI18n();
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  useEffect(() => {
+    const startedAt = Date.now();
+    const timer = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
 
     const goFail = () => {
       if (!cancelled) {
-        router.replace({ pathname: '/analysis-failed', params: { items: itemsParam, recordId: recordId ?? '' } });
+        router.replace({ pathname: '/analysis-failed', params: { items: itemsParam, recordId: recordId ?? '', flowId: flowId ?? '' } });
       }
     };
 
@@ -30,10 +43,12 @@ export default function AnalyzeScreen() {
       try {
         const items: RecognizedItem[] = itemsParam ? JSON.parse(itemsParam) : [];
         devLog('[3단계] ▶ 상호작용 분석 요청, 항목 수:', items.length);
+        await markAnalysisStarted(flowId);
         const result = await analyzeInteractions(items);
         if (cancelled) return;
 
         if (!result || !Array.isArray(result.pairs)) {
+          await markAnalysisFailed(flowId);
           goFail();
           return;
         }
@@ -43,12 +58,14 @@ export default function AnalyzeScreen() {
           await updateSessionAnalysis(recordId, result);
         }
 
+        await markAnalysisCompleted(flowId, result);
         router.replace({
           pathname: '/analysis',
-          params: { result: JSON.stringify(result), items: itemsParam, recordId: recordId ?? '' },
+          params: { result: JSON.stringify(result), items: itemsParam, recordId: recordId ?? '', flowId: flowId ?? '' },
         });
       } catch (e) {
         console.warn('상호작용 분석 실패:', e);
+        await markAnalysisFailed(flowId);
         goFail();
       }
     })();
@@ -56,11 +73,11 @@ export default function AnalyzeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [itemsParam, recordId, router]);
+  }, [flowId, itemsParam, recordId, router]);
 
   return (
     <Screen>
-      <TopBar title="상호작용 분석 중" subtitle="성분 조합을 대조하고 상담이 필요한 항목을 정리하고 있어요." />
+      <TopBar title={t('analysisInProgress')} subtitle={t('analysisSubtitle')} />
       <StepIndicator current={3} />
       <View style={styles.body}>
         <View style={[styles.analysisCard, lowVision && styles.analysisCardLowVision]}>
@@ -69,8 +86,11 @@ export default function AnalyzeScreen() {
             <View style={styles.pulseInner} />
             <Image source={require('@/assets/images/robot.png')} style={[styles.robot, lowVision && styles.robotLowVision]} contentFit="contain" />
           </View>
-          <Text style={[styles.title, lowVision && styles.titleLowVision]}>잠시만 기다려 주세요</Text>
-          <Text style={[styles.subtitle, lowVision && styles.subtitleLowVision]}>복용 중단을 지시하지 않고, 상담이 필요한 신호만 먼저 찾아봅니다.</Text>
+          <Text style={[styles.title, lowVision && styles.titleLowVision]}>{t('pleaseWait')}</Text>
+          <Text style={[styles.elapsedText, lowVision && styles.elapsedTextLowVision]}>
+            {t('elapsedTime', { time: formatElapsedSeconds(language, elapsedSeconds) })}
+          </Text>
+          <Text style={[styles.subtitle, lowVision && styles.subtitleLowVision]}>{t('analysisWaitBody')}</Text>
         </View>
       </View>
     </Screen>
@@ -141,7 +161,18 @@ const styles = StyleSheet.create({
   titleLowVision: {
     fontSize: 24,
     lineHeight: 31,
-    fontWeight: '900',
+    fontWeight: '700',
+  },
+  elapsedText: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '700',
+    color: Palette.textMuted,
+    marginTop: 5,
+  },
+  elapsedTextLowVision: {
+    fontSize: 17,
+    lineHeight: 23,
   },
   subtitle: {
     ...Typography.body,

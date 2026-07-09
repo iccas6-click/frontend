@@ -2,29 +2,30 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Palette, Radius, Spacing } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
+import { useI18n } from '@/services/i18n';
 
-const STEPS = ['처방약', '건강기능식품', '분석', '결과'];
-const STEP_ACCESSIBILITY_LABELS = ['처방약 추가', '건강기능식품 추가', '분석', '결과'];
-
-export function StepIndicator({ current, background }: { current: number; background?: string }) {
+export function StepIndicator({ current, background, compact = false }: { current: number; background?: string; compact?: boolean }) {
   const { lowVision } = useUserMode();
+  const { t } = useI18n();
+  const steps = [t('prescription'), t('supplement'), t('interactionAnalysis'), t('analysisResult')];
+  const stepAccessibilityLabels = [t('addPrescription'), t('addSupplement'), t('interactionAnalysis'), t('analysisResult')];
   return (
     <View
-      style={[styles.wrap, lowVision && styles.wrapLowVision, background ? { backgroundColor: background } : null]}
+      style={[styles.wrap, compact && styles.wrapCompact, lowVision && styles.wrapLowVision, background ? { backgroundColor: background } : null]}
       accessible
       accessibilityRole="progressbar"
-      accessibilityLabel={`전체 4단계 중 ${current}단계, ${STEP_ACCESSIBILITY_LABELS[current - 1] ?? '진행 중'}`}>
-      <View style={[styles.track, lowVision && styles.trackLowVision]}>
-        {STEPS.map((label, index) => {
+      accessibilityLabel={`${current} / 4, ${stepAccessibilityLabels[current - 1] ?? t('analysisInProgress')}`}>
+      <View style={[styles.track, compact && styles.trackCompact, lowVision && styles.trackLowVision]}>
+        {steps.map((label, index) => {
           const step = index + 1;
           const active = step <= current;
           const currentStep = step === current;
           return (
-            <View key={label} style={[styles.item, lowVision && styles.itemLowVision]}>
-              <View style={[styles.dot, lowVision && styles.dotLowVision, active && styles.dotActive, currentStep && styles.dotCurrent]}>
-                <Text style={[styles.dotText, lowVision && styles.dotTextLowVision, active && styles.dotTextActive, currentStep && styles.dotTextCurrent]}>{step}</Text>
+            <View key={label} style={[styles.item, compact && styles.itemCompact, lowVision && styles.itemLowVision]}>
+              <View style={[styles.dot, compact && styles.dotCompact, lowVision && styles.dotLowVision, active && styles.dotActive, currentStep && styles.dotCurrent]}>
+                <Text style={[styles.dotText, compact && styles.dotTextCompact, lowVision && styles.dotTextLowVision, active && styles.dotTextActive, currentStep && styles.dotTextCurrent]}>{step}</Text>
               </View>
-              <Text style={[styles.label, lowVision && styles.labelLowVision, active && styles.labelActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.56}>
+              <Text style={[styles.label, compact && styles.labelCompact, lowVision && styles.labelLowVision, active && styles.labelActive]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.72}>
                 {label}
               </Text>
             </View>
@@ -45,8 +46,12 @@ const styles = StyleSheet.create({
   wrapLowVision: {
     paddingBottom: 12,
   },
+  wrapCompact: {
+    paddingTop: 0,
+    paddingBottom: 8,
+  },
   track: {
-    minHeight: 64,
+    minHeight: 72,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -60,6 +65,10 @@ const styles = StyleSheet.create({
     minHeight: 72,
     paddingHorizontal: 8,
   },
+  trackCompact: {
+    minHeight: 62,
+    paddingHorizontal: 7,
+  },
   item: {
     flex: 1,
     minWidth: 0,
@@ -70,6 +79,9 @@ const styles = StyleSheet.create({
   },
   itemLowVision: {
     gap: 4,
+  },
+  itemCompact: {
+    gap: 2,
   },
   dot: {
     width: 28,
@@ -84,6 +96,11 @@ const styles = StyleSheet.create({
     height: 34,
     borderRadius: 17,
   },
+  dotCompact: {
+    width: 25,
+    height: 25,
+    borderRadius: 13,
+  },
   dotActive: {
     backgroundColor: Palette.primarySoft,
   },
@@ -92,12 +109,15 @@ const styles = StyleSheet.create({
   },
   dotText: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
     color: Palette.textSubtle,
   },
   dotTextLowVision: {
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '700',
+  },
+  dotTextCompact: {
+    fontSize: 13,
   },
   dotTextActive: {
     color: Palette.primary,
@@ -107,16 +127,20 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 11,
-    lineHeight: 16,
-    fontWeight: '800',
+    lineHeight: 14,
+    fontWeight: '700',
     letterSpacing: 0,
     color: Palette.textSubtle,
     textAlign: 'center',
   },
   labelLowVision: {
     fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '900',
+    lineHeight: 16,
+    fontWeight: '700',
+  },
+  labelCompact: {
+    fontSize: 10.5,
+    lineHeight: 13,
   },
   labelActive: {
     color: Palette.text,

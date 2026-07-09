@@ -11,14 +11,12 @@ import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Spacing, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
 import { devLog } from '@/services/debug-log';
+import { markRecognitionFinished, markRecognitionStarted } from '@/services/flow-metrics';
 import { createSession, updateSessionItems } from '@/services/history-storage';
-import { analyzeImage } from '@/services/ocr';
+import { categoryLabel, formatElapsedSeconds, useI18n } from '@/services/i18n';
+import { analyzeImage, localizeRecognizedItemsForDisplay } from '@/services/ocr';
+import { getSettings } from '@/services/settings-storage';
 import type { ItemCategory, RecognizedItem, RecognitionCandidate } from '@/types/medication';
-
-const CATEGORY_META: Record<ItemCategory, { label: string; icon: 'medical' | 'leaf'; tone: 'blue' | 'green' }> = {
-  알약: { label: '처방약', icon: 'medical', tone: 'blue' },
-  '건강기능식품 라벨': { label: '건강기능식품', icon: 'leaf', tone: 'green' },
-};
 
 function parseItems(raw?: string): RecognizedItem[] {
   if (!raw) return [];
@@ -36,13 +34,14 @@ function normalizeItems(items: RecognizedItem[]) {
 
 export default function ResultScreen() {
   const router = useRouter();
-  const { photoUri, photoSource, category, prevItems, items: itemsParam, recordId: recordIdParam } = useLocalSearchParams<{
+  const { photoUri, photoSource, category, prevItems, items: itemsParam, recordId: recordIdParam, flowId: flowIdParam } = useLocalSearchParams<{
     photoUri?: string;
     photoSource?: string;
     category?: string;
     prevItems?: string;
     items?: string;
     recordId?: string;
+    flowId?: string;
   }>();
 
   const parsedPrevItems = useMemo(() => parseItems(prevItems), [prevItems]);
@@ -50,7 +49,6 @@ export default function ResultScreen() {
 
   const selectedCategory: ItemCategory = category === '건강기능식품 라벨' ? '건강기능식품 라벨' : '알약';
   const isSupplement = selectedCategory === '건강기능식품 라벨';
-  const meta = CATEGORY_META[selectedCategory];
 
   const [items, setItems] = useState<RecognizedItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,8 +57,12 @@ export default function ResultScreen() {
   const [recordId, setRecordId] = useState<string | null>(recordIdParam ?? null);
   const [editTarget, setEditTarget] = useState<RecognizedItem | null | undefined>(undefined);
   const [activePillIndex, setActivePillIndex] = useState(0);
+  const [recognitionElapsedSeconds, setRecognitionElapsedSeconds] = useState(0);
   const nextId = useRef(0);
+  const flowIdRef = useRef<string | undefined>(flowIdParam);
   const { lowVision } = useUserMode();
+  const { language, t } = useI18n();
+  const categoryName = categoryLabel(selectedCategory, language);
 
   const buildAllItems = useCallback((current: RecognizedItem[]) => normalizeItems([...parsedPrevItems, ...current]), [parsedPrevItems]);
 
@@ -119,15 +121,30 @@ export default function ResultScreen() {
 
   const runRecognition = useCallback(async () => {
     setLoading(true);
+    setRecognitionElapsedSeconds(0);
     setError(false);
     setErrorMessage('');
+    const shouldMeasureRecognition = photoSource === 'camera' || photoSource === 'gallery';
+    let activeFlowId = flowIdRef.current;
     try {
+      if (shouldMeasureRecognition) {
+        activeFlowId = await markRecognitionStarted(
+          activeFlowId,
+          selectedCategory,
+          photoSource === 'camera' ? 'camera' : 'gallery',
+        );
+        flowIdRef.current = activeFlowId;
+      }
+      const settings = await getSettings();
+      const displayLanguage = settings.language;
       const source = parsedCurrentItems.length > 0
         ? parsedCurrentItems
         : await analyzeImage(photoUri ?? '', selectedCategory, {
           source: photoSource === 'camera' || photoSource === 'gallery' ? photoSource : undefined,
+          language: displayLanguage,
         });
-      const current = source
+      const displaySource = await localizeRecognizedItemsForDisplay(source, displayLanguage);
+      const current = displaySource
         .filter((item) => item.category === selectedCategory)
         .map((item, index) => ({
           ...item,
@@ -141,14 +158,23 @@ export default function ResultScreen() {
       if (recordIdParam) {
         await updateSessionItems(recordIdParam, allItems);
         setRecordId(recordIdParam);
+        if (shouldMeasureRecognition) {
+          await markRecognitionFinished(activeFlowId, selectedCategory, 'success', { itemCount: current.length, recordId: recordIdParam });
+        }
       } else {
         const id = await createSession(selectedCategory, allItems);
         setRecordId(id);
+        if (shouldMeasureRecognition) {
+          await markRecognitionFinished(activeFlowId, selectedCategory, 'success', { itemCount: current.length, recordId: id });
+        }
       }
     } catch (e) {
       console.warn('OCR 분석 실패:', e);
       const message = e instanceof Error ? e.message : String(e);
       devLog('[OCR] 분석 실패:', message);
+      if (shouldMeasureRecognition) {
+        await markRecognitionFinished(activeFlowId, selectedCategory, 'failed', { errorMessage: message });
+      }
       setErrorMessage(message);
       setError(true);
     } finally {
@@ -159,6 +185,18 @@ export default function ResultScreen() {
   useEffect(() => {
     runRecognition();
   }, [runRecognition]);
+
+  useEffect(() => {
+    if (!loading) return undefined;
+
+    const startedAt = Date.now();
+    setRecognitionElapsedSeconds(0);
+    const timer = setInterval(() => {
+      setRecognitionElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [loading]);
 
   useEffect(() => {
     setActivePillIndex((prev) => Math.min(prev, Math.max(items.length - 1, 0)));
@@ -177,6 +215,7 @@ export default function ResultScreen() {
         category: '건강기능식품 라벨',
         prevItems: JSON.stringify(allItems),
         recordId: recordId ?? '',
+        flowId: flowIdRef.current ?? '',
       },
     });
   };
@@ -189,6 +228,7 @@ export default function ResultScreen() {
       params: {
         items: JSON.stringify(allItems),
         recordId: recordId ?? '',
+        flowId: flowIdRef.current ?? '',
       },
     });
   };
@@ -200,6 +240,7 @@ export default function ResultScreen() {
         category: selectedCategory,
         prevItems,
         recordId: recordId ?? recordIdParam ?? '',
+        flowId: flowIdRef.current ?? '',
       },
     });
   };
@@ -212,6 +253,7 @@ export default function ResultScreen() {
           category: selectedCategory,
           prevItems,
           recordId: recordId ?? recordIdParam ?? '',
+          flowId: flowIdRef.current ?? '',
         },
       });
       return;
@@ -227,34 +269,34 @@ export default function ResultScreen() {
           <View style={styles.footerRow}>
             {/* 뒤로 가기 버튼이 삭제되고 원래 상태인 2개의 버튼으로 복구되었습니다 */}
             <View style={styles.footerButton}>
-              <PrimaryButton label="사진 다시 선택" icon="images" variant="secondary" disabled={loading} onPress={chooseAgain} />
+              <PrimaryButton label={t('choosePhotoAgain')} icon="images" variant="secondary" disabled={loading} onPress={chooseAgain} />
             </View>
             <View style={styles.footerButton}>
               {!isSupplement ? (
-                <PrimaryButton label="건강기능식품 추가" icon="leaf" disabled={!canContinue} onPress={goSupplement} />
+                <PrimaryButton label={t('addSupplement')} icon="leaf" disabled={!canContinue} onPress={goSupplement} />
               ) : (
-                <PrimaryButton label="전체 확인" icon="list" disabled={!canContinue} onPress={goReview} />
+                <PrimaryButton label={t('reviewAll')} icon="list" disabled={!canContinue} onPress={goReview} />
               )}
             </View>
           </View>
         </View>
       }>
-      <TopBar title={`${meta.label} 결과`} backLabel="뒤로" onBack={handleBack} />
+      <TopBar title={`${categoryName} ${t('analysisResult')}`} backLabel={t('back')} onBack={handleBack} />
       <StepIndicator current={isSupplement ? 2 : 1} />
 
       {loading ? (
-        <StateView icon="scan" title="인식 중" loading sourceUri={sourceImageUri} />
+        <StateView icon="scan" title={t('recognizing')} loading sourceUri={sourceImageUri} elapsedSeconds={recognitionElapsedSeconds} />
       ) : error ? (
-        <StateView icon="alert-circle" title="인식 실패" sourceUri={sourceImageUri}>
+        <StateView icon="alert-circle" title={t('recognitionFailed')} sourceUri={sourceImageUri}>
           {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
           <View style={styles.stateButtonStack}>
-            <PrimaryButton label="다시 시도" icon="refresh" onPress={runRecognition} />
-            <PrimaryButton label="다른 사진 선택" icon="images" variant="secondary" onPress={chooseAgain} />
+            <PrimaryButton label={t('retry')} icon="refresh" onPress={runRecognition} />
+            <PrimaryButton label={t('chooseDifferentPhoto')} icon="images" variant="secondary" onPress={chooseAgain} />
           </View>
         </StateView>
       ) : (
         <>
-          <SectionHeader title={showPillReview ? '약 후보 확인' : `인식된 ${meta.label}`} action={<CountBadge count={items.length} lowVision={lowVision} />} />
+          <SectionHeader title={showPillReview ? t('pillCandidateReview') : t('recognizedCategory', { label: categoryName })} action={<CountBadge count={items.length} lowVision={lowVision} />} />
           <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
             {showPillReview ? (
               <GuidedPillReview
@@ -266,7 +308,7 @@ export default function ResultScreen() {
               />
             ) : (
               <>
-                <SourcePhotoCard sourceUri={sourceImageUri} title="인식한 사진" />
+                <SourcePhotoCard sourceUri={sourceImageUri} title={t('recognizedPhoto')} />
                 {items.map((item) => (
                   <RecognizedItemRow key={item.id} item={item} editable onPress={() => setEditTarget(item)} />
                 ))}
@@ -276,9 +318,15 @@ export default function ResultScreen() {
               style={({ pressed }) => [styles.addCard, lowVision && styles.addCardLowVision, pressed && styles.pressed]}
               onPress={() => setEditTarget(null)}
               accessibilityRole="button"
-              accessibilityLabel={`${meta.label} 직접 추가`}>
+              accessibilityLabel={t('addMissingCategory', { label: categoryName }).replace(/\s+/g, ' ')}>
               <IconBadge icon="add" tone="dark" size="sm" />
-              <Text style={[styles.addCardText, lowVision && styles.addCardTextLowVision]}>목록에 없는 {meta.label} 직접 추가</Text>
+              <Text
+                style={[styles.addCardText, lowVision && styles.addCardTextLowVision]}
+                numberOfLines={2}
+                adjustsFontSizeToFit
+                minimumFontScale={0.72}>
+                {t('addMissingCategory', { label: categoryName })}
+              </Text>
             </Pressable>
           </ScrollView>
         </>
@@ -300,21 +348,27 @@ function StateView({
   icon,
   title,
   loading,
+  elapsedSeconds,
   sourceUri,
   children,
 }: {
   icon: 'scan' | 'alert-circle';
   title: string;
   loading?: boolean;
+  elapsedSeconds?: number;
   sourceUri?: string;
   children?: React.ReactNode;
 }) {
+  const { language, t } = useI18n();
   return (
     <View style={styles.state}>
-      <SourcePhotoCard sourceUri={sourceUri} title="선택한 사진" compact />
+      <SourcePhotoCard sourceUri={sourceUri} title={t('selectedPhoto')} compact />
       {/* 로딩 바 (ActivityIndicator) 삭제 적용 */}
       {!loading && <IconBadge icon={icon} tone="amber" size="lg" />}
       <Text style={styles.stateTitle}>{title}</Text>
+      {loading && elapsedSeconds !== undefined ? (
+        <Text style={styles.elapsedText}>{t('elapsedTime', { time: formatElapsedSeconds(language, elapsedSeconds) })}</Text>
+      ) : null}
       {children ? <View style={styles.stateAction}>{children}</View> : null}
     </View>
   );
@@ -355,6 +409,7 @@ function GuidedPillReview({
   onEdit: (item: RecognizedItem) => void;
 }) {
   const { lowVision } = useUserMode();
+  const { t } = useI18n();
   const activeItem = items[activeIndex] ?? items[0];
   const sourceItem = items.find((item) => item.sourceImageUri && item.sourceImageWidth && item.sourceImageHeight);
   const sourceUri = sourceItem?.sourceImageUri ?? activeItem?.sourceImageUri;
@@ -385,7 +440,7 @@ function GuidedPillReview({
           </View>
         ) : (
           <View style={styles.photoEmpty}>
-            <Text style={styles.photoEmptyText}>원본 사진 없음</Text>
+            <Text style={styles.photoEmptyText}>{t('originalPhotoMissing')}</Text>
           </View>
         )}
       </View>
@@ -395,7 +450,7 @@ function GuidedPillReview({
           {activeIndex + 1} / {items.length}
         </Text>
         <Text style={[styles.questionTitle, lowVision && styles.questionTitleLowVision]}>
-          표시된 약 후보가 맞나요?
+          {t('isThisPillCorrect')}
         </Text>
       </View>
 
@@ -418,9 +473,9 @@ function GuidedPillReview({
             onPress={() => onActiveIndexChange(Math.max(activeIndex - 1, 0))}
             accessibilityRole="button"
             accessibilityState={{ disabled: !hasPrevious }}
-            accessibilityLabel="이전 약 후보">
+            accessibilityLabel={t('previousCandidate')}>
             <Text style={[styles.pillNavText, lowVision && styles.pillNavTextLowVision, !hasPrevious && styles.pillNavTextDisabled]}>
-              이전
+              {t('back')}
             </Text>
           </Pressable>
           <Pressable
@@ -435,9 +490,9 @@ function GuidedPillReview({
             onPress={() => onActiveIndexChange(Math.min(activeIndex + 1, items.length - 1))}
             accessibilityRole="button"
             accessibilityState={{ disabled: !hasNext }}
-            accessibilityLabel="다음 약 후보">
+            accessibilityLabel={t('nextCandidate')}>
             <Text style={[styles.pillNavText, styles.pillNavTextPrimary, lowVision && styles.pillNavTextLowVision, !hasNext && styles.pillNavTextDisabled]}>
-              다음 약
+              {t('nextCandidate')}
             </Text>
           </Pressable>
         </View>
@@ -461,6 +516,7 @@ function PillBox({
   imageHeight: number;
   onPress: () => void;
 }) {
+  const { t } = useI18n();
   if (!item.bbox) return null;
   const [x1, y1, x2, y2] = item.bbox;
   const left = Math.max(0, Math.min(100, (x1 / imageWidth) * 100));
@@ -482,7 +538,7 @@ function PillBox({
       ]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${index + 1}번 약 후보 선택`}>
+      accessibilityLabel={`${index + 1}. ${t('pillCandidateReview')}`}>
       <View style={[styles.pillBoxLabel, active && styles.pillBoxLabelActive]}>
         <Text style={[styles.pillBoxLabelText, active && styles.pillBoxLabelTextActive]}>{index + 1}</Text>
       </View>
@@ -506,7 +562,7 @@ const styles = StyleSheet.create({
   },
   countBadgeText: {
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.text,
   },
   countBadgeTextLowVision: {
@@ -536,7 +592,7 @@ const styles = StyleSheet.create({
   sourcePhotoTitle: {
     fontSize: 14,
     lineHeight: 19,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.textMuted,
   },
   sourcePhotoTitleLowVision: {
@@ -591,7 +647,7 @@ const styles = StyleSheet.create({
   },
   photoEmptyText: {
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '700',
     color: Palette.textMuted,
   },
   errorMessage: {
@@ -631,7 +687,7 @@ const styles = StyleSheet.create({
   pillBoxLabelText: {
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.text,
   },
   pillBoxLabelTextActive: {
@@ -652,7 +708,7 @@ const styles = StyleSheet.create({
   questionIndex: {
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.primary,
   },
   questionIndexLowVision: {
@@ -662,7 +718,7 @@ const styles = StyleSheet.create({
   questionTitle: {
     fontSize: 20,
     lineHeight: 27,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.text,
     marginTop: 2,
   },
@@ -697,7 +753,7 @@ const styles = StyleSheet.create({
   pillNavText: {
     fontSize: 16,
     lineHeight: 22,
-    fontWeight: '900',
+    fontWeight: '700',
     color: Palette.textMuted,
   },
   pillNavTextPrimary: {
@@ -715,11 +771,13 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.99 }],
   },
   addCard: {
-    minHeight: 64,
+    minHeight: 72,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderStyle: 'dashed',
@@ -727,16 +785,20 @@ const styles = StyleSheet.create({
     backgroundColor: Palette.surface,
   },
   addCardLowVision: {
-    minHeight: 78,
+    minHeight: 88,
   },
   addCardText: {
+    flexShrink: 1,
     fontSize: 15,
-    fontWeight: '800',
+    lineHeight: 20,
+    fontWeight: '700',
     color: Palette.textMuted,
+    textAlign: 'center',
   },
   addCardTextLowVision: {
     fontSize: 18,
-    fontWeight: '900',
+    lineHeight: 24,
+    fontWeight: '700',
   },
   state: {
     flex: 1,
@@ -750,6 +812,13 @@ const styles = StyleSheet.create({
     color: Palette.text,
     textAlign: 'center',
     marginTop: 16,
+  },
+  elapsedText: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '700',
+    color: Palette.textMuted,
+    marginTop: 4,
   },
   stateAction: {
     width: '100%',

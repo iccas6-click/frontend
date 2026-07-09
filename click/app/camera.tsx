@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -8,20 +9,24 @@ import { IconBadge, PrimaryButton, Screen, TopBar } from '@/components/app-ui';
 import { StepIndicator } from '@/components/step-indicator';
 import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
 import { useUserMode } from '@/hooks/use-user-mode';
+import { createFlowMetric } from '@/services/flow-metrics';
+import { useI18n } from '@/services/i18n';
 import type { ItemCategory } from '@/types/medication';
 
 export default function CameraScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ category?: string; prevItems?: string; recordId?: string }>();
+  const params = useLocalSearchParams<{ category?: string; prevItems?: string; recordId?: string; flowId?: string }>();
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [taking, setTaking] = useState(false);
-  const { height } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
   const { lowVision } = useUserMode();
+  const { t } = useI18n();
 
   const category: ItemCategory = params.category === '건강기능식품 라벨' ? '건강기능식품 라벨' : '알약';
   const isSupplement = category === '건강기능식품 라벨';
   const compact = height < 760;
+  const cameraFrameHeight = Math.min(width - (compact ? 116 : Spacing.screen * 2), compact ? 278 : height < 860 ? 306 : 340);
 
   const handleBack = () => {
     router.replace({
@@ -48,14 +53,14 @@ export default function CameraScreen() {
     return (
       <Screen>
         <StatusBar style="dark" />
-        <TopBar backLabel="뒤로" onBack={handleBack} />
+        <TopBar backLabel={t('back')} onBack={handleBack} />
         <View style={styles.permissionBox}>
           <IconBadge icon="camera-outline" tone="blue" size="lg" />
-          <Text style={[styles.permissionTitle, lowVision && styles.permissionTitleLowVision]}>카메라 권한이 필요해요</Text>
+          <Text style={[styles.permissionTitle, lowVision && styles.permissionTitleLowVision]}>{t('cameraPermissionTitle')}</Text>
           <Text style={[styles.permissionDesc, lowVision && styles.permissionDescLowVision]}>
-            처방전, 약 봉투와 건강기능식품 라벨을 촬영할 수 있도록 접근을 허용해 주세요.
+            {t('cameraPermissionBody')}
           </Text>
-          <PrimaryButton label="권한 허용하기" icon="lock-open" onPress={requestPermission} />
+          <PrimaryButton label={t('allowPermission')} icon="lock-open" onPress={requestPermission} />
         </View>
       </Screen>
     );
@@ -71,6 +76,7 @@ export default function CameraScreen() {
         skipProcessing: false,
       });
       if (!photo?.uri) return;
+      const flowId = params.flowId ?? await createFlowMetric(category, 'camera');
       router.replace({
         pathname: '/result',
         params: {
@@ -79,10 +85,11 @@ export default function CameraScreen() {
           category,
           prevItems: params.prevItems,
           recordId: params.recordId,
+          flowId,
         },
       });
     } catch (e) {
-      Alert.alert('촬영 오류', String(e));
+      Alert.alert(t('cameraError'), String(e));
     } finally {
       setTaking(false);
     }
@@ -97,47 +104,76 @@ export default function CameraScreen() {
             onPress={takePicture}
             disabled={taking}
             accessibilityRole="button"
-            accessibilityLabel={`${isSupplement ? '건강기능식품' : '처방전 또는 약봉투'} 촬영하기`}
+            accessibilityLabel={isSupplement ? t('captureSupplementA11y') : t('capturePrescriptionA11y')}
             accessibilityState={{ disabled: taking }}>
             {taking ? <ActivityIndicator color={Palette.primary} /> : <View style={[styles.shutterInner, lowVision && styles.shutterInnerLowVision]} />}
           </Pressable>
-          {compact ? null : <Text style={[styles.shutterHint, lowVision && styles.shutterHintLowVision]}>흔들리지 않게 정면에서 촬영해 주세요</Text>}
+          {compact ? null : <Text style={[styles.shutterHint, lowVision && styles.shutterHintLowVision]}>{t('steadyShotHint')}</Text>}
         </View>
       }>
       <StatusBar style="dark" />
-      <TopBar
-        title={isSupplement ? '건강기능식품 촬영' : '처방전·약봉투 촬영'}
-        subtitle={isSupplement ? '제품명과 성분표가 보이게 촬영하세요.' : '약품명·용량이 보이게 전체를 촬영하세요.'}
-        subtitleNumberOfLines={1}
-        backLabel="뒤로"
+      <CaptureHeader
+        title={isSupplement ? t('captureSupplementTitle') : t('capturePrescriptionTitle')}
+        subtitle={isSupplement ? t('captureSupplementGuide') : t('capturePrescriptionGuide')}
+        backLabel={t('back')}
+        lowVision={lowVision}
         onBack={handleBack}
       />
-      <StepIndicator current={isSupplement ? 2 : 1} />
+      <StepIndicator current={isSupplement ? 2 : 1} compact />
 
-      <View style={[styles.cameraSection, compact && styles.cameraSectionCompact]}>
-        <View style={styles.cameraShell}>
-          <CameraView ref={cameraRef} style={styles.camera} facing="back" selectedLens="builtInWideAngleCamera" zoom={0} />
-          <View style={styles.frameGuide}>
-            <View style={styles.cornerTopLeft} />
-            <View style={styles.cornerTopRight} />
-            <View style={styles.cornerBottomLeft} />
-            <View style={styles.cornerBottomRight} />
+      <View style={[styles.captureContent, compact && styles.captureContentCompact, lowVision && styles.captureContentLowVision]}>
+        <View style={[styles.cameraSection, compact && styles.cameraSectionCompact]}>
+          <View style={[styles.cameraShell, { height: cameraFrameHeight }]}>
+            <CameraView ref={cameraRef} style={styles.camera} facing="back" selectedLens="builtInWideAngleCamera" zoom={0} />
+            <View style={styles.frameGuide}>
+              <View style={styles.cornerTopLeft} />
+              <View style={styles.cornerTopRight} />
+              <View style={styles.cornerBottomLeft} />
+              <View style={styles.cornerBottomRight} />
+            </View>
+          </View>
+        </View>
+
+        <View style={[styles.tipCard, compact && styles.tipCardCompact, lowVision && styles.tipCardLowVision]}>
+          <IconBadge icon={isSupplement ? 'text' : 'document-text'} tone={isSupplement ? 'green' : 'blue'} size="sm" />
+          <View style={styles.tipTextWrap}>
+            <Text style={[styles.tipTitle, lowVision && styles.tipTitleLowVision]}>{isSupplement ? t('labelTipTitle') : t('pillTipTitle')}</Text>
+            <Text style={[styles.tipBody, lowVision && styles.tipBodyLowVision]}>
+              {isSupplement ? t('labelTipBody') : t('pillTipBody')}
+            </Text>
           </View>
         </View>
       </View>
-
-      <View style={[styles.tipCard, compact && styles.tipCardCompact, lowVision && styles.tipCardLowVision]}>
-        <IconBadge icon={isSupplement ? 'text' : 'document-text'} tone={isSupplement ? 'green' : 'blue'} size="sm" />
-        <View style={styles.tipTextWrap}>
-          <Text style={[styles.tipTitle, lowVision && styles.tipTitleLowVision]}>{isSupplement ? '라벨 글자가 중요해요' : '약품명이 보이게 촬영해요'}</Text>
-          {!compact ? (
-            <Text style={[styles.tipBody, lowVision && styles.tipBodyLowVision]}>
-              {isSupplement ? '성분명과 함량 부분이 잘리지 않게 촬영하면 확인이 쉬워집니다.' : '처방전이나 약 봉투의 약 이름과 용량 부분이 선명하면 확인이 쉬워집니다.'}
-            </Text>
-          ) : null}
-        </View>
-      </View>
     </Screen>
+  );
+}
+
+function CaptureHeader({
+  title,
+  subtitle,
+  backLabel,
+  lowVision,
+  onBack,
+}: {
+  title: string;
+  subtitle: string;
+  backLabel: string;
+  lowVision: boolean;
+  onBack: () => void;
+}) {
+  return (
+    <View style={[styles.captureHeader, lowVision && styles.captureHeaderLowVision]}>
+      <Pressable style={styles.captureBackButton} onPress={onBack} hitSlop={12} accessibilityRole="button" accessibilityLabel={backLabel}>
+        <Ionicons name="chevron-back" size={22} color={Palette.primary} />
+        <Text style={[styles.captureBackText, lowVision && styles.captureBackTextLowVision]}>{backLabel}</Text>
+      </Pressable>
+      <Text style={[styles.captureTitle, lowVision && styles.captureTitleLowVision]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.76}>
+        {title}
+      </Text>
+      <Text style={[styles.captureSubtitle, lowVision && styles.captureSubtitleLowVision]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.78}>
+        {subtitle}
+      </Text>
+    </View>
   );
 }
 
@@ -161,7 +197,7 @@ const styles = StyleSheet.create({
   permissionTitleLowVision: {
     fontSize: 24,
     lineHeight: 31,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   permissionDesc: {
     ...Typography.body,
@@ -173,6 +209,65 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 26,
   },
+  captureContent: {
+    flex: 1,
+    paddingBottom: 10,
+  },
+  captureContentCompact: {
+    paddingBottom: 8,
+  },
+  captureContentLowVision: {
+    paddingBottom: 10,
+  },
+  captureHeader: {
+    paddingHorizontal: Spacing.screen,
+    paddingTop: 6,
+    paddingBottom: 10,
+  },
+  captureHeaderLowVision: {
+    paddingBottom: 9,
+  },
+  captureBackButton: {
+    minHeight: 31,
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginLeft: -6,
+    marginBottom: 6,
+  },
+  captureBackText: {
+    color: Palette.primary,
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: '700',
+  },
+  captureBackTextLowVision: {
+    fontSize: 18,
+    lineHeight: 24,
+  },
+  captureTitle: {
+    fontSize: 25,
+    lineHeight: 30,
+    fontWeight: '700',
+    color: Palette.text,
+    letterSpacing: 0,
+  },
+  captureTitleLowVision: {
+    fontSize: 28,
+    lineHeight: 34,
+  },
+  captureSubtitle: {
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '600',
+    color: Palette.textMuted,
+    marginTop: 7,
+    letterSpacing: 0,
+  },
+  captureSubtitleLowVision: {
+    fontSize: 16,
+    lineHeight: 22,
+  },
   cameraSection: {
     paddingHorizontal: Spacing.screen,
   },
@@ -181,7 +276,6 @@ const styles = StyleSheet.create({
   },
   cameraShell: {
     width: '100%',
-    aspectRatio: 1,
     overflow: 'hidden',
     borderRadius: Radius.xl,
     backgroundColor: Palette.blueGrey,
@@ -243,7 +337,7 @@ const styles = StyleSheet.create({
   tipCard: {
     marginHorizontal: Spacing.screen,
     marginTop: 12,
-    marginBottom: 10, // 여백을 원래대로 복구했습니다.
+    marginBottom: 0,
     minHeight: 76,
     flexDirection: 'row',
     alignItems: 'center',
@@ -255,9 +349,8 @@ const styles = StyleSheet.create({
   },
   tipCardCompact: {
     marginTop: 7,
-    marginBottom: 2,
-    minHeight: 56,
-    paddingVertical: 8,
+    minHeight: 72,
+    paddingVertical: 10,
   },
   tipCardLowVision: {
     minHeight: 84,
@@ -269,13 +362,13 @@ const styles = StyleSheet.create({
   },
   tipTitle: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '700',
     color: Palette.text,
   },
   tipTitleLowVision: {
     fontSize: 19,
     lineHeight: 25,
-    fontWeight: '900',
+    fontWeight: '700',
   },
   tipBody: {
     fontSize: 14,
@@ -330,6 +423,6 @@ const styles = StyleSheet.create({
   shutterHintLowVision: {
     fontSize: 17,
     lineHeight: 23,
-    fontWeight: '900',
+    fontWeight: '700',
   },
 });

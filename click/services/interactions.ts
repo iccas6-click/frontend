@@ -8,16 +8,39 @@ import type {
 } from '@/types/medication';
 
 import { devLog } from './debug-log';
+import { translate } from './i18n';
 import { BACKEND_API_BASE_URL } from './ocr';
+import { getSettings } from './settings-storage';
 
 /** 위험도 비교용 순위 */
 const LEVEL_RANK: Record<RiskLevel, number> = { danger: 3, caution: 2, safe: 1 };
 
 /** 알려진 조합 사전 (목업용). 키는 이름을 정렬해 '|'로 연결 */
-const KNOWN: Record<string, { level: RiskLevel; description: string }> = {
-  '아스피린|오메가-3': { level: 'caution', description: '함께 복용 시 출혈 위험이 증가할 수 있어요' },
-  '리피토|아스피린': { level: 'caution', description: '드물게 근육 관련 부작용이 보고됩니다' },
-  '비타민 D3|리피토': { level: 'safe', description: '함께 복용 가능합니다' },
+const KNOWN: Record<string, { level: RiskLevel; descriptions: Record<'ko' | 'en' | 'fr', string> }> = {
+  '아스피린|오메가-3': {
+    level: 'caution',
+    descriptions: {
+      ko: '함께 복용 시 출혈 위험이 증가할 수 있어요',
+      en: 'Taking these together may increase bleeding risk.',
+      fr: 'Les prendre ensemble peut augmenter le risque de saignement.',
+    },
+  },
+  '리피토|아스피린': {
+    level: 'caution',
+    descriptions: {
+      ko: '드물게 근육 관련 부작용이 보고됩니다',
+      en: 'Muscle-related side effects have rarely been reported.',
+      fr: 'Des effets indésirables musculaires ont rarement été rapportés.',
+    },
+  },
+  '비타민 D3|리피토': {
+    level: 'safe',
+    descriptions: {
+      ko: '함께 복용 가능합니다',
+      en: 'These can be taken together.',
+      fr: 'Ils peuvent être pris ensemble.',
+    },
+  },
 };
 
 function pairKey(a: string, b: string): string {
@@ -59,6 +82,8 @@ function buildAnalyzeItems(items: RecognizedItem[]) {
  * API_BASE_URL이 비어 있으면 목업 결과를 반환한다(백엔드 연동 전 테스트용).
  */
 export async function analyzeInteractions(items: RecognizedItem[]): Promise<AnalysisResult> {
+  const settings = await getSettings();
+  const lang = settings.language;
   devLog(
     '[상호작용] ▶ 서버로 보냄:',
     BACKEND_API_BASE_URL ? `POST ${BACKEND_API_BASE_URL}/api/v1/interactions/analyze` : '(목업 모드)',
@@ -84,7 +109,7 @@ export async function analyzeInteractions(items: RecognizedItem[]): Promise<Anal
           id: String(pid),
           items: [a, b],
           level: known?.level ?? 'safe',
-          description: known?.description ?? '함께 복용 가능합니다',
+          description: known?.descriptions[lang] ?? translate(lang, 'riskSafeTitle'),
         });
       }
     }
@@ -100,10 +125,10 @@ export async function analyzeInteractions(items: RecognizedItem[]): Promise<Anal
 
     const summary =
       overall === 'danger'
-        ? '위험한 조합이 있어 복용 전 전문가 상담이 필요합니다'
+        ? translate(lang, 'riskDangerTitle')
         : overall === 'caution'
-          ? '일부 조합에서 주의가 필요합니다'
-          : '모든 조합을 함께 복용할 수 있습니다';
+          ? translate(lang, 'riskCautionTitle')
+          : translate(lang, 'riskSafeTitle');
 
     const result = {
       overall,
@@ -123,7 +148,7 @@ export async function analyzeInteractions(items: RecognizedItem[]): Promise<Anal
   // 실제 백엔드 연동
   const { data } = await axios.post<AnalysisResult>(
     `${BACKEND_API_BASE_URL}/api/v1/interactions/analyze`,
-    { items: buildAnalyzeItems(items), lang: 'ko' },
+    { items: buildAnalyzeItems(items), lang },
     { timeout: 30000 },
   );
   devLog('[상호작용] ◀ 서버에서 받음:', data);
