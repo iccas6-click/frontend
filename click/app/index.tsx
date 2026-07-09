@@ -6,7 +6,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { IconBadge, PrimaryButton, Screen } from '@/components/app-ui';
-import { Palette, Radius, Shadow, Spacing, Typography } from '@/constants/theme';
+import { Palette, Radius, Shadow, Spacing } from '@/constants/theme';
 import { formatRecordDateTime, formatRecordMonth, getAllSessions } from '@/services/history-storage';
 import { riskLabel, translate, useI18n, type AppLanguage } from '@/services/i18n';
 import { getSettings, type AppSettings } from '@/services/settings-storage';
@@ -24,10 +24,6 @@ function riskTone(level?: RiskLevel): 'red' | 'amber' | 'green' | 'dark' {
   if (level === 'caution') return 'amber';
   if (level === 'safe') return 'green';
   return 'dark';
-}
-
-function hasAnalysis(record: AnalysisSession) {
-  return Boolean(record.analysis) || record.status === 'analyzed';
 }
 
 function buildRecentGroups(records: AnalysisSession[], language: AppLanguage) {
@@ -66,35 +62,14 @@ export default function MainScreen() {
 
   const lowVision = settings.mode === 'lowVision';
   const language = settings.language;
-  const analyzedRecords = useMemo(() => sessions.filter(hasAnalysis), [sessions]);
+  // 메인에는 위험·주의가 필요한 기록만 노출한다. (안전/미탐지 기록은 전체 기록 페이지에서 확인)
+  const attentionRecords = useMemo(
+    () => sessions.filter((session) => session.analysis?.overall === 'danger' || session.analysis?.overall === 'caution'),
+    [sessions],
+  );
   const [visibleRecentCount, setVisibleRecentCount] = useState(5);
-  const recentRecords = useMemo(() => analyzedRecords.slice(0, visibleRecentCount), [analyzedRecords, visibleRecentCount]);
+  const recentRecords = useMemo(() => attentionRecords.slice(0, visibleRecentCount), [attentionRecords, visibleRecentCount]);
   const recentGroups = useMemo(() => buildRecentGroups(recentRecords, language), [recentRecords, language]);
-  const inProgressRecord = useMemo(() => sessions.find((session) => !hasAnalysis(session) && session.items.length > 0) ?? null, [sessions]);
-
-  const continueProgress = (record: AnalysisSession) => {
-    const pills = record.items.filter((item) => item.category === '알약');
-    const supplements = record.items.filter((item) => item.category === '건강기능식품 라벨');
-
-    if (pills.length > 0 && supplements.length > 0) {
-      router.push({ pathname: '/review', params: { items: JSON.stringify(record.items), recordId: record.id } });
-      return;
-    }
-
-    if (pills.length > 0) {
-      router.push({
-        pathname: '/reuse',
-        params: {
-          category: '건강기능식품 라벨',
-          prevItems: JSON.stringify(record.items),
-          recordId: record.id,
-        },
-      });
-      return;
-    }
-
-    router.push({ pathname: '/reuse', params: { category: '알약', recordId: record.id } });
-  };
 
   return (
     <Screen>
@@ -125,15 +100,11 @@ export default function MainScreen() {
       </View>
 
       <ScrollView contentContainerStyle={[styles.content, lowVision && styles.contentLowVision]} showsVerticalScrollIndicator={false}>
-        <View style={styles.heroBlock}>
-          <Text style={[styles.heroTitle, lowVision && styles.heroTitleLowVision]}>{t('heroTitle')}</Text>
-        </View>
-
         <View style={styles.flowStrip}>
           <FlowPill icon="medical" label={t('prescriptionRecognitionShort')} large={lowVision} />
-          <Ionicons name="chevron-forward" size={16} color={Palette.textSubtle} />
+          <FlowArrow large={lowVision} />
           <FlowPill icon="leaf" label={t('supplementRecognitionShort')} tone="green" large={lowVision} />
-          <Ionicons name="chevron-forward" size={16} color={Palette.textSubtle} />
+          <FlowArrow large={lowVision} />
           <FlowPill icon="shield-checkmark" label={t('interactionAnalysis')} tone="dark" large={lowVision} />
         </View>
 
@@ -146,7 +117,12 @@ export default function MainScreen() {
           />
         </View>
 
-        {inProgressRecord ? <ResumeCard record={inProgressRecord} lowVision={lowVision} language={language} onPress={() => continueProgress(inProgressRecord)} /> : null}
+        <View style={[styles.tipCard, lowVision && styles.tipCardLowVision]}>
+          <View style={styles.tipIcon}>
+            <Ionicons name="bulb-outline" size={lowVision ? 20 : 17} color={Palette.primary} />
+          </View>
+          <Text style={[styles.tipText, lowVision && styles.tipTextLowVision]}>{t('heroTitle').replace(/\n/g, ' ')}</Text>
+        </View>
 
         <View style={styles.sectionRow}>
           <Text style={[styles.sectionTitle, lowVision && styles.sectionTitleLowVision]}>{t('recentRecords')}</Text>
@@ -155,7 +131,7 @@ export default function MainScreen() {
           </Pressable>
         </View>
 
-        {analyzedRecords.length === 0 ? (
+        {attentionRecords.length === 0 ? (
           <View style={[styles.emptyTimeline, lowVision && styles.emptyTimelineLowVision]}>
             <IconBadge icon="folder-open" tone="dark" />
             <Text style={[styles.emptyTitle, lowVision && styles.emptyTitleLowVision]}>{t('noRecordsYet')}</Text>
@@ -172,12 +148,12 @@ export default function MainScreen() {
                     first={index === 0}
                     lowVision={lowVision}
                     language={language}
-                    onPress={() => router.push({ pathname: '/record', params: { id: record.id } })}
+                    onPress={() => router.push({ pathname: '/record-items', params: { id: record.id } })}
                   />
                 ))}
               </View>
             ))}
-            {analyzedRecords.length > visibleRecentCount ? (
+            {attentionRecords.length > visibleRecentCount ? (
               <Pressable
                 style={({ pressed }) => [styles.moreButton, lowVision && styles.moreButtonLowVision, pressed && styles.pressed]}
                 onPress={() => setVisibleRecentCount((count) => count + 5)}
@@ -210,7 +186,15 @@ function FlowPill({
       <View style={[styles.flowIcon, large && styles.flowIconLarge, { backgroundColor }]}>
         <Ionicons name={icon} size={large ? 18 : 16} color={color} />
       </View>
-      <Text style={[styles.flowPillText, large && styles.flowPillTextLarge]}>{label}</Text>
+      <Text style={[styles.flowPillText, large && styles.flowPillTextLarge]} numberOfLines={2}>{label}</Text>
+    </View>
+  );
+}
+
+function FlowArrow({ large }: { large?: boolean }) {
+  return (
+    <View style={[styles.flowArrow, large && styles.flowArrowLarge]}>
+      <Ionicons name="chevron-forward" size={16} color={Palette.textSubtle} />
     </View>
   );
 }
@@ -251,36 +235,6 @@ function TimelineCard({
           <CountChip icon="medical" label={translate(language, 'prescriptionCount', { count: counts.pill })} />
           <CountChip icon="leaf" label={translate(language, 'supplementCount', { count: counts.supplement })} />
         </View>
-      </View>
-      <Ionicons name="chevron-forward" size={lowVision ? 22 : 19} color={Palette.textSubtle} />
-    </Pressable>
-  );
-}
-
-function ResumeCard({
-  record,
-  lowVision,
-  language,
-  onPress,
-}: {
-  record: AnalysisSession;
-  lowVision: boolean;
-  language: AppLanguage;
-  onPress: () => void;
-}) {
-  const counts = countByCategory(record);
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.resumeCard, lowVision && styles.resumeCardLowVision, pressed && styles.pressed]}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={translate(language, 'resumeRecognition')}>
-      <IconBadge icon="time" tone="amber" />
-      <View style={styles.resumeText}>
-        <Text style={[styles.resumeTitle, lowVision && styles.resumeTitleLowVision]}>{translate(language, 'resumeRecognition')}</Text>
-        <Text style={[styles.resumeMeta, lowVision && styles.resumeMetaLowVision]}>
-          {translate(language, 'prescriptionCount', { count: counts.pill })} · {translate(language, 'supplementCount', { count: counts.supplement })}
-        </Text>
       </View>
       <Ionicons name="chevron-forward" size={lowVision ? 22 : 19} color={Palette.textSubtle} />
     </Pressable>
@@ -367,17 +321,6 @@ const styles = StyleSheet.create({
   contentLowVision: {
     gap: 15,
   },
-  heroBlock: {
-    gap: 0,
-  },
-  heroTitle: {
-    ...Typography.hero,
-    color: Palette.text,
-  },
-  heroTitleLowVision: {
-    fontSize: 35,
-    lineHeight: 42,
-  },
   modeBadge: {
     minHeight: 30,
     paddingHorizontal: 10,
@@ -402,7 +345,7 @@ const styles = StyleSheet.create({
   },
   flowStrip: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 5,
     padding: 12,
@@ -428,9 +371,18 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
   },
+  flowArrow: {
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flowArrowLarge: {
+    height: 40,
+  },
   flowPillText: {
     fontSize: 12,
     lineHeight: 16,
+    minHeight: 32,
     fontWeight: '600',
     color: Palette.text,
     textAlign: 'center',
@@ -438,6 +390,7 @@ const styles = StyleSheet.create({
   flowPillTextLarge: {
     fontSize: 14,
     lineHeight: 19,
+    minHeight: 38,
   },
   startPanel: {
     gap: 14,
@@ -458,45 +411,37 @@ const styles = StyleSheet.create({
     fontSize: 25,
     lineHeight: 32,
   },
-  resumeCard: {
-    minHeight: 88,
+  tipCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 13,
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: Radius.md,
+    backgroundColor: Palette.primarySoft,
+  },
+  tipCardLowVision: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  tipIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: Palette.surface,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Palette.amberSoft,
-    padding: 15,
-    ...Shadow.subtle,
   },
-  resumeCardLowVision: {
-    minHeight: 106,
-    padding: 17,
-  },
-  resumeText: {
+  tipText: {
     flex: 1,
-    gap: 4,
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: '600',
+    color: Palette.primary,
   },
-  resumeTitle: {
-    fontSize: 18,
-    lineHeight: 24,
-    fontWeight: '700',
-    color: Palette.text,
-  },
-  resumeTitleLowVision: {
-    fontSize: 22,
-    lineHeight: 29,
-  },
-  resumeMeta: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
-    color: Palette.textMuted,
-  },
-  resumeMetaLowVision: {
-    fontSize: 17,
-    lineHeight: 24,
+  tipTextLowVision: {
+    fontSize: 16,
+    lineHeight: 23,
   },
   sectionRow: {
     marginTop: 4,
