@@ -53,35 +53,38 @@ const styles = StyleSheet.create({
   track: {
     minHeight: 72,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     backgroundColor: Palette.surface,
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Palette.border,
     paddingHorizontal: 8,
+    paddingVertical: 12,
   },
   trackLowVision: {
-    minHeight: 72,
+    minHeight: 76,
     paddingHorizontal: 8,
   },
   trackCompact: {
     minHeight: 62,
     paddingHorizontal: 7,
+    paddingVertical: 10,
   },
   item: {
     flex: 1,
     minWidth: 0,
     flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 3,
+    justifyContent: 'flex-start',
+    paddingHorizontal: 3,
+    gap: 6,
   },
   itemLowVision: {
-    gap: 4,
+    gap: 7,
   },
   itemCompact: {
-    gap: 2,
+    gap: 5,
   },
   dot: {
     width: 28,
@@ -128,6 +131,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 11,
     lineHeight: 14,
+    minHeight: 28,
     fontWeight: '700',
     letterSpacing: 0,
     color: Palette.textSubtle,
@@ -136,11 +140,13 @@ const styles = StyleSheet.create({
   labelLowVision: {
     fontSize: 13,
     lineHeight: 16,
+    minHeight: 32,
     fontWeight: '700',
   },
   labelCompact: {
     fontSize: 10.5,
     lineHeight: 13,
+    minHeight: 26,
   },
   labelActive: {
     color: Palette.text,

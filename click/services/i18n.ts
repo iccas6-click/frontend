@@ -39,6 +39,7 @@ type TranslationKey =
   | 'metricSummary'
   | 'noLogs'
   | 'close'
+  | 'confirm'
   | 'openSettings'
   | 'heroTitle'
   | 'prescriptionRecognitionShort'
@@ -174,6 +175,7 @@ type TranslationKey =
   | 'deselect'
   | 'recordNotFound'
   | 'record'
+  | 'usedItemsTitle'
   | 'noAnalysisResult'
   | 'noRecognizedItems'
   | 'unknownItem'
@@ -221,6 +223,7 @@ const STRINGS: Record<TranslationKey, Record<AppLanguage, string>> = {
   metricSummary: { ko: '지표 요약', en: 'Metric summary', fr: 'Résumé des indicateurs' },
   noLogs: { ko: '아직 로그가 없어요.', en: 'No logs yet.', fr: 'Aucun journal pour le moment.' },
   close: { ko: '닫기', en: 'Close', fr: 'Fermer' },
+  confirm: { ko: '확인', en: 'OK', fr: 'OK' },
   openSettings: { ko: '설정 열기', en: 'Open settings', fr: 'Ouvrir les paramètres' },
   heroTitle: {
     ko: '같이 먹어도 괜찮은지\n사진으로 먼저 확인하세요.',
@@ -414,6 +417,7 @@ const STRINGS: Record<TranslationKey, Record<AppLanguage, string>> = {
   deselect: { ko: '해제', en: 'Clear', fr: 'Effacer' },
   recordNotFound: { ko: '기록을 찾을 수 없어요', en: 'Record not found', fr: 'Historique introuvable' },
   record: { ko: '기록', en: 'Record', fr: 'Historique' },
+  usedItemsTitle: { ko: '분석에 사용한 항목', en: 'Items used in this analysis', fr: 'Éléments utilisés pour l’analyse' },
   noAnalysisResult: { ko: '분석 결과가 없어요', en: 'No analysis result', fr: 'Aucun résultat d’analyse' },
   noRecognizedItems: { ko: '인식 기록 없음', en: 'No scanned items', fr: 'Aucun élément scanné' },
   unknownItem: { ko: '이름 없는 항목', en: 'Unnamed item', fr: 'Élément sans nom' },
