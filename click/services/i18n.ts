@@ -44,6 +44,7 @@ type TranslationKey =
   | 'noLogs'
   | 'close'
   | 'openSettings'
+  | 'all_history'
   | 'heroTitle'
   | 'prescriptionRecognitionShort'
   | 'supplementRecognitionShort'
@@ -275,6 +276,11 @@ const STRINGS: Record<TranslationKey, Record<AppLanguage, string>> = {
     ko: '같이 먹어도 괜찮은지\n사진으로 먼저 확인하세요.',
     en: 'Check with a photo first\nbefore taking them together.',
     fr: 'Vérifiez d’abord avec une photo\navant de les prendre ensemble.',
+  },
+  all_history: {
+  ko: '전체 기록 보기',
+  en: 'All records',
+  fr: "Tout l'historique",
   },
   prescriptionRecognitionShort: {
     ko: '처방약 인식',
