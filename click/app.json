@@ -4,7 +4,7 @@
     "slug": "click",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/app-icon.png",
+    "icon": "./assets/images/click_2.png",
     "scheme": "click",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -14,7 +14,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#F5F7F9",
-        "foregroundImage": "./assets/images/app-icon.png"
+        "foregroundImage": "./assets/images/click_2.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
@@ -34,7 +34,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-logo.png",
+          "image": "./assets/images/click_2.png",
           "imageWidth": 240,
           "resizeMode": "contain",
           "backgroundColor": "#F5F7F9",
