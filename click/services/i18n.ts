@@ -776,12 +776,12 @@ const STRINGS: Record<TranslationKey, Record<AppLanguage, string>> = {
   },
   attentionFound: {
     ko: '주의 발견',
-    en: 'Warnings found',
-    fr: 'Alertes trouvées',
+    en: 'Cautions found',
+    fr: 'Attention détectée',
   },
   noAttentionFound: {
     ko: '주의 정보 미탐지',
-    en: 'No warning found',
+    en: 'No cautions found',
     fr: 'Aucune alerte',
   },
   ingredientMatchFailed: {
